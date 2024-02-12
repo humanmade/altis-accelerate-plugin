@@ -1,0 +1,26 @@
+# Dev setup
+.wordpress
+*.code-workspace
+.vscode
+.history
+.setup/queries/results
+.DS_Store
+
+# Composer
+vendor/
+/plugins/
+
+# Node.js
+node_modules/
+
+# Webpack
+/build/
+
+# Built and generated files
+/deploy/
+
+# Git
+!.gitkeep
+
+# Caches
+.phpunit.result.cache

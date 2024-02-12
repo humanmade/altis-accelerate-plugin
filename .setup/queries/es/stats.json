@@ -1,0 +1,200 @@
+{
+    "query": {
+        "bool": {
+            "filter": [
+                {
+                    "terms": {
+                        "event_type.keyword": [
+                            "pageView"
+                        ]
+                    }
+                },
+                {
+                    "term": {
+                        "attributes.blogId.keyword": "1"
+                    }
+                }
+            ],
+            "must_not": [],
+            "should": []
+        }
+    },
+    "size": 0,
+    "aggs": {
+        "views": {
+            "value_count": {
+                "field": "event_timestamp"
+            }
+        },
+        "visitors": {
+            "cardinality": {
+                "field": "endpoint.Id.keyword"
+            }
+        },
+        "returning": {
+            "filter": {
+                "range": {
+                    "endpoint.Metrics.sessions": {
+                        "gt": 1
+                    }
+                }
+            },
+            "aggregations": {
+                "user": {
+                    "cardinality": {
+                        "field": "endpoint.Id.keyword"
+                    }
+                }
+            }
+        },
+        "bounce": {
+            "range": {
+                "field": "endpoint.Metrics.pageViews",
+                "keyed": true,
+                "ranges": [
+                    {
+                        "key": "single",
+                        "to": 2
+                    },
+                    {
+                        "key": "multiple",
+                        "from": 2
+                    }
+                ]
+            },
+            "aggregations": {
+                "user": {
+                    "cardinality": {
+                        "field": "endpoint.Id.keyword"
+                    }
+                }
+            }
+        },
+        "by_date_and_user": {
+            "date_histogram": {
+                "field": "event_timestamp",
+                "interval": 3600000,
+                "extended_bounds": {
+                    "min": 1661990400000,
+                    "max": 1662508800000
+                }
+            },
+            "aggregations": {
+                "user": {
+                    "cardinality": {
+                        "field": "endpoint.Id.keyword"
+                    }
+                },
+                "returning": {
+                    "filter": {
+                        "range": {
+                            "endpoint.Metrics.sessions": {
+                                "gt": 1
+                            }
+                        }
+                    },
+                    "aggregations": {
+                        "user": {
+                            "cardinality": {
+                                "field": "endpoint.Id.keyword"
+                            }
+                        }
+                    }
+                },
+                "bounce": {
+                    "range": {
+                        "field": "endpoint.Metrics.pageViews",
+                        "keyed": true,
+                        "ranges": [
+                            {
+                                "key": "single",
+                                "to": 2
+                            },
+                            {
+                                "key": "multiple",
+                                "from": 2
+                            }
+                        ]
+                    },
+                    "aggregations": {
+                        "user": {
+                            "cardinality": {
+                                "field": "endpoint.Id.keyword"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "by_date_bucket": {
+            "date_histogram": {
+                "field": "event_timestamp",
+                "interval": 3600000,
+                "extended_bounds": {
+                    "min": 1661990400000,
+                    "max": 1662508800000
+                }
+            }
+        },
+        "by_browser": {
+            "terms": {
+                "field": "device.model.keyword",
+                "missing": "Unknown"
+            }
+        },
+        "by_country": {
+            "terms": {
+                "field": "endpoint.Location.Country.keyword",
+                "missing": "Unknown"
+            }
+        },
+        "by_device": {
+            "terms": {
+                "field": "endpoint.Attributes.DeviceType.keyword",
+                "missing": "Unknown"
+            }
+        },
+        "by_os": {
+            "terms": {
+                "field": "device.platform.name.keyword",
+                "missing": "Unknown"
+            }
+        },
+        "by_referer": {
+            "filter": {
+                "bool": {
+                    "must_not": [
+                        {
+                            "prefix": {
+                                "attributes.referer.keyword": "http: //localhost:8081"
+                            }
+                        }
+                    ]
+                }
+            },
+            "aggs": {
+                "referers": {
+                    "terms": {
+                        "field": "attributes.referer.keyword"
+                    }
+                }
+            }
+        },
+        "by_url": {
+            "terms": {
+                "field": "attributes.url.keyword",
+                "missing": "Unknown",
+                "size": 100
+            }
+        },
+        "by_search_term": {
+            "terms": {
+                "field": "attributes.search.keyword",
+                "min_doc_count": 1,
+                "exclude": [
+                    ""
+                ]
+            }
+        }
+    }
+}

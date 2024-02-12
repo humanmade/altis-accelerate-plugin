@@ -1,0 +1,36 @@
+// Search
+
+@import '../accelerate/variables';
+
+.accelerate-search {
+    position: relative;
+    display: block;
+    width: 100%;
+}
+
+.accelerate-search input[type="text"] {
+    width: 100%;
+    background: $c-grey-100;
+    border-color: transparent;
+    border-radius: 10px;
+    padding-left: 35px;
+    height: 36px;
+    margin: 0;
+}
+
+.accelerate-search input[type="text"]:focus {
+    outline: 0;
+    box-shadow: none;
+    border-bottom: none;
+}
+
+.accelerate-search input[type="text"]::placeholder {
+    color: #7b7b7b;
+}
+
+.accelerate-search .dashicons-search {
+    position: absolute;
+    left: 0;
+    margin: 8px 10px;
+    color: #cbc9c9;
+}

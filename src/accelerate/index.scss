@@ -1,0 +1,459 @@
+// Global variables and styles, used in multiple pages.
+
+// Variables
+@import './variables';
+
+@keyframes altis-bounce {
+	0% {
+		opacity: 0.5;
+	}
+}
+
+// Scoped import for overriding WP component styles.
+.altis-ui {
+	@import "ui";
+	visibility: visible !important;
+    opacity: 1 !important;
+}
+
+// Component styles.
+@import "components/List";
+
+body.wp-admin {
+    background: $c-white;
+}
+
+#Altis_Dashboard__notices {
+    background: $c-grey-100;
+    overflow: hidden;
+}
+
+#Altis_Dashboard__all_notices {
+    overflow: hidden;
+}
+
+#Altis_Dashboard__all_notices > *,
+#Altis_Dashboard__notices > * {
+    margin: 15px 5% 5px 5%;
+}
+
+.altis-ui .wrap > .notice,
+#message {
+	margin-left: 5%;
+	margin-right: 5%;
+}
+
+.App {
+	line-height: 1.7;
+	*,
+	*::before,
+	*::after {
+		box-sizing: border-box;
+	}
+
+	header {
+		display: flex;
+	}
+
+	&__blocks {
+		display: grid;
+		grid-template-columns: repeat( 2, 1fr );
+
+		&--three {
+			grid-template-columns: repeat( 3, 1fr );
+		}
+	}
+}
+
+.altis-telemetry-opt-in {
+	background: #fff;
+	border-bottom: 1px solid #c3c4c7;
+	margin-left: -20px;
+	overflow: hidden;
+	padding-left: 20px;
+}
+
+.altis-notice {
+	position: relative;
+	background: $c-white;
+	box-shadow: 0 5px 10px 0 rgba(0,0,0,0.05);
+	border-radius: 10px;
+	margin: 25px 5% 35px;
+	overflow: hidden;
+	color: $c-space-400;
+	border: 1px solid $c-grey-150;
+
+	h1 {
+		font-size: 2rem;
+		font-weight: 300;
+		margin: 30px 0 30px;
+		color: $c-space-400;
+	}
+
+	h2 {
+		color: $c-space-400;
+	}
+
+	ul {
+		list-style-type: circle;
+		list-style-position: inside;
+		font-size: 1rem;
+		line-height: 1.6;
+	}
+
+	p {
+		font-size: 1rem;
+		line-height: 1.6;
+	}
+
+	&__top {
+		background: $c-altis-400;
+		color: $c-white;
+		padding: 1% 4%;
+		border-radius: 10px 10px 0 0;
+	}
+
+	&__dismiss {
+		position: absolute;
+		right: 1%;
+		top: 10px;
+		cursor: pointer;
+		color: $c-grey-200;
+		background: none;
+		border: 0;
+		box-shadow: none;
+
+		&:hover {
+			opacity: 0.75;
+		}
+	}
+
+	&__content {
+		display: flex;
+		flex-direction: row;
+		align-items: stretch;
+		background: #fff;
+		padding-bottom: 25px;
+		background: rgb(255,255,255);
+		background: linear-gradient(52deg, rgba(255,255,255,0) 0%, rgba(248,249,254,1) 68%, rgba(69,102,222,0.49625787815126055) 100%);
+
+		img {
+			width: 300px;
+			height: 300px;
+		}
+	}
+
+	&__col {
+		flex: 3;
+		padding: 2% 4%;
+
+		&:last-child {
+			flex: 2;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+		}
+	}
+
+	&__heading,
+	&__subheading,
+	&__body,
+	&__cta {
+		margin: 20px 0;
+	}
+
+	&__heading {
+		margin-top: 0;
+	}
+	&__cta {
+		margin-bottom: 0;
+
+		.components-button.is-secondary {
+			background-color: transparent;
+			border: 2px solid $c-space-400;
+			color: $c-space-400;
+			padding: 10px 30px;
+			height: auto;
+
+			&:hover,
+			&:hover:not(:disabled) {
+				background-color: transparent;
+				color: $c-space-300;
+				border-color: $c-space-300;
+			}
+		}
+	}
+}
+
+.accelerate-modal-notice {
+	margin: 5px 0 2px;
+	padding: 0 10px;
+
+	&.is-dismissible {
+		padding-right: 5px;
+	}
+}
+
+.Header {
+	background: $c-grey-100;
+	border-bottom: 1px solid $c-grey-200;
+	padding: 25px 5% 15px;
+	display: flex;
+	justify-content: space-between;
+	margin: 0 0 30px;
+}
+
+.Header	.Logo {
+	margin: 0;
+	padding: 0;
+	display: flex;
+	line-height: 32px;
+}
+
+.Header .Beta {
+	font-size: 0.6rem;
+	background-color: $c-space-400;
+	color: $c-white;
+	border-radius: 10px;
+	padding: 0 6px;
+	height: 1.6em;
+	line-height: 1.6;
+	margin-left: 5px;
+	margin-right: 15px;
+}
+
+.Header .Title {
+    font-size: 23px;
+    font-weight: 400;
+}
+
+.Header .Version {
+    color: #aaa;
+    font-size: 0.7rem;
+    letter-spacing: 0.05rem;
+}
+
+.Header .CannyWrap {
+	position: relative;
+}
+
+.Header .Canny {
+	position: absolute;
+	top: -8px;
+	right: 0;
+	color: $c-space-400;
+	background: $c-altis-50;
+	border-radius: 5px 5px 0 0;
+	padding: 15px 10px 15px 38px;
+	min-width: 270px;
+	line-height: 1;
+	box-shadow: inset 0 -1px 3px rgba(0,0,0,0.2);
+
+	img {
+		position: absolute;
+		top: -5px;
+		left: -25px;
+		height: 50px;
+		width: 50px;
+	}
+
+}
+
+.index-php .Header .Title {
+    visibility: hidden;
+}
+
+#altis-audience-manager > .loading {
+    margin: 30px 5%;
+}
+
+#wpbody-content .wrap .wp-heading-inline,
+#wpbody-content .wrap > h1 {
+    visibility: hidden;
+    position: absolute;
+    top: -100%;
+}
+
+#wpbody-content .wrap .wp-heading-inline + .notice,
+#wpbody-content .wrap > h1 + .notice {
+	margin-left: 5%;
+	margin-right: 5%;
+}
+
+#wpcontent {
+    padding-left: 0;
+}
+
+#wpbody {
+    margin: 0;
+}
+
+#wpbody-content .wrap .wp-heading-inline + * {
+    margin-left: 5%;
+}
+
+#wpbody-content {
+    margin: 0;
+}
+#wpbody-content .wrap {
+    margin: 0 0 20px 0;
+}
+
+#screen-meta-links {
+    margin-left: -100%;
+}
+
+.altis-telemetry-opt-in {
+	margin-left: 0;
+}
+
+
+// Dashboard Global
+.score-pos {
+	color: $c-positive-400 !important;
+}
+
+.score-neg {
+	color: $c-negative-400 !important;
+}
+
+.dashboard-shadow {
+	box-shadow: 0 5px 10px rgba( 0, 0, 0, 0.05 );
+}
+
+// Dashboard
+.Dashboard {
+	width: 100%;
+
+	a {
+		color: $c-altis-400;
+
+		&:hover,
+		&:focus,
+		&:active {
+			color: $c-altis-300;
+		}
+	}
+}
+
+@keyframes altis-bounce {
+	0% {
+		opacity: 0.5;
+	}
+}
+
+.HeroChart {
+	position: relative;
+	margin: 20px 0;
+
+	&__loader {
+		margin-left: 5%;
+		float: left;
+		margin-bottom: -16px;
+		opacity: 0;
+		transition: opacity 1000ms ease-out 2000ms;
+		display: flex;
+		align-items: center;
+
+		&--loading {
+			transition: opacity 0ms linear;
+			opacity: 1;
+		}
+
+		svg {
+			display: inline-block;
+			margin-right: 8px;
+		}
+	}
+
+	&__controls {
+		position: relative;
+		z-index: 2;
+		float: right;
+		margin-bottom: -10px;
+		margin-right: 5%;
+		display: flex;
+		align-items: center;
+
+		> * {
+			margin-left: 20px;
+		}
+
+		> p {
+			padding: 7px 30px 7px 27px;
+			height: 36px;
+			line-height: 20px;
+			border-color: $c-altis-50;
+			border-radius: 10px;
+			box-shadow: inset 0 0 0 1px $c-altis-50;
+			background: transparent;
+			display: inline-block;
+		}
+
+		.dashicons-info-outline {
+			color: $c-grey-400;
+			font-size: 0.8rem;
+			vertical-align: baseline;
+		}
+	}
+
+	&__group {
+		opacity: 1;
+		transition: opacity 500ms ease-out;
+
+		&--loading {
+			opacity: 0.5;
+		}
+
+		* {
+			transition: stroke 300ms ease-in-out, fill 300ms ease-in-out;
+		}
+	}
+
+	&__waiting {
+		opacity: 1;
+		animation: altis-bounce 1500ms ease-in-out infinite alternate;
+	}
+}
+
+.WelcomeIntro {
+	padding: 0 5% 10px;
+
+	h2 {
+		font-size: 1.7em;
+		margin-bottom: 0;
+	}
+
+	p {
+		margin-top: 0;
+		font-size: 1.2em;
+		padding: 0;
+		color: $c-grey-400;
+	}
+}
+
+.Welcome {
+	position: relative;
+	font-size: 16px;
+	padding: 10px $sidebar-padding 40px;
+	background: $c-space-400;
+	color: $c-white;
+
+	h2 {
+		color: $c-white;
+		font-size: 24px;
+	}
+
+	p {
+		font-size: inherit;
+	}
+
+	.components-button {
+		margin-right: 1em;
+		font-size: inherit;
+
+		span[role="img"] {
+			margin-left: 0.5em;
+		}
+	}
+}

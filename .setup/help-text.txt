@@ -1,0 +1,23 @@
+
+--------------------------------------------------------------------------------------
+
+WordPress is now running at http://localhost:8081/wp-admin/
+
+If you haven't set up Clickhouse before you should now run `composer ch-setup`.
+
+Available commands:
+
+composer stop
+     Stop the dev environment
+composer build-deps
+     Builds all dependencies
+composer cli
+     Run WP CLI commands, e.g. `composer cli option list`
+composer shell
+     Open a shell session on the WordPress container.
+composer ch-setup
+     Creates the ClickHouse analytics database, it will also drop any existing database.
+composer ch-query
+     Run an SQL query against ClickHouse directly e.g. `composer ch-query 'SELECT * FROM analytics LIMIT 10;'`
+composer grafana
+     Open Grafana in the default browser.

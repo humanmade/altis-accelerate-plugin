@@ -1,0 +1,88 @@
+/*
+* COLOURS
+* - Similar to font weights, lower numbers are brighter/lighter, and high is dark.
+* - 400 will be the normal colour, whilst others are a shade of it.
+* - Values are in HSL in order to maintain hue consistency across shades.
+* - Use-cases are attached as inline comments.
+*/
+
+$c-white: #fff;
+
+$c-altis-25: hsl(227, 70%, 97%); 
+$c-altis-50: hsl(227, 70%, 95%); // Thumbnail BG + Ghost Bars
+$c-altis-300: hsl(227, 70%, 62%); // Primary Hover
+$c-altis-400: hsl(227, 70%, 57%); // Primary / CTA's
+
+$c-space-10: hsl(218, 58%, 98%);
+$c-space-25: hsl(218, 58%, 97%);
+$c-space-50: hsl(218, 58%, 95%);
+$c-space-75: hsl(218, 58%, 93%);
+$c-space-100: hsl(218, 58%, 80%);
+$c-space-200: hsl(218, 58%, 70%);
+$c-space-300: hsl(218, 58%, 30%);
+$c-space-400: hsl(218, 58%, 19%);
+
+$c-slate-400: hsl(257, 70%, 62%);
+
+$c-grey-50: hsl(0, 0%, 97%);
+$c-grey-100: hsl(0, 0%, 95%);
+$c-grey-150: hsl(0, 0%, 90%);
+$c-grey-200: hsl(0, 0%, 80%);
+$c-grey-400: hsl(0, 0%, 50%);
+$c-grey-600: hsl(0, 0%, 30%);
+
+$c-positive-100: hsl(150, 60%, 95%); // positive score or otherwise, triadic compliment of c-altis
+$c-positive-400: hsl(150, 60%, 50%); // positive score or otherwise, triadic compliment of c-altis
+$c-negative-100: hsl(347, 60%, 95%); // negative score or otherwise, triadic compliment of c-altis
+$c-negative-400: hsl(347, 60%, 60%); // negative score or otherwise, triadic compliment of c-altis
+
+/**
+ * WordPress Gutenberg Colors
+ * https://github.com/WordPress/gutenberg/blob/trunk/packages/base-styles/_colors.scss
+ */
+
+// WordPress grays.
+$black: #000;			// Use only when you truly need pure black. For UI, use $gray-900.
+$gray-900: #1e1e1e;
+$gray-800: #2f2f2f;
+$gray-700: #757575;		// Meets 4.6:1 text contrast against white.
+$gray-600: #949494;		// Meets 3:1 UI or large text contrast against white.
+$gray-400: #ccc;
+$gray-300: #ddd;		// Used for most borders.
+$gray-200: #e0e0e0;		// Used sparingly for light borders.
+$gray-100: #f0f0f0;		// Used for light gray backgrounds.
+$white: #fff;
+
+// Opacities & additional colors.
+$dark-theme-focus: $white;	// Focus color when the theme is dark.
+$dark-gray-placeholder: rgba($gray-900, 0.62);
+$medium-gray-placeholder: rgba($gray-900, 0.55);
+$light-gray-placeholder: rgba($white, 0.65);
+
+// Alert colors.
+$alert-yellow: #f0b849;
+$alert-red: #cc1818;
+$alert-green: #4ab866;
+
+/*
+* SHADOWS
+*/
+
+$sh-black-05: rgba(0, 0, 0, 0.05);
+
+/*
+* LAYOUT SIGNATURES
+*
+*/
+
+$sidebar-padding: 5%;
+$br-sm: 5px;
+$br: 10px;
+$br-xl: 15px;
+
+/*
+* ANIMATIONS
+*/
+
+$a-button-on: all 1000ms ease-out;
+$a-button-off: all 1000ms ease-in;

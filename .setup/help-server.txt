@@ -1,0 +1,17 @@
+
+--------------------------------------------------------------------------------------
+
+If you haven't set up Clickhouse before you should now run `composer ch-setup`.
+
+Available commands:
+
+composer stop-server
+     Stop the server environment
+composer build-deps
+     Builds all dependencies
+composer ch-setup
+     Creates the ClickHouse analytics database, it will also drop any existing database.
+composer ch-query
+     Run an SQL query against ClickHouse directly e.g. `composer ch-query 'SELECT * FROM analytics LIMIT 10;'`
+composer grafana
+     Open Grafana in the default browser.

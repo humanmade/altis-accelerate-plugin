@@ -1,0 +1,71 @@
+{
+    "query": {
+        "bool": {
+            "filter": [
+                {
+                    "term": {
+                        "attributes.blogId.keyword": 1
+                    }
+                },
+                {
+                    "range": {
+                        "event_timestamp": {
+                            "gte": 1661990400000,
+                            "lt": 1662508800000
+                        }
+                    }
+                },
+                {
+                    "term": {
+                        "event_type.keyword": "pageView"
+                    }
+                },
+                {
+                    "bool": {
+                        "filter": [
+                            {
+                                "bool": {
+                                    "should": [
+                                        {
+                                            "bool": {
+                                                "filter": [
+                                                    {
+                                                        "term": {
+                                                            "endpoint.Location.Country.keyword": "JP"
+                                                        }
+                                                    }
+                                                ],
+                                                "must_not": []
+                                            }
+                                        }
+                                    ]
+                                }
+                            }
+                        ]
+                    }
+                }
+            ]
+        }
+    },
+    "aggs": {
+        "estimate": {
+            "cardinality": {
+                "field": "endpoint.Id.keyword"
+            }
+        },
+        "histogram": {
+            "histogram": {
+                "field": "event_timestamp",
+                "interval": 21600000,
+                "extended_bounds": {
+                    "min": 1661990400000,
+                    "max": 1662508800000
+                }
+            }
+        }
+    },
+    "size": 0,
+    "sort": {
+        "event_timestamp": "desc"
+    }
+}

@@ -1,0 +1,69 @@
+{
+    "query": {
+        "bool": {
+            "filter": [
+                {
+                    "term": {
+                        "attributes.blogId.keyword": 1
+                    }
+                },
+                {
+                    "terms": {
+                        "event_type.keyword": [
+                            "experienceView",
+                            "conversion"
+                        ]
+                    }
+                }
+            ]
+        }
+    },
+    "aggs": {
+        "blocks": {
+            "terms": {
+                "field": "attributes.clientId.keyword",
+                "size": 5000
+            },
+            "aggs": {
+                "views": {
+                    "filter": {
+                        "term": {
+                            "event_type.keyword": "experienceView"
+                        }
+                    },
+                    "aggs": {
+                        "uniques": {
+                            "cardinality": {
+                                "field": "endpoint.Id.keyword"
+                            }
+                        }
+                    }
+                },
+                "conversions": {
+                    "filter": {
+                        "term": {
+                            "event_type.keyword": "conversion"
+                        }
+                    },
+                    "aggs": {
+                        "uniques": {
+                            "cardinality": {
+                                "field": "endpoint.Id.keyword"
+                            }
+                        }
+                    }
+                },
+                "conversion_rate": {
+                    "bucket_script": {
+                        "buckets_path": {
+                            "views": "views>uniques",
+                            "conversions": "conversions>uniques"
+                        },
+                        "script": "params.conversions / params.views"
+                    }
+                }
+            }
+        }
+    },
+    "size": 0
+}

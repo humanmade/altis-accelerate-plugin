@@ -1,0 +1,170 @@
+{
+    "query": {
+        "bool": {
+            "filter": [
+                {
+                    "terms": {
+                        "event_type.keyword": [
+                            "pageView",
+                            "blockView",
+                            "experienceView",
+                            "conversion"
+                        ]
+                    }
+                },
+                {
+                    "term": {
+                        "attributes.blogId.keyword": "1"
+                    }
+                }
+            ],
+            "must_not": [],
+            "should": []
+        }
+    },
+    "size": 0,
+    "aggs": {
+        "posts": {
+            "filter": {
+                "term": {
+                    "event_type.keyword": "pageView"
+                }
+            },
+            "aggregations": {
+                "ids": {
+                    "terms": {
+                        "field": "attributes.postId.keyword",
+                        "size": 1000
+                    }
+                }
+            }
+        },
+        "blocks": {
+            "filter": {
+                "term": {
+                    "event_type.keyword": "blockView"
+                }
+            },
+            "aggregations": {
+                "ids": {
+                    "terms": {
+                        "field": "attributes.blockId.keyword",
+                        "size": 1000
+                    }
+                }
+            }
+        },
+        "xbs": {
+            "filter": {
+                "terms": {
+                    "event_type.keyword": [
+                        "experienceView",
+                        "conversion"
+                    ]
+                }
+            },
+            "aggregations": {
+                "ids": {
+                    "terms": {
+                        "field": "attributes.clientId.keyword",
+                        "size": 1000
+                    },
+                    "aggregations": {
+                        "views": {
+                            "filter": {
+                                "term": {
+                                    "event_type.keyword": "experienceView"
+                                }
+                            },
+                            "aggregations": {
+                                "unique": {
+                                    "cardinality": {
+                                        "field": "endpoint.Id.keyword"
+                                    }
+                                },
+                                "fallback": {
+                                    "filter": {
+                                        "term": {
+                                            "attributes.audience.keyword": "0"
+                                        }
+                                    },
+                                    "aggs": {
+                                        "unique": {
+                                            "cardinality": {
+                                                "field": "endpoint.Id.keyword"
+                                            }
+                                        }
+                                    }
+                                },
+                                "personalized": {
+                                    "filter": {
+                                        "bool": {
+                                            "must_not": {
+                                                "term": {
+                                                    "attributes.audience.keyword": "0"
+                                                }
+                                            }
+                                        }
+                                    },
+                                    "aggs": {
+                                        "unique": {
+                                            "cardinality": {
+                                                "field": "endpoint.Id.keyword"
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "conversions": {
+                            "filter": {
+                                "term": {
+                                    "event_type.keyword": "conversion"
+                                }
+                            },
+                            "aggregations": {
+                                "unique": {
+                                    "cardinality": {
+                                        "field": "endpoint.Id.keyword"
+                                    }
+                                },
+                                "fallback": {
+                                    "filter": {
+                                        "term": {
+                                            "attributes.audience.keyword": "0"
+                                        }
+                                    },
+                                    "aggs": {
+                                        "unique": {
+                                            "cardinality": {
+                                                "field": "endpoint.Id.keyword"
+                                            }
+                                        }
+                                    }
+                                },
+                                "personalized": {
+                                    "filter": {
+                                        "bool": {
+                                            "must_not": {
+                                                "term": {
+                                                    "attributes.audience.keyword": "0"
+                                                }
+                                            }
+                                        }
+                                    },
+                                    "aggs": {
+                                        "unique": {
+                                            "cardinality": {
+                                                "field": "endpoint.Id.keyword"
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

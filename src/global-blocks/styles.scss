@@ -1,0 +1,766 @@
+@import '../accelerate/variables';
+
+// Set the Core "synced" color to Altis blue.
+:root{
+	--wp-block-synced-color: hsl(227, 70%, 57%);
+}
+
+// Relationships list styles
+.altis-reusable-block-relationships__relationships_list.components-panel__body {
+	&.is-opened {
+		padding: 0;
+	}
+
+	.components-panel__row {
+		margin: 0;
+		padding: 10px 16px;
+		min-height: 38px;
+
+		&:nth-child( even ) {
+			background: #F4F4F4;
+		}
+
+		&.tablenav {
+			background: #fff;
+			border-top: 1px solid #e2e4e7;
+			height: auto;
+
+			.tablenav-pages {
+				float: none;
+				margin: 0;
+			}
+
+			.tablenav-paging-text {
+				margin: 0 10px;
+			}
+		}
+	}
+
+	.components-placeholder {
+		background: transparent;
+	}
+
+	.components-spinner {
+		margin: 0 auto;
+	}
+}
+
+// Block display styles
+.block-editor-block-list__layout .block-editor-block-list__block[data-title="Global Block"]:focus,
+.block-editor-block-list__layout .block-editor-block-list__block[data-title="Global Block"]:hover {
+
+	&:before {
+		background: none;
+		box-shadow: none;
+	}
+
+}
+
+.block-editor-reusable-blocks-inserter {
+	display: flex;
+	flex-flow: row wrap;
+	overflow: hidden;
+
+	.block-editor-reusable-blocks-inserter__filter {
+		width: 100%;
+		flex-shrink: 0;
+		display: flex;
+		align-items: flex-start;
+
+		.components-base-control {
+			max-width: 30rem;
+			width: 100%;
+			margin-right: 1rem;
+			margin-bottom: 16px;
+
+			&__label {
+				margin-right: 0.3rem;
+			}
+
+			.components-text-control__input {
+				max-width: 25rem;
+			}
+		}
+	}
+
+	.block-editor-block-types-list {
+		margin-left: 0;
+		padding-left: 0;
+	}
+
+	@media ( max-width: 1280px ) {
+		.block-editor-block-types-list__list-item {
+			width: 50%;
+		}
+	}
+
+	.block-editor-reusable-blocks-inserter__list,
+	.block-editor-reusable-blocks-inserter__preview {
+		flex: 1;
+		width: 100%;
+		padding: 1rem;
+		overflow: scroll;
+		max-height: 684px;
+	}
+}
+
+// Hide the reusable blocks category except during search.
+.block-editor-inserter__reusable-blocks-panel {
+	display: none;
+
+	&.is-opened {
+		display: block;
+	}
+}
+
+.wp-block,
+.is-root-container {
+	.global-block-wrapper {
+		position: relative;
+	}
+	.global-block-wrapper-inner {
+		position: relative;
+		z-index: 2;
+
+		> div::before {
+			transition: all 340ms;
+		}
+	}
+
+	.global-block-wrapper:not(.is-selected) .global-block-wrapper-inner {
+		position: relative;
+
+		> div {
+			position: relative;
+		}
+
+		> div::before {
+			position: absolute;
+			content: " ";
+			top: 0;
+			left: 0;
+			right: 0;
+			bottom: 0;
+			outline: 5px solid fade-out($c-altis-400, 0.3);
+			outline-offset: -5px;
+			border-radius: 2px;
+			z-index: 11;
+		}
+	}
+
+	.global-block-wrapper.is-selected .global-block-wrapper-inner {
+		> div::before {
+			outline: 5px solid fade-out($c-altis-400, 0.1);
+		}
+	}
+
+	.global-block-label {
+		pointer-events: none;
+		display: inline-block;
+		font-size: 11px;
+		text-transform: uppercase;
+		letter-spacing: 0.1rem;
+		background: fade-out($c-altis-400, 0.3);
+		color: #fff;
+		padding: 1px 6px 1px;
+		height: 20px;
+		line-height: 19px;
+		font-weight: 700;
+		border-radius: 0 0 5px 0;
+		position: absolute;
+		top: 5px;
+		left: 5px;
+		z-index: 13;
+		transition: all 340ms;
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+
+		.dashicon {
+			position: relative;
+			top: 2px;
+		}
+	}
+
+	.is-selected .global-block-label {
+		border-radius: 5px;
+		background: fade-out($c-altis-400, 0.1);
+	}
+
+	.global-block-label .dashicons {
+		font-size: 14px;
+		width: 14px;
+		height: 14px;
+	}
+}
+
+.altis-gb-label {
+	display: flex;
+	flex-direction: column;
+	text-align: left;
+	min-width: 12rem;
+
+	small {
+		position: relative;
+		top: -1px;
+		margin-left: 5px;
+		font-weight: 300;
+		opacity: 0.6;
+	}
+}
+.altis-gb-label .altis-gb-title {
+	font-size: 0.9em;
+}
+
+/**
+* GB - DROPDOWN
+*/
+
+// Container/Wrap
+
+.altis-gb-dropdown {
+	min-width: 40rem;
+	max-width: 100%;
+	background: $c-grey-50;
+	padding: 4px 2px 4px;
+}
+
+.components-popover__content:has(.altis-gb-dropdown) {
+	// :has support coming to FF Q2-23
+	padding: 0px;
+	box-shadow: none;
+	outline: none;
+	border: 1px solid #aaa;
+	min-width: 500px; //TODO: Remove, HACK
+
+	.altis-gb-dropdown {
+		border: 0;
+	}
+}
+
+.components-popover:has(.altis-gb-dropdown) {
+	box-shadow: 0 4px 11px fade-out(#000, 0.85);
+}
+
+// Row - Meta
+
+.altis-gb-dropdown-meta {
+	padding: 10px;
+
+	.components-base-control__field {
+		margin-bottom: 0;
+	}
+}
+
+.altis-gb-dropdown-meta .altis-gb-dropdown-meta-date {
+	position: relative;
+	border: 0;
+	padding: 0;
+	min-height: auto;
+	background: $c-grey-50;
+
+	&:focus-within {
+		box-shadow: none;
+	}
+
+	> [role="presentation"] {
+		background: #fff;
+		box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+		border-radius: 3px;
+		border: 1px solid #ddd;
+		top: 0;
+		bottom: 0;
+	}
+
+	button {
+		color: $gray-600;
+		position: relative;
+		display: inline-block;
+		cursor: pointer;
+		z-index: 1;
+		padding: 5px 6px;
+	}
+
+	[data-active="true"] button {
+		color: $gray-700;
+		cursor: default;
+	}
+}
+
+// Row - Insights
+
+.altis-gb-dropdown-insights-wrap {
+	padding: 10px;
+}
+
+.altis-gb-dropdown-insights {
+	display: flex;
+	width: 100%;
+
+	.altis-gb-dropdown-insights-row {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+	}
+
+	.altis-gb-dropdown-insight-kpi {
+		flex-grow: 1;
+		width: 45%;
+		padding: 8px 12px;
+		border: 1px solid #ddd;
+		background: #fff;
+		box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+		border-radius: 5px;
+		margin-right: 10px;
+		line-height: 1.5;
+
+		&:last-child {
+			margin-right: 0;
+			width: 55%;
+		}
+	}
+
+	// TODO: This is a temporary fix just for aesthetics, needs to be fixed via SVG params
+	.altis-gb-dropdown-insight-chart svg {
+		position: relative;
+		margin-top: 9px;
+		margin-right: 30px;
+	}
+
+}
+
+.altis-gb-dropdown-label {
+	font-size: 0.7rem;
+	color: $gray-700;
+	font-weight: 500;
+	margin-bottom: 5px;
+
+	// Info tooltip using WP dashicon.
+	span.dashicons {
+		position: relative;
+		display: inline;
+		top: 2px;
+		margin-left: 2px;
+		font-size: 0.8rem;
+		opacity: 0.7;
+		transition: opacity 180ms linear;
+
+		&:hover {
+			opacity: 0.4;
+		}
+	}
+}
+
+.altis-gb-dropdown-kpi {
+	font-size: 1.8rem;
+	font-weight: 600;
+	letter-spacing: 0.04rem;
+}
+
+// Row A/B test results
+
+.altis-gb-dropdown-abtest-result {
+	padding: 12px 12px;
+	border: 1px solid #ddd;
+	background: $c-altis-300;
+	color: #fff;
+	box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+	margin: 10px 10px 5px;
+	border-radius: 5px;
+	line-height: 1.5;
+	font-size: 1.2rem;
+
+	strong {
+		font-size: 1rem;
+	}
+
+	p {
+		margin: 0 0 10px;
+	}
+
+	p:last-of-type {
+		margin-bottom: 0;
+	}
+}
+
+// Row - Human-readable summary
+
+.altis-gb-dropdown-summary {
+	padding: 0px 10px 20px;
+	line-height: 1.6;
+
+	span {
+		display: inline-block;
+		background: $gray-100;
+		padding: 1px 6px;
+		border-radius: 3px;
+	}
+}
+
+// Container - Table of Variants
+
+.altis-gb-dropdown-list {
+	position: relative;
+	border-spacing: 0;
+	margin: 5px 10px;
+	width: calc( 100% - 20px );
+	z-index: 2;
+
+	&:before {
+		content: " ";
+		position: absolute;
+		top: 0;
+		right: 0;
+		bottom: 0;
+		left: 0;
+		box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+		border-radius: 5px;
+		z-index: -1;
+	}
+
+	& > div:first-child {
+		font-size: 0.7rem;
+		font-weight: 500;
+	}
+
+	td, th {
+		border-width: 0;
+	}
+}
+
+.altis-gb-dropdown-listheader,
+.altis-gb-dropdown-listitem {
+	th {
+		vertical-align: baseline;
+	}
+	td {
+		vertical-align: middle;
+	}
+	td, th {
+		text-align: left;
+		padding-top: 6px;
+		padding-bottom: 6px;
+		padding-right: 10px;
+	}
+
+	td, th {
+		border-width: 1px 0;
+	}
+
+	th:first-child {
+		border-left-width: 1px;
+		border-radius: 3px 0 0 3px;
+	}
+
+	th:last-child {
+		border-right-width: 1px;
+		border-radius: 0 3px 3px 0;
+	}
+
+	td:first-child {
+		vertical-align: middle;
+	}
+
+	td:last-child {
+		padding-right: 10px;
+	}
+}
+
+// Row - Table Header
+
+.altis-gb-dropdown-listheader {
+
+	th {
+		padding-top: 10px;
+		padding-bottom: 10px;
+		color: $c-space-200;
+		letter-spacing: -0.01rem;
+		font-size: 0.7rem;
+		line-height: 0.9;
+		border: 1px solid $c-space-75;
+		border-width: 1px 0;
+		background: $c-space-25;
+	}
+
+	th:first-child {
+		border-left-width: 1px;
+		border-radius:5px 0 0 0;
+		padding-left: 10px;
+	}
+
+	th:last-child {
+		border-right-width: 1px;
+		border-radius: 0 5px 0 0;
+		width: 84px;
+	}
+
+	// Info tooltip using WP dashicon (couldn't find components for it)
+	span.dashicons {
+		position: relative;
+		display: inline;
+		top: 2px;
+		margin-left: 2px;
+		font-size: 0.8rem;
+		opacity: 0.7;
+		transition: opacity 180ms linear;
+
+		&:hover {
+			opacity: 0.4;
+		}
+	}
+}
+
+// Row - Table Item
+
+.altis-gb-dropdown-listitem-wrap {
+	padding: 0 8px;
+}
+
+.altis-gb-dropdown-listitem {
+	background: #fff;
+	transition: background-color 180ms ease-in-out;
+
+	&:hover {
+		background: $c-space-10;
+	}
+
+	&--selected {
+		.altis-gb-dropdown-listitem-title {
+			font-weight: 600;
+			color: $c-space-300;
+		}
+	}
+
+	td:first-child {
+		border-left: 1px solid #ddd;
+	}
+
+	td:last-child {
+		border-right: 1px solid #ddd;
+	}
+
+	&:last-child td {
+		border-bottom: 1px solid #ddd;
+
+		td:first-child {
+			border-left-width: 1px;
+			border-radius:0 0 0 5px;
+			padding-left: 10px;
+		}
+
+		td:last-child {
+			border-right-width: 1px;
+			border-radius: 0 0 5px 0;
+		}
+	}
+
+}
+
+// Row - Variant - Various fields
+
+.altis-gb-dropdown-listitem-short {
+	width: 6rem;
+}
+
+.altis-gb-dropdown-listitem-thumb {
+	width: 78px;
+	padding-left: 6px;
+}
+
+.altis-gb-dropdown-listitem-thumb .altis-gb-dropdown-thumb,
+.altis-gb-dropdown-listitem-thumb svg {
+	background: $c-space-50;
+	cursor: pointer;
+	border-radius: 3px;
+	height: 34px;
+	width: 78px;
+	max-width: none; // Prevent shrinking due to global styles applied.
+	display: block;
+}
+
+/* The variant title has a white fade in order to stay on a single line and still be aesthetic */
+.altis-gb-dropdown-listitem-title {
+	overflow: hidden;
+	white-space: nowrap;
+	position: relative;
+	cursor: pointer;
+	letter-spacing: -0.01rem;
+	// TODO: fix so doesn't overlap into border - mask-image: linear-gradient(90deg, rgba(255,255,255,1) 70%, transparent 95%);
+}
+
+.altis-gb-dropdown-listitem .audience-estimate .audience-estimate__percentage {
+	width: 32px;
+	height: 32px;
+	flex: none;
+	margin: 0;
+}
+
+// Row - Actions
+
+.altis-gb-dropdown-insights-wrap + .altis-gb-dropdown-actions-wrap {
+	margin-top: 5px;
+}
+
+.altis-gb-dropdown-actions-wrap {
+	margin: 12px 10px 10px;
+	/* border: 1px solid #ddd;
+	border-radius: 5px;
+	background: #fff;
+	box-shadow: 0 1px 3px rgba(0,0,0,0.05); */
+}
+
+.altis-gb-dropdown-actions {
+	display: flex;
+
+	> div {
+		flex: 1;
+		margin-right: 20px;
+	}
+
+	> div:last-child {
+		margin-right: 0;
+		align-self: flex-end;
+	}
+
+	.altis-gb-dropdown-label {
+		padding-bottom: 10px;
+	}
+
+	.altis-gb-dropdown-label + div {
+		white-space: nowrap;
+	}
+
+	select.components-select-control__input {
+		min-height: 36px !important; // Align height to WP buttons
+	}
+
+	button.components-button.is-secondary {
+		margin-right: 10px;
+		border-radius: 5px;
+		color: $c-space-300;
+		padding-right: 10px;
+		background: #fff;
+		border: 1px solid #ddd;
+		box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+		transition: all 180ms ease-in-out;
+
+		.dashicon {
+			position: relative;
+			vertical-align: middle;
+			top: 2px;
+		}
+
+		&:hover {
+			border: 1px solid $c-altis-300;
+			background: $c-space-10;
+			color: $c-altis-400;
+			box-shadow: 0 1px 1px rgba(0,0,0,0.05);
+		}
+
+		&:last-child {
+			margin-right: 0;
+		}
+	}
+
+}
+
+span.altis-score {
+	display: inline-block;
+	border-radius: 10px;
+	font-weight: 500;
+
+	&.altis-score-positive {
+		background: $c-positive-100;
+		color: $c-positive-400;
+		padding: 2px 7px;
+	}
+
+	&.altis-score-negative {
+		background: $c-negative-100;
+		color: $c-negative-400;
+		padding: 2px 4px;
+	}
+}
+
+.altis-score-fallback {
+	position: relative;
+	display: inline-block;
+	margin-left: 6px;
+
+	&:before {
+		position: absolute;
+		top: 8px;
+		bottom: 0;
+		left: 0;
+		right: 0;
+		content: "";
+		min-width: 14px;
+		border-top: 2px solid $c-grey-150;
+	}
+}
+
+// Hide the default Global Block title in the toolbar.
+.is-global-block-selected .block-editor-block-toolbar .block-editor-block-lock-toolbar,
+.is-global-block-selected .block-editor-block-toolbar .block-editor-block-switcher__toggle-text {
+	display: none;
+}
+
+// Hide the default inserters after any variant block.
+.altis-gb-variant ~ p,
+.altis-gb-variant ~ .block-list-appender {
+	display: none;
+}
+
+.altis-gb-variant-options {
+	display: flex;
+	justify-content: left;
+	margin-block-start: 0;
+	padding: 12px;
+	background: #eee;
+	border: 1px solid #ddd;
+	outline: 0;
+	border-radius: 0 0 7px 7px;
+}
+
+.global-block-wrapper.is-locked .altis-gb-variant-options {
+	display: none;
+}
+
+.altis-gb-variant-options > * {
+	width: 48%;
+
+	.components-button {
+		width: 100%;
+	}
+}
+
+.altis-gb-variant-options .components-button,
+.altis-gb-variant-options .components-button.has-text.has-icon {
+	text-align: center;
+	justify-content: center;
+	background-color: white;
+	border-radius: 4px;
+	border: 1px solid black;
+	box-shadow: none;
+	color: black;
+	max-width: 200px;
+	margin-right: 12px;
+
+	&:hover:not(:disabled) {
+		background-color: $c-altis-300;
+		box-shadow: none;
+		color: #fff;
+	}
+}
+
+.altis-gb-variant-options .audience-select {
+    max-width: 200px;
+}
+
+.components-button .altis-icon {
+	fill: none;
+}
+
+.altis-gb-variant-label {
+	cursor: default;
+}

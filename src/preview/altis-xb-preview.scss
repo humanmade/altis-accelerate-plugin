@@ -1,0 +1,59 @@
+@import '../accelerate/variables.scss';
+
+.altis-xb-preview {
+
+	&--broadcast &__tabs:before {
+		content: 'Broadcast Preview';
+		margin-right: 0.5rem;
+		font-weight: bold;
+		padding: 0.25rem 0.5rem !important;
+	}
+
+	&__tabs {
+		background-color: $c-grey-50;
+		margin: 0.5rem;
+		line-height: 1 !important;
+		font-size: 0.75rem !important;
+		margin: 0 0.25rem 0.25rem 0;
+		padding: 0;
+		border-radius: 2px 2px 0 0 !important;
+		font-family:
+			-apple-system,
+			BlinkMacSystemFont,
+			"Segoe UI",
+			Roboto,
+			Oxygen-Sans,
+			Ubuntu,
+			Cantarell,
+			"Helvetica Neue",
+			sans-serif !important;
+		border-bottom: 1px solid $c-space-300;
+	}
+
+	&__tab {
+		border: 0 !important;
+		background: $c-altis-400 !important;
+		color: #fff !important;
+		padding: 0.5rem 0.5rem !important;
+		font-size: 0.75rem !important;
+		margin: 0 0.25rem 0 0 !important;
+		border-radius: 5px 5px 0 0 !important;
+		cursor: pointer;
+		font-family:
+			-apple-system,
+			BlinkMacSystemFont,
+			"Segoe UI",
+			Roboto,
+			Oxygen-Sans,
+			Ubuntu,
+			Cantarell,
+			"Helvetica Neue",
+			sans-serif !important;
+
+		&.active,
+		&:hover,
+		&:focus {
+			background: $c-space-300 !important;
+		}
+	}
+}

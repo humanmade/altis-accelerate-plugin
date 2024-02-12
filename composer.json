@@ -1,0 +1,124 @@
+{
+    "name": "altis/accelerate",
+    "license": "GPL-2.0-or-later",
+    "type": "wordpress-plugin",
+    "require": {
+        "composer/installers": "^1.7",
+        "humanmade/asset-loader": "^0.6.1",
+        "markrogoyski/math-php": "^0.51.0",
+        "segmentio/analytics-php": "^2.0.0",
+        "php": ">=7.4",
+        "guzzlehttp/guzzle": "^7.3"
+    },
+    "require-dev": {
+        "altis/analytics-demo-tools": "*@dev",
+        "automattic/vipwpcs": "^2.0",
+        "dealerdirect/phpcodesniffer-composer-installer": "^0.7.2",
+        "phpcompatibility/phpcompatibility-wp": "^2.1",
+        "squizlabs/php_codesniffer": "^3.4",
+        "brain/monkey": "^2.3",
+        "mockery/mockery": "^1.2",
+        "phpunit/phpunit": "^9.0"
+    },
+    "config": {
+        "allow-plugins": {
+            "composer/installers": true,
+            "altis/*": true,
+            "dealerdirect/phpcodesniffer-composer-installer": true,
+            "php-http/discovery": true
+        },
+        "preferred-install": {
+            "altis/*": "source"
+        }
+    },
+    "scripts": {
+        "build-deps": [
+            "npm install && npm run build"
+        ],
+        "start": [
+            "if [ ! -d \".wordpress\" ]; then mkdir .wordpress; fi",
+            "docker compose -f docker-compose.wp.yml -f docker-compose.server.yml -p accelerate up -d",
+            "cat .setup/help-text.txt"
+        ],
+        "stop": [
+            "docker compose -f docker-compose.wp.yml -f docker-compose.server.yml -p accelerate down"
+        ],
+        "start-server": [
+            "docker compose -f docker-compose.server.yml -p accelerate up -d",
+            "cat .setup/help-server.txt"
+        ],
+        "stop-server": [
+            "docker compose -f docker-compose.server.yml -p accelerate down"
+        ],
+        "cli": [
+            "docker run -it --rm --volumes-from accelerate-wordpress-1 --env-file .wp-env --network accelerate_default wordpress:cli"
+        ],
+        "shell": [
+            "docker exec -it accelerate-wordpress-1 /bin/bash"
+        ],
+        "grafana": [
+            "open http://localhost:3600"
+        ],
+        "ch-setup": [
+            "docker exec -it accelerate-clickhouse-1 clickhouse-client --queries-file /.setup/create-analytics-table.sql"
+        ],
+        "ch-cli": [
+            "docker exec -it accelerate-clickhouse-1 clickhouse-client"
+        ],
+        "ch-query": [
+            "docker exec -it accelerate-clickhouse-1 clickhouse-client --query"
+        ]
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Altis\\Tests\\Unit\\": "tests/unit/"
+        }
+    },
+    "autoload": {
+        "psr-4": {
+            "Altis\\GlobalBlocks\\REST_API\\": "global-blocks/rest-api/",
+            "Altis\\GlobalBlocks\\REST_API\\Relationships\\": "global-blocks/rest-api/relationships/",
+            "Altis\\GlobalBlocks\\REST_API\\Search\\": "global-blocks/rest-api/search/"
+        },
+        "classmap": [
+            "inc/"
+        ],
+        "files": [
+            "inc/namespace.php",
+            "inc/utils/namespace.php",
+            "inc/telemetry/namespace.php",
+            "inc/analytics/namespace.php",
+            "inc/api/namespace.php",
+            "inc/audiences/namespace.php",
+            "inc/audiences/rest_api/namespace.php",
+            "inc/broadcast/namespace.php",
+            "inc/blocks/namespace.php",
+            "inc/blocks/rest_api/namespace.php",
+            "inc/dashboard/namespace.php",
+            "inc/experiments/namespace.php",
+            "inc/experiments/titles/namespace.php",
+            "inc/experiments/featured-images/namespace.php",
+            "inc/export/cron/namespace.php",
+            "inc/export/namespace.php",
+            "inc/preview/namespace.php",
+            "inc/admin/namespace.php",
+            "inc/admin/notices.php",
+            "inc/beta/namespace.php",
+            "inc/global-blocks/namespace.php",
+            "inc/global-blocks/categories.php",
+            "inc/global-blocks/connections.php",
+            "inc/global-blocks/rest-api/namespace.php",
+            "inc/global-blocks/variant/namespace.php",
+            "inc/ai/namespace.php",
+            "inc/ai/admin/namespace.php",
+            "inc/ai/rest-api/namespace.php"
+        ]
+    },
+    "extra": {
+        "installer-paths": {
+            "plugins/{$name}/": [
+                "type:wordpress-plugin"
+            ]
+        }
+    }
+}

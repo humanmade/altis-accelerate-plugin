@@ -1,0 +1,28 @@
+{
+    "query": {
+        "bool": {
+            "filter": [
+                {
+                    "term": {
+                        "event_type.keyword": "pageView"
+                    }
+                },
+                {
+                    "term": {
+                        "attributes.blogId.keyword": "1"
+                    }
+                }
+            ],
+            "must_not": [],
+            "should": []
+        }
+    },
+    "size": 0,
+    "aggs": {
+        "uniques": {
+            "cardinality": {
+                "field": "endpoint.Id.keyword"
+            }
+        }
+    }
+}

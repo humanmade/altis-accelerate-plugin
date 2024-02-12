@@ -1,0 +1,209 @@
+{
+    "query": {
+        "bool": {
+            "filter": [
+                {
+                    "terms": {
+                        "event_type.keyword": [
+                            "pageView",
+                            "experienceView",
+                            "blockView"
+                        ]
+                    }
+                },
+                {
+                    "term": {
+                        "attributes.blogId.keyword": "1"
+                    }
+                },
+                {
+                    "range": {
+                        "event_timestamp": {
+                            "gte": 1661990400000,
+                            "lt": 1662508800000
+                        }
+                    }
+                }
+            ],
+            "must_not": [],
+            "should": []
+        }
+    },
+    "size": 0,
+    "aggs": {
+        "posts": {
+            "filters": {
+                "filters": {
+                    "2": {
+                        "bool": {
+                            "filter": [
+                                {
+                                    "term": {
+                                        "attributes.postId.keyword": "2"
+                                    }
+                                },
+                                {
+                                    "term": {
+                                        "event_type.keyword": "pageView"
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "1": {
+                        "bool": {
+                            "filter": [
+                                {
+                                    "term": {
+                                        "attributes.postId.keyword": "1"
+                                    }
+                                },
+                                {
+                                    "term": {
+                                        "event_type.keyword": "pageView"
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "13": {
+                        "bool": {
+                            "filter": [
+                                {
+                                    "term": {
+                                        "attributes.blockId.keyword": "13"
+                                    }
+                                },
+                                {
+                                    "term": {
+                                        "event_type.keyword": "blockView"
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "16": {
+                        "bool": {
+                            "filter": [
+                                {
+                                    "term": {
+                                        "attributes.postId.keyword": "16"
+                                    }
+                                },
+                                {
+                                    "term": {
+                                        "event_type.keyword": "pageView"
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "19": {
+                        "bool": {
+                            "filter": [
+                                {
+                                    "term": {
+                                        "attributes.clientId.keyword": "e4e48768-6620-409f-92e1-d607c12220d3"
+                                    }
+                                },
+                                {
+                                    "term": {
+                                        "event_type.keyword": "experienceView"
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "23": {
+                        "bool": {
+                            "filter": [
+                                {
+                                    "term": {
+                                        "attributes.postId.keyword": "23"
+                                    }
+                                },
+                                {
+                                    "term": {
+                                        "event_type.keyword": "pageView"
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "25": {
+                        "bool": {
+                            "filter": [
+                                {
+                                    "term": {
+                                        "attributes.postId.keyword": "25"
+                                    }
+                                },
+                                {
+                                    "term": {
+                                        "event_type.keyword": "pageView"
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "24": {
+                        "bool": {
+                            "filter": [
+                                {
+                                    "term": {
+                                        "attributes.clientId.keyword": "2a7d3480-e525-4fc0-b27d-66d677dd3008"
+                                    }
+                                },
+                                {
+                                    "term": {
+                                        "event_type.keyword": "experienceView"
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "26": {
+                        "bool": {
+                            "filter": [
+                                {
+                                    "term": {
+                                        "attributes.clientId.keyword": "f7s8fgs9-e525-4fc0-b27d-66d677dd3008"
+                                    }
+                                },
+                                {
+                                    "term": {
+                                        "event_type.keyword": "experienceView"
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "aggregations": {
+                "uniques": {
+                    "cardinality": {
+                        "field": "endpoint.Id.keyword"
+                    }
+                },
+                "by_date": {
+                    "date_histogram": {
+                        "field": "event_timestamp",
+                        "interval": "1d",
+                        "extended_bounds": {
+                            "min": 1661990400000,
+                            "max": 1662508800000
+                        }
+                    },
+                    "aggregations": {
+                        "uniques": {
+                            "cardinality": {
+                                "field": "endpoint.Id.keyword"
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

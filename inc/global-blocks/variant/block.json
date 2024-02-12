@@ -1,0 +1,54 @@
+{
+    "name": "altis/variant",
+    "title": "Experience Block Variant",
+    "category": "altis-experience-blocks",
+    "supports": {
+        "reusable": false,
+        "html": false,
+        "lightBlockWrapper": true,
+        "inserter": false
+    },
+    "attributes": {
+        "lock": {
+            "type": "object",
+            "properties": {
+                "edit": {
+                    "type": "boolean",
+                    "default": false
+                },
+                "remove": {
+                    "type": "boolean",
+                    "default": true
+                },
+                "move": {
+                    "type": "boolean",
+                    "default": true
+                }
+            }
+        },
+        "audience": {
+            "type": "number",
+            "default": 0
+        },
+        "fallback": {
+            "type": "boolean"
+        },
+        "goal": {
+            "type": "string",
+            "default": ""
+        },
+        "isValid": {
+            "type": "boolean",
+            "default": true
+        },
+        "percentage": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100
+        },
+        "title": {
+            "type": "string",
+            "default": ""
+        }
+    }
+}

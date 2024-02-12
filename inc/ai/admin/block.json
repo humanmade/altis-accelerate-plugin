@@ -1,0 +1,12 @@
+{
+	"apiVersion": 2,
+	"title": "AI Generation",
+	"name": "altis/ai",
+	"category": "layout",
+	"keywords": [
+		"ai",
+		"gpt"
+	],
+	"icon": "universal-access-alt",
+	"editorStyle": "file:../../../build/blocks/ai.css"
+}

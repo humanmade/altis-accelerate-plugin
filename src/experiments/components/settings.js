@@ -1,0 +1,210 @@
+import React, { Fragment, useEffect } from 'react';
+
+import { trackEvent } from '../../utils/admin';
+import { arrayEquals } from '../../utils';
+import withTestData from '../data/with-test-data';
+
+import DateRangeField from './field-date-range';
+import TrafficPercentageField from './field-traffic-percentage';
+import VariantField from './variant-field';
+
+import {
+	Button,
+	CenteredButton,
+	DestructivedButton,
+	Duration,
+	Notice,
+	PanelRow,
+	Warning,
+} from '.';
+
+const { __ } = wp.i18n;
+
+/**
+ * A/B test settings form component.
+ *
+ * @param {React.ComponentProps} props The settings component props.
+ * @returns {React.ReactNode} The A/B test settings form.
+ */
+const Settings = props => {
+	const {
+		abTest,
+		isSaving,
+		originalValues,
+		post,
+		prevValues,
+		defaultValue,
+		values,
+		test,
+		setState,
+		updateTest,
+		updateValues,
+	} = props;
+	const {
+		paused,
+		started,
+		start_time: startTime,
+		end_time: endTime,
+		traffic_percentage: trafficPercentage,
+		results,
+	} = test;
+	const {
+		variants = [],
+	} = results;
+
+	// Set the initial prevValues value if it's empty.
+	useEffect( () => {
+		if ( originalValues.length && ! prevValues.length ) {
+			setState( { prevValues: originalValues } );
+		}
+	}, [ originalValues, prevValues, setState ] );
+
+	/**
+	 * @param {boolean} state True to pause the test.
+	 */
+	const setPaused = state => {
+		setState( { prevValues: values } );
+		updateTest( { state }, values, true );
+	};
+	/**
+	 * Start the test running.
+	 *
+	 * @param {Array} vals Values to set as previous values.
+	 */
+	const startTest = vals => {
+		setState( { prevValues: vals } );
+		updateTest( {
+			started: true,
+			paused: false,
+		}, vals, true );
+	};
+	/**
+	 * Set the values back to the values stored in the db.
+	 */
+	const resetValues = () => {
+		updateValues( prevValues );
+	};
+
+	const isActive = started && startTime <= Date.now() && endTime >= Date.now();
+
+	return (
+		<Fragment>
+			<PanelRow>
+				{ paused && (
+					<Notice>{ __( 'Your test is paused', 'altis' ) }</Notice>
+				) }
+				{ isActive && ! paused && (
+					<Notice>{ __( 'Your test is running', 'altis' ) }</Notice>
+				) }
+				{ ! paused && startTime >= Date.now() && (
+					<Notice>
+						{ __( 'Your test will start in' ) }
+						{ ' ' }
+						<Duration time={ startTime - Date.now() } />
+					</Notice>
+				) }
+				{ started && (
+					<CenteredButton
+						disabled={ values.length < 2 }
+						isBusy={ isSaving }
+						onClick={ () => {
+							trackEvent( 'Experiments', 'Pause', {
+								test: abTest.id,
+								paused: ! paused,
+							} );
+
+							if ( arrayEquals( values, prevValues ) ) {
+								return setPaused( ! paused );
+							}
+
+							// eslint-disable-next-line no-alert
+							if ( paused && window.confirm( __( 'Are you sure? Editing the values will reset the current test results.', 'altis' ) ) ) {
+								return setPaused( ! paused );
+							}
+
+							setPaused( ! paused );
+						} }
+					>
+						{ paused && __( 'Resume test', 'altis' ) }
+						{ ! paused && __( 'Pause test', 'altis' ) }
+					</CenteredButton>
+				) }
+				{ ! started && (
+					<CenteredButton
+						disabled={ values.length < 2 }
+						isBusy={ isSaving }
+						onClick={ () => {
+							startTest( values );
+							trackEvent( 'Experiments', 'Start', {
+								test: abTest.id,
+							} );
+						} }
+					>
+						{ __( 'Run test', 'altis' ) }
+					</CenteredButton>
+				) }
+				{ started && paused && ! arrayEquals( values, prevValues ) && (
+					<Fragment>
+						<Warning>
+							{ __( 'Editing the values now will reset the test and delete the previous results.' ) }
+						</Warning>
+						<Button
+							isLink
+							onClick={ resetValues }
+						>
+							{ __( 'Undo changes', 'altis' ) }
+						</Button>
+					</Fragment>
+				) }
+			</PanelRow>
+			<PanelRow>
+				<p>{ __( 'Add multiple values and see which one has a higher conversion rate.', 'altis' ) }</p>
+				<VariantField
+					abTest={ abTest }
+					defaultValue={ defaultValue }
+					isEditable={ paused }
+					postId={ post.id }
+					values={ values }
+					variants={ variants }
+					onChange={ updateValues }
+				/>
+			</PanelRow>
+			<PanelRow>
+				<TrafficPercentageField
+					value={ trafficPercentage || 35 }
+					onChange={ percent => updateTest( { traffic_percentage: percent } ) }
+				/>
+			</PanelRow>
+			<PanelRow>
+				<DateRangeField
+					description={ __( 'The test will stop automatically when it reaches statistical significance.', 'altis' ) }
+					endTime={ endTime || Date.now() + ( 30 * 24 * 60 * 60 * 1000 ) }
+					startTime={ startTime || Date.now() }
+					onChangeEnd={ time => updateTest( { end_time: time } ) }
+					onChangeStart={ time => updateTest( { start_time: time } ) }
+				/>
+			</PanelRow>
+			{ started && (
+				<PanelRow>
+					<DestructivedButton
+						onClick={ () => {
+							// eslint-disable-next-line no-alert
+							if ( window.confirm( __( 'Are you sure you want to cancel the test?', 'altis' ) ) ) {
+								updateTest( {
+									end_time: Date.now(),
+								}, false, true );
+								trackEvent( 'Experiments', 'Cancel', {
+									test: abTest.id,
+								} );
+							}
+						} }
+					>
+						{ __( 'Cancel test', 'altis' ) }
+					</DestructivedButton>
+				</PanelRow>
+			) }
+		</Fragment>
+	);
+};
+
+export default withTestData( Settings );

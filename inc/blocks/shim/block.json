@@ -1,0 +1,13 @@
+{
+    "name": "altis/shim",
+    "title": "Conversion Goal Validator",
+    "category": "altis-experience-blocks",
+    "supports": {
+        "inserter": false
+    },
+    "attributes": {
+        "content": {
+            "type": "string"
+        }
+    }
+}
