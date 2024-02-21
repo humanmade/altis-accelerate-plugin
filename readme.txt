@@ -1,8 +1,8 @@
 === Altis Accelerate ===
 Contributors: altisdxp
 Tags: analytics, personalization, a/b testing, experimentation, dxp, ai, openai
-Requires at least: 5.8
-Tested up to: 6.1
+Requires at least: 6.4
+Tested up to: 6.4
 Stable tag: STABLE_TAG
 Requires PHP: 7.4
 License: GPLv2 or later
@@ -12,12 +12,12 @@ Supercharge your WordPress blocks. Accelerate increases your sites engagement by
 
 == Description ==
 
-**Drive higher engagement with your content today**. Altis Accelerate seamlessly integrates and extends the Block Editor to give you unparalleled access to the next generation of marketing technologies. We provide all these tools on top of Reusable Blocks, which we call Global Blocks.
+**Drive higher engagement with your content today**. Altis Accelerate seamlessly integrates and extends the Block Editor to give you unparalleled access to the next generation of marketing technologies. We provide all these tools on top of Synced Patterns.
 
 While Altis is still in beta, we have released the following features.
 
 ### Features:
-- **Global Blocks**, we extend resuable blocks to bring them to the front of your editing experience.
+- **Synced Blocks**, we extend synced patterns to bring them to the front of your editing experience.
 - **AI-Powered Content**, quickly create content and layout using our AI backend (free, no OpenAI key required)
 - **Native Block-Level Analytics**, our in-house analytics solution built specifically for blocks — clickthroughs, conversions are tracked by us and owned by you (with a maximum 90-day retention).
 - **A/B Testing Blocks**, create multiple variants within a block and compare their performance.
@@ -45,9 +45,9 @@ Data about your visitors is automatically collected by Altis Accelerate to power
 
 == Screenshots ==
 
-1. Global Blocks, with one click any block shows our native analytics with event-tracking of your choice.
+1. Synced Patterns, with one click any block shows our native analytics with event-tracking of your choice.
 2. AI-Assistant, free to generate content and layout easily.
-3. A/B Testing, easily upgrade any Global Block to carry additional variants and improvement metrics.
+3. A/B Testing, easily upgrade any Synced Block to carry additional variants and improvement metrics.
 4. Personalization, easily create custom audiences to target with different block variants.
 5. Smart Block Locking, never accidentally edit site-wide content anymore,
 6. Content Explorer, see all your content types and performance in one place.
@@ -67,4 +67,4 @@ Altis automatically collects and processes analytics data using the Altis Analyt
 
 = Where did Reusable blocks go? =
 
-Altis Accelerate renames Reusable Blocks to Global Blocks, and introduces enhanced tools and workflows to fit the transition to the Global Block mindset. Existing reusable blocks will still exist under Global Blocks name.
+Altis Accelerate introduces enhanced tools and workflows to fit the transition to the Synced Pattern mindset.
