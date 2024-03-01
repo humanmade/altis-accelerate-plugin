@@ -92,7 +92,7 @@ function get_block_type( $post ) : string {
  */
 function get_block_type_label( string $block_name ) : string {
 	$types = [
-		'standard' => __( 'Global Block', 'altis' ),
+		'standard' => __( 'Synced Pattern', 'altis' ),
 		'abtest' => __( 'A/B Test', 'altis' ),
 		'personalization' => __( 'Personalized Content', 'altis' ),
 	];
