@@ -213,7 +213,7 @@ class NamespaceTest extends TestCase {
 			->with( [
 				'parent' => 'new-content',
 				'id'     => 'new-wp_block',
-				'title'  => 'Global Block',
+				'title'  => 'Synced Pattern',
 				'href'   => $new_post_url,
 			] )
 			->once();

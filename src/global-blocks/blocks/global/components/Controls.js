@@ -127,7 +127,7 @@ export function Controls( props ) {
 							<>
 								<p><strong>{ __( 'There was no clear winner', 'altis' ) } 🤷</strong></p>
 								<p>{ __( 'There was no statistically significant improvement in the conversion rate between the variants.', 'altis' ) }</p>
-								<p>{ __( 'You can downgrade to a regular Global Block using the sidebar controls or make some edits and save the block to try the test again.', 'altis' ) }</p>
+								<p>{ __( 'You can downgrade to a regular Synced Pattern using the sidebar controls or make some edits and save the block to try the test again.', 'altis' ) }</p>
 							</>
 						) }
 					</div>

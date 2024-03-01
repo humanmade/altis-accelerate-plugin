@@ -14,7 +14,14 @@ use WP_Error;
  */
 function bootstrap() : void {
 
-	require_once __DIR__ . '/../plugins/asset-loader/asset-loader.php';
+	// If the asset-loader plugin is in the plugins directory in the accelerate plugin, it means
+	// the root composer dir is the accelerate plugin. If not, we need to check the composer
+	// root dir, as the asset-loader may have been installed to /vendor.
+	if ( file_exists( __DIR__ . '/../plugins/asset-loader/asset-loader.php' ) ) {
+		require_once __DIR__ . '/../plugins/asset-loader/asset-loader.php';
+	} else if ( defined( 'Altis\\ROOT_DIR' ) && file_exists( \Altis\ROOT_DIR . '/vendor/humanmade/asset-loader/asset-loader.php' ) ) {
+		require_once \Altis\ROOT_DIR . '/vendor/humanmade/asset-loader/asset-loader.php';
+	}
 
 	$constants = [
 		'ALTIS_DASHBOARD_OAUTH2_CLIENT_ID' => 'fcowf2sxofoa',
