@@ -36,9 +36,7 @@ function bootstrap() {
 	add_filter( 'allowed_block_types_all', __NAMESPACE__ . '\\filter_allowed_block_types', 20 );
 	add_filter( 'register_post_type_args', __NAMESPACE__ . '\\show_wp_block_in_menu', 50, 2 );
 
-	add_filter( 'block_categories_all', __NAMESPACE__ . '\\rename_block_category' );
-	add_action( 'registered_post_type_wp_block', __NAMESPACE__ . '\\update_reusable_block_registration', 10, 2 );
-	add_action( 'enqueue_block_editor_assets', __NAMESPACE__ . '\\override_translation_strings', 11 );
+	//add_action( 'registered_post_type_wp_block', __NAMESPACE__ . '\\update_reusable_block_registration', 10, 2 );
 	add_filter( 'block_type_metadata', __NAMESPACE__ . '\\override_block_type_metadata' );
 
 	// Track reusable blocks.
@@ -165,8 +163,8 @@ function show_wp_block_in_menu( array $args, string $post_type ) : array {
 	$args['show_in_menu'] = 'accelerate';
 	$args['menu_position'] = 24;
 	$args['menu_icon'] = plugins_url( '../assets/gb_icon.svg', __DIR__ );
-	$args['labels']['all_items'] = _x( 'Global Blocks', 'post type menu label for all_items', 'altis' );
-	$args['labels']['name'] = _x( 'Global Blocks', 'post type menu label for name', 'altis' );
+	$args['labels']['all_items'] = _x( 'Synced Patterns', 'post type menu label for all_items', 'altis' );
+	$args['labels']['name'] = _x( 'Synced Patterns', 'post type menu label for name', 'altis' );
 
 	return $args;
 }
@@ -261,28 +259,10 @@ function add_block_admin_bar_menu_items( \WP_Admin_Bar $wp_admin_bar ) {
 		[
 			'parent' => 'new-content',
 			'id'     => 'new-wp_block',
-			'title'  => __( 'Global Block', 'altis' ),
+			'title'  => __( 'Synced Pattern', 'altis' ),
 			'href'   => admin_url( 'post-new.php?post_type=wp_block' ),
 		]
 	);
-}
-
-/**
- * Rename the Reusable blocks block category.
- *
- * @param array $block_categories
- *
- * @return array
- */
-function rename_block_category( array $block_categories ) : array {
-	$block_categories = array_map( function( array $block_category ) : array {
-		if ( $block_category['slug'] === 'reusable' ) {
-			$block_category['title'] = __( 'Global Blocks', 'altis' );
-		}
-		return $block_category;
-	}, $block_categories );
-
-	return $block_categories;
 }
 
 /**
@@ -297,61 +277,32 @@ function update_reusable_block_registration( string $post_type, WP_Post_Type $po
 	global $wp_post_types;
 
 	$post_type_object->labels = (object) array_merge( (array) $post_type_object->labels, [
-		'name'                     => _x( 'Global Blocks', 'post type general name', 'altis' ),
-		'singular_name'            => _x( 'Global Block', 'post type singular name', 'altis' ),
-		'add_new'                  => _x( 'Add New', 'Global Block', 'altis' ),
-		'add_new_item'             => __( 'Add new Global Block', 'altis' ),
-		'new_item'                 => __( 'New Global Block', 'altis' ),
-		'edit_item'                => __( 'Edit Global Block', 'altis' ),
-		'view_item'                => __( 'View Global Block', 'altis' ),
-		'view_items'               => __( 'View Global Blocks', 'altis' ),
-		'all_items'                => __( 'Global Blocks', 'altis' ),
-		'search_items'             => __( 'Search Global Blocks', 'altis' ),
-		'not_found'                => __( 'No global blocks found.', 'altis' ),
-		'not_found_in_trash'       => __( 'No global blocks found in Trash.', 'altis' ),
-		'filter_items_list'        => __( 'Filter global blocks list', 'altis' ),
-		'items_list_navigation'    => __( 'Global Blocks list navigation', 'altis' ),
-		'items_list'               => __( 'Global Blocks list', 'altis' ),
-		'item_published'           => __( 'Global Block published.', 'altis' ),
-		'item_published_privately' => __( 'Global Block published privately.', 'altis' ),
-		'item_reverted_to_draft'   => __( 'Global Block reverted to draft.', 'altis' ),
-		'item_scheduled'           => __( 'Global Block scheduled.', 'altis' ),
-		'item_updated'             => __( 'Global Block updated.', 'altis' ),
-		'menu_name'                => __( 'Global Blocks', 'altis' ),
-		'name_admin_bar'           => __( 'Global Block', 'altis' ),
+		'name'                     => _x( 'Synced Patterns', 'post type general name', 'altis' ),
+		'singular_name'            => _x( 'Synced Pattern', 'post type singular name', 'altis' ),
+		'add_new'                  => _x( 'Add New', 'Synced Pattern', 'altis' ),
+		'add_new_item'             => __( 'Add new Synced Pattern', 'altis' ),
+		'new_item'                 => __( 'New Synced Pattern', 'altis' ),
+		'edit_item'                => __( 'Edit Synced Pattern', 'altis' ),
+		'view_item'                => __( 'View Synced Pattern', 'altis' ),
+		'view_items'               => __( 'View Synced Patterns', 'altis' ),
+		'all_items'                => __( 'Synced Patterns', 'altis' ),
+		'search_items'             => __( 'Search Synced Patterns', 'altis' ),
+		'not_found'                => __( 'No Synced Patterns found.', 'altis' ),
+		'not_found_in_trash'       => __( 'No Synced Patterns found in Trash.', 'altis' ),
+		'filter_items_list'        => __( 'Filter Synced Patterns list', 'altis' ),
+		'items_list_navigation'    => __( 'Synced Patterns list navigation', 'altis' ),
+		'items_list'               => __( 'Synced Patterns list', 'altis' ),
+		'item_published'           => __( 'Synced Pattern published.', 'altis' ),
+		'item_published_privately' => __( 'Synced Pattern published privately.', 'altis' ),
+		'item_reverted_to_draft'   => __( 'Synced Pattern reverted to draft.', 'altis' ),
+		'item_scheduled'           => __( 'Synced Pattern scheduled.', 'altis' ),
+		'item_updated'             => __( 'Synced Pattern updated.', 'altis' ),
+		'menu_name'                => __( 'Synced Patterns', 'altis' ),
+		'name_admin_bar'           => __( 'Synced Pattern', 'altis' ),
 	] );
 
 	// phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
 	$wp_post_types[ $post_type ] = $post_type_object;
-}
-
-/**
- * Further rename some strings to reference Global Blocks branding, by hijacking translation strings.
- *
- * @return void
- */
-function override_translation_strings() {
-	$strings = [
-		'Reusable' => [ __( 'Global', 'altis' ) ],
-		'Manage Reusable blocks' => [ __( 'Manage Global Blocks', 'altis' ) ],
-		'Reusable Block' => [ __( 'Global Block', 'altis' ) ],
-		'Reusable blocks' => [ __( 'Global Blocks', 'altis' ) ],
-		'Invalid Reusable block JSON file' => [ __( 'Invalid Global Block JSON file', 'altis' ) ],
-		'Reusable block imported successfully!' => [ __( 'Global Block imported successfully!', 'altis' ) ],
-		'Untitled Reusable block' => [ __( 'Untitled Global Block', 'altis' ) ],
-		'Reusable block created.' => [ __( 'Global Block created.', 'altis' ) ],
-		'Add to Reusable blocks' => [ __( 'Add to Global Blocks', 'altis' ) ],
-		'Create Reusable block' => [ __( 'Create Global Block', 'altis' ) ],
-	];
-
-	wp_add_inline_script(
-		'wp-block-editor',
-		sprintf(
-			'wp.i18n.setLocaleData( %s );',
-			wp_json_encode( $strings )
-		),
-		'before'
-	);
 }
 
 /**
@@ -366,7 +317,6 @@ function override_block_type_metadata( array $metadata ) : array {
 		return $metadata;
 	}
 
-	$metadata['title'] = __( 'Global Block', 'altis' );
 	$metadata['vary_on'] = 'test_variant_id';
 
 	// Block support.

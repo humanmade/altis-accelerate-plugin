@@ -428,7 +428,7 @@ class BroadcastBlock extends HTMLElement {
 
 
 /**
- * Global Block content block element.
+ * Synced Pattern content block element.
  *
  * @param {object} SuperClass
  */
