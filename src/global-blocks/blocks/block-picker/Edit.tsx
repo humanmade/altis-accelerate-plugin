@@ -23,7 +23,7 @@ export default function Edit(props: Block) : JSX.Element {
 	}
 	return (
 		<div style={ { maxHeight: '500px', overflow: 'auto', fontSize: '13px' } }>
-			<BlockSelector placeholder={ __( 'Search Global Blocks', 'altis' ) } value={ [] } onChange={ onChangeSelectedBlocks } />
+			<BlockSelector placeholder={ __( 'Search Synced Patterns', 'altis' ) } value={ [] } onChange={ onChangeSelectedBlocks } />
 		</div>
 	)
 }
