@@ -6,7 +6,7 @@
         "composer/installers": "^1.7",
         "humanmade/asset-loader": "^0.6.1",
         "markrogoyski/math-php": "^0.51.0",
-        "segmentio/analytics-php": "^2.0.0",
+        "segmentio/analytics-php": "^2.0 || ^3.0",
         "php": ">=7.4",
         "guzzlehttp/guzzle": "^7.3"
     },
