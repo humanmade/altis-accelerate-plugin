@@ -46,7 +46,19 @@ export default function VariantRow( props ) {
 			conversions: 0,
 		},
 	};
-	const rowAnalytics = ( analytics?.variants && analytics?.variants.find( variant => variant.id === index ) ) || defaultAnalytics;
+
+	// Finding the correct analytics data for the current variant is a little tricky, as the variant id is different for abtests or personalization blocks.
+	// AB tests are index-based, incrementing integer from 0. The fallback is id: 0, etc. So, we have to use the current row index (props.index) to find the corrosponding analytics data.
+	// Personalization blocks are are id-based whereby the variant ID is the audience ID.
+	let rowAnalytics;
+	if ( blockType === 'abtest' ) {
+		rowAnalytics = ( analytics?.variants && analytics?.variants.find( variant => variant.id === index ) ) || defaultAnalytics;
+	} else if ( blockType === 'personalization' ) {
+		rowAnalytics = ( analytics?.variants && analytics?.variants[ index ] ) || defaultAnalytics;
+	} else {
+		rowAnalytics = defaultAnalytics;
+	}
+
 	const fallbackAnalytics = ( analytics?.variants && analytics?.variants.find( variant => variant.id === 0 ) ) || defaultAnalytics;
 	const baseConversionRate = ( fallbackAnalytics?.unique?.views || 0 ) > 0
 		? ( fallbackAnalytics.unique.conversions / fallbackAnalytics.unique.views ) * 100
