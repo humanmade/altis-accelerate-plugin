@@ -428,7 +428,7 @@ class BroadcastBlock extends HTMLElement {
 
 
 /**
- * Global Block content block element.
+ * Synced Pattern content block element.
  *
  * @param {object} SuperClass
  */
@@ -437,8 +437,8 @@ const Global = SuperClass => class extends SuperClass {
 	logEvents = true;
 
 	get blockId() {
-		console.log(this, this.getAttribute( 'block-id' ))
-		return this.getAttribute( 'block-id' );
+		// Pre-Accelerate versions of Altis Analytics used a different attribute.
+		return this.getAttribute( 'block-id' ) || this.getAttribute( 'client-id' ) || '';
 	}
 
 	get goal() {

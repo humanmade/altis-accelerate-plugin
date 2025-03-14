@@ -85,9 +85,14 @@ const prepareData = async ( value, sanitizeCallback ) => {
  * @param {*} value Attribute to sanitize.
  * @returns {string} Attribute value as a string.
  */
-const sanitizeAttribute = value => Array.isArray( value )
-	? value.map( val => escapeUnicode( val.toString() ) )
-	: escapeUnicode( value.toString() );
+const sanitizeAttribute = value => {
+	if ( value === null || value === undefined ) {
+		return '';
+	}
+	return Array.isArray( value )
+		? value.map( val => escapeUnicode( val.toString() ) )
+		: escapeUnicode( value.toString() );
+}
 
 /**
  * Ensure value is a single float.
