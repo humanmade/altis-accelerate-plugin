@@ -228,7 +228,7 @@ export const withAccelerateControls = createHigherOrderComponent(
 								<DropdownMenu
 									focusOnMount={ false }
 									icon={ MenuIcon }
-									label={ __( 'Global Block Controls', 'altis' ) }
+									label={ __( 'Synced Pattern Controls', 'altis' ) }
 									toggleProps={ {
 										ref: dropdown,
 										children: (
@@ -390,7 +390,7 @@ export const withAccelerateControls = createHigherOrderComponent(
 						<DropdownMenu
 							focusOnMount={ false }
 							icon={ MenuIcon }
-							label={ __( 'Global Block Controls', 'altis' ) }
+							label={ __( 'Synced Pattern Controls', 'altis' ) }
 							toggleProps={ {
 								ref: dropdown,
 								children: (
@@ -451,7 +451,7 @@ export const withAccelerateControls = createHigherOrderComponent(
 					<div className="global-block-label">
 						<Icon icon={ icon } />
 						{ ' ' }
-						{ __( 'Global Block', 'altis' ) }
+						{ __( 'Synced Pattern', 'altis' ) }
 						{ block?.blockType && block?.blockType !== 'standard' ? ` - ${ blockTypes[ block?.blockType ] }` : '' }
 						{ ' ' }
 						<span className="screen-reader-text">{ label }</span>
