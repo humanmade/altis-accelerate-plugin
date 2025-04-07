@@ -428,7 +428,7 @@ class BroadcastBlock extends HTMLElement {
 
 
 /**
- * Global Block content block element.
+ * Synced Pattern content block element.
  *
  * @param {object} SuperClass
  */
@@ -437,7 +437,6 @@ const Global = SuperClass => class extends SuperClass {
 	logEvents = true;
 
 	get blockId() {
-		console.log(this, this.getAttribute( 'block-id' ))
 		return this.getAttribute( 'block-id' );
 	}
 
@@ -524,6 +523,18 @@ const Global = SuperClass => class extends SuperClass {
 		// Trigger scroll handler.
 		observer.observe( this );
 
+		// Start tracking goals.
+		this.setupGoal();
+	}
+
+	// Optional set up before triggering.
+	setup() {}
+
+	// Callback to set content, by default renders contents via <slot></slot>.
+	setContent() {}
+
+	// Sets up the goal handling for conversions.
+	setupGoal() {
 		// Get goal handler from registered goals.
 		const goalHandler = getGoalHandler( this.goal );
 		if ( ! goalHandler ) {
@@ -551,12 +562,6 @@ const Global = SuperClass => class extends SuperClass {
 			}, false );
 		} );
 	}
-
-	// Optional set up before triggering.
-	setup() {}
-
-	// Callback to set content, by default renders contents via <slot></slot>.
-	setContent() {}
 
 };
 
@@ -640,6 +645,9 @@ class PersonalizationBlock extends Global(HTMLElement) {
 				target: this,
 			},
 		} ) );
+
+		// Rebind goal handlers.
+		this.setupGoal();
 	}
 
 }
@@ -744,6 +752,8 @@ class ABTestBlock extends Global(Test(HTMLElement)) {
 		this.setAttribute( 'goal', template.dataset.goal || this.goal || 'engagement' );
 		this.logEvents = true;
 
+		// Rebind goal handlers.
+		this.setupGoal();
 	}
 
 }
