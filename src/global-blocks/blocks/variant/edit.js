@@ -104,15 +104,15 @@ const Edit = ( {
 export default compose(
 	withSelect( ( select, ownProps ) => {
 		const { clientId } = ownProps;
-		const { getBlockOrder, getBlocks, getSelectedBlock, getBlock, getBlockRootClientId, getBlockIndex } = select( 'core/block-editor' );
+		const { getBlockOrder, getBlocks, getSelectedBlock, getBlock, getBlockRootClientId } = select( 'core/block-editor' );
 		const { getEditedEntityRecord } = select( 'core' );
 		const { getCurrentPost } = select( 'core/editor' );
 		const post = getCurrentPost();
 		const parentClientId = getBlockRootClientId( clientId );
 		const parentBlock = parentClientId ? getBlock( parentClientId ) : null;
 		const blockId = post && post.type === 'wp_block' ? post.id : parentBlock.attributes.ref;
-		const variants = getBlocks( parentClientId );
-		const index = getBlockIndex( clientId );
+		const childBlocks = getBlocks( parentClientId );
+		const variants = ( childBlocks || [] ).filter( block => block.name === 'altis/variant' );
 		const parentPost = getEditedEntityRecord( 'postType', 'wp_block', blockId );
 		const selectedVariant = select( 'core/preferences' ).get( 'altis/global-blocks', `${ blockId }:variant` ) || 0;
 
@@ -124,9 +124,8 @@ export default compose(
 		return {
 			blocks: getBlocks( clientId ),
 			hasChildBlocks: getBlockOrder( clientId ).length > 0,
-			index,
 			isChildSelected: block && block.name === 'altis/variant' && block.clientId === clientId,
-			isVisible: selectedVariant === index,
+			isVisible: variants[ selectedVariant ].clientId === clientId,
 			parentClientId,
 			parentPost,
 			selectedVariant,

@@ -302,7 +302,8 @@ function get_graph_data( $start, $end, $resolution = '1 day', ?Filter $filter = 
 	];
 
 	foreach ( $res as $row ) {
-		if ( strpos( $row->date, '1970-' ) !== false || empty( strtotime( $row->date ) ) ) {
+		// Check if the date is 1970 which means it's a roll-up / summary. Due to timezones, this date can also be 1969.
+		if ( strpos( $row->date, '1970-' ) !== false || strpos( $row->date, '1969-' ) !== false || empty( strtotime( $row->date ) ) ) {
 			$data['stats']['summary'] = [
 				'views' => (int) $row->views,
 				'visitors' => (int) $row->uniques,
