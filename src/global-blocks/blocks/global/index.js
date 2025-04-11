@@ -26,7 +26,7 @@ import { AdvancedControls } from './components/AdvancedControls';
 import { GlobalBlockIcon, MenuIcon } from '../../utils/icons';
 
 const blockTypes = {
-	standard: __( 'Global', 'altis' ),
+	standard: __( 'Synced Pattern', 'altis' ),
 	abtest: __( 'A/B Test', 'altis' ),
 	personalization: __( 'Personalized', 'altis' ),
 };
@@ -128,7 +128,7 @@ export const withAccelerateControls = createHigherOrderComponent(
 			return select( 'core' ).getEditedEntityRecord( 'postType', 'wp_block', parentGlobalBlock?.attributes?.ref );
 		}, [ parentGlobalBlock ] );
 
-		const { selectBlock, replaceBlock } = useDispatch( 'core/block-editor' );
+		const { clearSelectedBlock, selectBlock, replaceBlock } = useDispatch( 'core/block-editor' );
 
 		const [ firstLoad, setFirstLoad ] = useState( true );
 		const block = useSelect( select => {
@@ -228,7 +228,7 @@ export const withAccelerateControls = createHigherOrderComponent(
 								<DropdownMenu
 									focusOnMount={ false }
 									icon={ MenuIcon }
-									label={ __( 'Global Block Controls', 'altis' ) }
+									label={ __( 'Synced Pattern Controls', 'altis' ) }
 									toggleProps={ {
 										ref: dropdown,
 										children: (
@@ -255,6 +255,7 @@ export const withAccelerateControls = createHigherOrderComponent(
 											</div>
 										)
 									} }
+									onToggle={ willOpen => willOpen && clearSelectedBlock() }
 								>
 									{ ( { onClose } ) => (
 										<Controls
@@ -309,7 +310,7 @@ export const withAccelerateControls = createHigherOrderComponent(
 										<p>
 											{ __( 'Currently editing', 'altis' ) }
 											{ ' ' }
-											<strong>{ blockPost?.title || __( 'Global Block', 'altis' ) }</strong>
+											<strong>{ blockPost?.title || __( 'Synced Pattern', 'altis' ) }</strong>
 										</p>
 										{ blockPost?.blockType !== 'standard' && (
 											<p>
@@ -390,7 +391,7 @@ export const withAccelerateControls = createHigherOrderComponent(
 						<DropdownMenu
 							focusOnMount={ false }
 							icon={ MenuIcon }
-							label={ __( 'Global Block Controls', 'altis' ) }
+							label={ __( 'Synced Pattern Controls', 'altis' ) }
 							toggleProps={ {
 								ref: dropdown,
 								children: (
@@ -451,7 +452,7 @@ export const withAccelerateControls = createHigherOrderComponent(
 					<div className="global-block-label">
 						<Icon icon={ icon } />
 						{ ' ' }
-						{ __( 'Global Block', 'altis' ) }
+						{ __( 'Synced Pattern', 'altis' ) }
 						{ block?.blockType && block?.blockType !== 'standard' ? ` - ${ blockTypes[ block?.blockType ] }` : '' }
 						{ ' ' }
 						<span className="screen-reader-text">{ label }</span>

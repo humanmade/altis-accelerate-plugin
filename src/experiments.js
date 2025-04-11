@@ -263,7 +263,7 @@ const getGoalHandler = ( name, options = {} ) => {
 
 	// Return a callback that handles the goal configuration and binds event listeners.
 	return ( node, record ) => {
-		if ( goal.closest ) {
+		if ( goal.closest && goal.closest.length > 0 ) {
 			node = node.closest( goal.closest );
 		}
 
@@ -428,7 +428,7 @@ class BroadcastBlock extends HTMLElement {
 
 
 /**
- * Global Block content block element.
+ * Synced Pattern content block element.
  *
  * @param {object} SuperClass
  */
@@ -437,7 +437,6 @@ const Global = SuperClass => class extends SuperClass {
 	logEvents = true;
 
 	get blockId() {
-		console.log(this, this.getAttribute( 'block-id' ))
 		return this.getAttribute( 'block-id' );
 	}
 
@@ -524,6 +523,18 @@ const Global = SuperClass => class extends SuperClass {
 		// Trigger scroll handler.
 		observer.observe( this );
 
+		// Start tracking goals.
+		this.setupGoal();
+	}
+
+	// Optional set up before triggering.
+	setup() {}
+
+	// Callback to set content, by default renders contents via <slot></slot>.
+	setContent() {}
+
+	// Sets up the goal handling for conversions.
+	setupGoal() {
 		// Get goal handler from registered goals.
 		const goalHandler = getGoalHandler( this.goal );
 		if ( ! goalHandler ) {
@@ -551,12 +562,6 @@ const Global = SuperClass => class extends SuperClass {
 			}, false );
 		} );
 	}
-
-	// Optional set up before triggering.
-	setup() {}
-
-	// Callback to set content, by default renders contents via <slot></slot>.
-	setContent() {}
 
 };
 
@@ -640,6 +645,9 @@ class PersonalizationBlock extends Global(HTMLElement) {
 				target: this,
 			},
 		} ) );
+
+		// Rebind goal handlers.
+		this.setupGoal();
 	}
 
 }
@@ -744,6 +752,8 @@ class ABTestBlock extends Global(Test(HTMLElement)) {
 		this.setAttribute( 'goal', template.dataset.goal || this.goal || 'engagement' );
 		this.logEvents = true;
 
+		// Rebind goal handlers.
+		this.setupGoal();
 	}
 
 }
@@ -751,6 +761,10 @@ class ABTestBlock extends Global(Test(HTMLElement)) {
 // Expose experiments API functions.
 window.Altis.Analytics.Experiments.registerGoal = registerGoalHandler; // Back compat.
 window.Altis.Analytics.Experiments.registerGoalHandler = registerGoalHandler;
+
+// Fire a load event once userland API has been exported.
+const loadEvent = new CustomEvent( 'altis.experiments.loaded' );
+window.dispatchEvent( loadEvent );
 
 // Define custom elements when analytics has loaded.
 window.Altis.Analytics.onLoad( () => {
@@ -761,6 +775,6 @@ window.Altis.Analytics.onLoad( () => {
 	window.customElements.define( 'broadcast-block', BroadcastBlock );
 } );
 
-// Fire a ready event once userland API has been exported.
+// Fire a ready event once the custom elements have been defined.
 const readyEvent = new CustomEvent( 'altis.experiments.ready' );
 window.dispatchEvent( readyEvent );
