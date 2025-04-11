@@ -92,7 +92,7 @@ function get_block_type( $post ) : string {
  */
 function get_block_type_label( string $block_name ) : string {
 	$types = [
-		'standard' => __( 'Global Block', 'altis' ),
+		'standard' => __( 'Synced Pattern', 'altis' ),
 		'abtest' => __( 'A/B Test', 'altis' ),
 		'personalization' => __( 'Personalized Content', 'altis' ),
 	];
@@ -155,7 +155,7 @@ function register_scripts() {
  *     - int $args['days'] The number of days to get data for.
  *     - int $args['offset'] The offset for number of days prior to start query from.
  *     - string $args['vary_on'] The field to distinguish variants on.
- * @return array|\WP_Error
+ * @return array{ start?: int, end?: int, loads?: int, views?: int, conversions?: int, unique?: array{ loads?: int, views?: int, conversions?: int }, variants?: array }|\WP_Error
  */
 function get_views( $block_id, $args = [] ) {
 	if ( ! empty( $args ) && is_numeric( $args ) ) {
@@ -204,6 +204,7 @@ function get_views( $block_id, $args = [] ) {
 		$query_params['end'] = strtotime( $args['end'] );
 	}
 
+	$table = defined( 'ACCELERATE_ANALYTICS_CLICKHOUSE_TABLE' ) ? ACCELERATE_ANALYTICS_CLICKHOUSE_TABLE : 'analytics';
 	$query =
 		"SELECT
 			{$vary_on} as variant,
@@ -214,7 +215,7 @@ function get_views( $block_id, $args = [] ) {
 			uniqCombined64If(endpoint_id, event_type = 'blockView') as unique_views,
 			uniqCombined64If(endpoint_id, event_type = 'conversion') as unique_conversions,
 			groupUniqArray(post_id) as post_ids
-		FROM analytics
+		FROM {$table}
 		WHERE
 			blog_id = {blog_id:String}
 			AND event_type IN ('blockLoad', 'blockView', 'conversion')
