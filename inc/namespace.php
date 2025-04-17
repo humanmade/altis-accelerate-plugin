@@ -14,7 +14,14 @@ use WP_Error;
  */
 function bootstrap() : void {
 
-	require_once __DIR__ . '/../plugins/asset-loader/asset-loader.php';
+	// If the asset-loader plugin is in the plugins directory in the accelerate plugin, it means
+	// the root composer dir is the accelerate plugin. If not, we need to check the composer
+	// root dir, as the asset-loader may have been installed to /vendor.
+	if ( file_exists( __DIR__ . '/../plugins/asset-loader/asset-loader.php' ) ) {
+		require_once __DIR__ . '/../plugins/asset-loader/asset-loader.php';
+	} else if ( defined( 'Altis\\ROOT_DIR' ) && file_exists( \Altis\ROOT_DIR . '/vendor/humanmade/asset-loader/asset-loader.php' ) ) {
+		require_once \Altis\ROOT_DIR . '/vendor/humanmade/asset-loader/asset-loader.php';
+	}
 
 	$constants = [
 		'ALTIS_DASHBOARD_OAUTH2_CLIENT_ID' => 'fcowf2sxofoa',
@@ -56,7 +63,7 @@ function bootstrap() : void {
 		'ALTIS_CLICKHOUSE_USER' => sprintf( 'u_%s', $config['app_id'] ),
 		'ALTIS_CLICKHOUSE_PASS' => $config['pass'],
 		'ALTIS_CLICKHOUSE_HOST' => 'eu.db.accelerate.altis.cloud',
-		'ALTIS_CLICKHOUSE_PORT' => '8443',
+		'ALTIS_CLICKHOUSE_PORT' => '443',
 	];
 
 	foreach ( $constants as $constant => $default ) {
@@ -92,7 +99,6 @@ function bootstrap() : void {
 	Analytics\setup();
 	API\setup();
 	GlobalBlocks\bootstrap();
-	AI\bootstrap();
 
 	if ( Utils\is_feature_enabled( 'dashboard' ) ) {
 		Dashboard\setup();
