@@ -110,7 +110,8 @@ function add_plugin_header() : void {
 		<div class="altis-ui">
 			<div class="Header">
 				<h1 class="Logo">
-					<img alt="Altis Accelerate" height="26" src="%s" width="64" />
+					<!--<img alt="Altis Accelerate" height="26" src="%s" width="64" />-->
+					<span>Accelerate</span>
 					<span class="Beta">
 						%s
 					</span>
