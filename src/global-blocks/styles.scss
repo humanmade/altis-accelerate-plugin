@@ -46,8 +46,8 @@
 }
 
 // Block display styles
-.block-editor-block-list__layout .block-editor-block-list__block[data-title="Global Block"]:focus,
-.block-editor-block-list__layout .block-editor-block-list__block[data-title="Global Block"]:hover {
+.block-editor-block-list__layout .block-editor-block-list__block[data-title="Synced Pattern"]:focus,
+.block-editor-block-list__layout .block-editor-block-list__block[data-title="Synced Pattern"]:hover {
 
 	&:before {
 		background: none;
@@ -263,11 +263,12 @@
 		box-shadow: none;
 	}
 
-	> [role="presentation"] {
+	[role="presentation"] {
 		background: #fff;
 		box-shadow: 0 1px 3px rgba(0,0,0,0.05);
 		border-radius: 3px;
 		border: 1px solid #ddd;
+		z-index: 0;
 		top: 0;
 		bottom: 0;
 	}
