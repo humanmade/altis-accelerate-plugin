@@ -26,7 +26,7 @@ import { AdvancedControls } from './components/AdvancedControls';
 import { GlobalBlockIcon, MenuIcon } from '../../utils/icons';
 
 const blockTypes = {
-	standard: __( 'Global', 'altis' ),
+	standard: __( 'Synced Pattern', 'altis' ),
 	abtest: __( 'A/B Test', 'altis' ),
 	personalization: __( 'Personalized', 'altis' ),
 };
@@ -76,7 +76,6 @@ export const withAccelerateControls = createHigherOrderComponent(
 		} = props;
 
 		const {
-			lock = { edit: false, remove: false, move: false },
 			ref = null,
 		} = attributes;
 
@@ -128,9 +127,9 @@ export const withAccelerateControls = createHigherOrderComponent(
 			return select( 'core' ).getEditedEntityRecord( 'postType', 'wp_block', parentGlobalBlock?.attributes?.ref );
 		}, [ parentGlobalBlock ] );
 
-		const { selectBlock, replaceBlock } = useDispatch( 'core/block-editor' );
+		const { clearSelectedBlock, selectBlock, replaceBlock } = useDispatch( 'core/block-editor' );
 
-		const [ firstLoad, setFirstLoad ] = useState( true );
+		// Get the block post, child blocks and variants.
 		const block = useSelect( select => {
 			if ( blockName !== 'core/block' || ! ref ) {
 				return null;
@@ -184,16 +183,6 @@ export const withAccelerateControls = createHigherOrderComponent(
 			}
 		}, [ attributes.align, blockName, childBlocks, setAttributes ] );
 
-		// Set default lock on first load of page, allows moving and removing but not editing content.
-		useEffect( () => {
-			if ( blockName === 'core/block' && firstLoad ) {
-				setFirstLoad( false );
-			}
-			if ( blockName === 'altis/variant' && firstLoad ) {
-				setFirstLoad( false );
-			}
-		}, [ blockName, firstLoad, setAttributes, setFirstLoad ] );
-
 		// Add class name to hide / show elements in the current toolbar.
 		useEffect( () => {
 			if ( blockName !== 'core/block' ) {
@@ -228,7 +217,7 @@ export const withAccelerateControls = createHigherOrderComponent(
 								<DropdownMenu
 									focusOnMount={ false }
 									icon={ MenuIcon }
-									label={ __( 'Global Block Controls', 'altis' ) }
+									label={ __( 'Synced Pattern Controls', 'altis' ) }
 									toggleProps={ {
 										ref: dropdown,
 										children: (
@@ -255,6 +244,7 @@ export const withAccelerateControls = createHigherOrderComponent(
 											</div>
 										)
 									} }
+									onToggle={ willOpen => willOpen && clearSelectedBlock() }
 								>
 									{ ( { onClose } ) => (
 										<Controls
@@ -309,7 +299,7 @@ export const withAccelerateControls = createHigherOrderComponent(
 										<p>
 											{ __( 'Currently editing', 'altis' ) }
 											{ ' ' }
-											<strong>{ blockPost?.title || __( 'Global Block', 'altis' ) }</strong>
+											<strong>{ blockPost?.title || __( 'Synced Pattern', 'altis' ) }</strong>
 										</p>
 										{ blockPost?.blockType !== 'standard' && (
 											<p>
@@ -346,31 +336,16 @@ export const withAccelerateControls = createHigherOrderComponent(
 			replaceBlock( clientId, createBlock( 'core/group', {}, currentBlock?.innerBlocks || [] ) );
 		}
 
-		// Set variant default lock state.
-		if ( firstLoad && blockName === 'altis/variant' && props.attributes ) {
-			// Convert to group block.
-			props.attributes.lock = { edit: false, remove: false, move: true, ...( props.attributes.lock || {} ) };
-		}
-
 		// Standard blocks.
 		if ( blockName !== 'core/block' ) {
 			return <BlockEdit key="edit" { ...props } />;
 		}
 
-		// Set default lock state without using store to avoid undo/redo states.
-		if ( firstLoad && props.attributes ) {
-			props.attributes.lock = { edit: true, remove: false, move: false };
-		}
-
 		// Global block within other content.
-		const isLocked = lock?.edit || false;
-		const label = isLocked ? __( 'Locked', 'altis' ) : __( 'Unlocked', 'altis' );
-		const icon = isLocked ? 'lock' : 'unlock';
 		const title = block?.title || __( '(no title)', 'altis' );
 
 		const classNames = Object.entries( {
 			'global-block-wrapper': true,
-			'is-locked': isLocked,
 			'is-selected': isThisOrChildSelected,
 			'alignnone': ! props.attributes.align || props.attributes.align === 'none',
 			'alignwide': props.attributes.align === 'wide',
@@ -390,7 +365,7 @@ export const withAccelerateControls = createHigherOrderComponent(
 						<DropdownMenu
 							focusOnMount={ false }
 							icon={ MenuIcon }
-							label={ __( 'Global Block Controls', 'altis' ) }
+							label={ __( 'Synced Pattern Controls', 'altis' ) }
 							toggleProps={ {
 								ref: dropdown,
 								children: (
@@ -425,11 +400,6 @@ export const withAccelerateControls = createHigherOrderComponent(
 								/>
 							) }
 						</DropdownMenu>
-						<ToolbarButton
-							icon={ icon }
-							label={ label }
-							onClick={ () => setAttributes( { lock: { ...lock, edit: ! isLocked } } ) }
-						/>
 					</ToolbarGroup>
 				</Toolbar>
 			</BlockControls>,
@@ -446,15 +416,11 @@ export const withAccelerateControls = createHigherOrderComponent(
 					) }
 				/>
 			</InspectorControls>,
-			<div key="locked" className={ classNames }>
-				{ ( isLocked || ! isThisOrChildSelected ) && (
+			<div key="global-block" className={ classNames }>
+				{ ( ! isThisOrChildSelected ) && (
 					<div className="global-block-label">
-						<Icon icon={ icon } />
-						{ ' ' }
-						{ __( 'Global Block', 'altis' ) }
+						{ __( 'Synced Pattern', 'altis' ) }
 						{ block?.blockType && block?.blockType !== 'standard' ? ` - ${ blockTypes[ block?.blockType ] }` : '' }
-						{ ' ' }
-						<span className="screen-reader-text">{ label }</span>
 					</div>
 				) }
 				<div className="global-block-wrapper-inner">
