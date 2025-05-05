@@ -8,10 +8,17 @@ const isProduction = process.env.NODE_ENV === 'production';
 module.exports = {
 	'root': true,
 	'extends': [
-		'humanmade',
-		'plugin:@wordpress/eslint-plugin/recommended',
+		// '@humanmade/eslint-config',
+		'plugin:@wordpress/eslint-plugin/custom',
+		// 'plugin:@wordpress/eslint-plugin/react',
 		'plugin:import/errors',
 	],
+	'ignorePatterns': [ '**/*' ],
+	'parserOptions': {
+		'babelOptions': {
+			'configFile': './.babelrc.js',
+		},
+	},
 	'globals': {
 		'Altis': 'readonly',
 		'wp': 'readonly',
