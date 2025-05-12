@@ -52,6 +52,18 @@ export function Controls( props ) {
 		editEntityRecord( 'postType', 'wp_block', id, edits );
 	};
 
+	const onNavigateToEntityRecord = useSelect( ( select ) => {
+		const { getSettings } = select( 'core/block-editor' );
+		// For editing link to the site editor if the theme and user permissions support it.
+		return getSettings().onNavigateToEntityRecord;
+	}, [] );
+	const handleEditOriginal = () => {
+		onNavigateToEntityRecord( {
+			postId: id,
+			postType: 'wp_block',
+		} );
+	};
+
 	// A/B test handling.
 	let hasEnded = null;
 	let baseVariantData, winningVariantId, winningVariantData = null;
@@ -127,7 +139,7 @@ export function Controls( props ) {
 							<>
 								<p><strong>{ __( 'There was no clear winner', 'altis' ) } 🤷</strong></p>
 								<p>{ __( 'There was no statistically significant improvement in the conversion rate between the variants.', 'altis' ) }</p>
-								<p>{ __( 'You can downgrade to a regular Global Block using the sidebar controls or make some edits and save the block to try the test again.', 'altis' ) }</p>
+								<p>{ __( 'You can downgrade to a regular Synced Pattern using the sidebar controls or make some edits and save the block to try the test again.', 'altis' ) }</p>
 							</>
 						) }
 					</div>
@@ -232,7 +244,7 @@ export function Controls( props ) {
 									</div>
 								</th>
 							) }
-							<th className="altis-gb-dropdown-listitem-short">&nbsp;</th>
+							{ ! clientId && ( <th className="altis-gb-dropdown-listitem-short">&nbsp;</th> ) }
 						</tr>
 					</thead>
 					<tbody className="altis-gb-dropdown-listitem-wrap">
@@ -267,7 +279,18 @@ export function Controls( props ) {
 				<div className="altis-gb-dropdown-actions">
 					<div className="altis-gb-dropdown-actions-upgrade">
 						<div>
-							{ blockType === 'standard' && (
+							{ clientId && (
+								<Button
+									icon="edit"
+									isSecondary
+									onClick={ () => {
+										handleEditOriginal();
+									} }
+								>
+									{ __( 'Edit synced pattern', 'altis' ) }
+								</Button>
+							) }
+							{ ! clientId && blockType === 'standard' && (
 								<>
 									<Button
 										isSecondary
@@ -281,8 +304,7 @@ export function Controls( props ) {
 												fallback: true,
 												title: __( 'Variant A', 'altis' ),
 											}, blocks );
-											insertBlock( newVariant, 0, clientId || '' );
-											clientId && updateBlockAttributes( clientId, { lock: { ...( block.attributes?.lock || {} ), edit: false } } );
+											insertBlock( newVariant, 0, '' );
 										} }
 									>
 										{ __( 'Convert to A/B Test', 'altis' ) }
@@ -290,6 +312,7 @@ export function Controls( props ) {
 									<Button
 										isSecondary
 										onClick={ () => {
+											clientId && handleEditOriginal();
 											updateBlockPost( {
 												blockType: 'personalization',
 											} );
@@ -298,28 +321,27 @@ export function Controls( props ) {
 												fallback: true,
 												title: __( 'Fallback', 'altis' ),
 											}, blocks );
-											insertBlock( newVariant, 0, clientId || '' );
-											clientId && updateBlockAttributes( clientId, { lock: { ...( block.attributes?.lock || {} ), edit: false } } );
+											insertBlock( newVariant, 0, '' );
 										 } }
 									>
 										{ __( 'Convert to Personalized Content', 'altis' ) }
 									</Button>
 								</>
 							) }
-							{ blockType === 'abtest' && (
+							{ ! clientId && blockType === 'abtest' && (
 								<Button
 									icon="plus"
 									isSecondary
 									onClick={ () => {
+										clientId && handleEditOriginal();
 										const newVariant = createBlock( 'altis/variant' );
 										insertBlock( newVariant, variants.length, clientId || '' );
-										clientId && updateBlockAttributes( clientId, { lock: { ...( block.attributes?.lock || {} ), edit: false } } );
 									} }
 								>
 									{ __( 'Add variant', 'altis' ) }
 								</Button>
 							) }
-							{ blockType === 'personalization' && (
+							{ ! clientId && blockType === 'personalization' && (
 								<AudiencePicker
 									audience={ null }
 									button={ ( { onOpen } ) => (
@@ -332,6 +354,7 @@ export function Controls( props ) {
 										</Button>
 									) }
 									onSelect={ audience => {
+										clientId && handleEditOriginal();
 										const newVariant = createBlock( 'altis/variant', { audience } );
 										insertBlock( newVariant, variants.length, clientId || '' );
 										clientId && updateBlockAttributes( clientId, { lock: { ...( block.attributes?.lock || {} ), edit: false } } );
