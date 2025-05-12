@@ -58,6 +58,7 @@ export default function Estimate( props ) {
 	const {
 		estimate,
 		pieChartProps,
+		showPie,
 		showTotals,
 		sparkline,
 		title,
@@ -74,12 +75,14 @@ export default function Estimate( props ) {
 			{ title && (
 				<h3 className="audience-estimate__title">{ title }</h3>
 			) }
-			<PieChart
-				className="audience-estimate__percentage"
-				isLoading={ estimate.isLoading }
-				percent={ estimate.isLoading ? 0 : percent }
-				{ ...pieChartProps }
-			/>
+			{ showPie && (
+				<PieChart
+					className="audience-estimate__percentage"
+					isLoading={ estimate.isLoading }
+					percent={ estimate.isLoading ? 0 : percent }
+					{ ...pieChartProps }
+				/>
+			) }
 			<div className="audience-estimate__totals">
 				{ sparkline && (
 					<Sparklines
@@ -113,6 +116,7 @@ Estimate.defaultProps = {
 	audience: null,
 	estimate: null,
 	pieChartProps: {},
+	showPie: true,
 	showTotals: true,
 	sparkline: false,
 	title: '',

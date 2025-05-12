@@ -2,6 +2,7 @@ import { Tooltip } from '@wordpress/components';
 import React from 'react';
 
 import './BreakdownList.css';
+import BarList from './BarList';
 
 export interface Item {
 	title: string,
@@ -73,32 +74,24 @@ export interface Props {
 }
 
 export default function BreakdownList( props: Props ) {
-	const total = props.total || props.items.reduce( ( total, item ) => total + item.value, 0 );
-	const items = props.maxItems ? props.items.slice( 0, props.maxItems ) : props.items;
+	const newItems = props.items.map( item => ( {
+		_orig: item,
+		name: item.title,
+		value: item.value || 0,
+	} ) );
+
 	return (
-		<ol
-			className="BreakdownList"
-			role="table"
-		>
+		<>
 			{ props.header && (
-				<li
-					className="BreakdownList__header"
-					role="rowgroup"
-				>
-					<span className="BreakdownList__item-title" role="columnheader">{ props.header.title }</span>
-					<span className="BreakdownList__item-value" role="columnheader">{ props.header.value }</span>
-				</li>
+				<h3 className="font-bold text-gray-900 sm:text-sm dark:text-gray-50">
+					{ props.header.title }
+				</h3>
 			) }
-			{ items.map( item => (
-				<Item
-					key={ item.title }
-					showPercent={ typeof props.showPercent !== 'undefined' ? props.showPercent : true }
-					title={ item.title }
-					total={ total }
-					value={ item.value }
-					onSelect={ props.onSelectItem ? () => props.onSelectItem!( item ) : undefined }
-				/>
-			) ) }
-		</ol>
-	)
+			<BarList
+				className="mt-6"
+				data={ newItems }
+				onValueChange={ props.onSelectItem ? v => props.onSelectItem!( v._orig ) : undefined }
+			/>
+		</>
+	);
 }
