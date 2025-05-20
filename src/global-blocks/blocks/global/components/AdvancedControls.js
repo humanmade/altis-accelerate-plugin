@@ -80,7 +80,7 @@ export function AdvancedControls( props ) {
 			title: __( 'Downgrade Block', 'altis' ),
 			children: (
 				<>
-					<p>{ __( 'Convert to standard Global Block using', 'altis' ) }:</p>
+					<p>{ __( 'Convert to standard Synced Pattern using', 'altis' ) }:</p>
 					{ variants.map( ( variant, index ) => {
 						return (
 							<p key={ variant.clientId }>
