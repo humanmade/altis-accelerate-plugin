@@ -14,13 +14,18 @@ use WP_Error;
  */
 function bootstrap() : void {
 
-	require_once __DIR__ . '/../plugins/asset-loader/asset-loader.php';
+	// If the asset-loader plugin is in the plugins directory in the accelerate plugin, it means
+	// the root composer dir is the accelerate plugin. If not, we need to check the composer
+	// root dir, as the asset-loader may have been installed to /vendor.
+	if ( file_exists( __DIR__ . '/../plugins/asset-loader/asset-loader.php' ) ) {
+		require_once __DIR__ . '/../plugins/asset-loader/asset-loader.php';
+	} else if ( defined( 'Altis\\ROOT_DIR' ) && file_exists( \Altis\ROOT_DIR . '/vendor/humanmade/asset-loader/asset-loader.php' ) ) {
+		require_once \Altis\ROOT_DIR . '/vendor/humanmade/asset-loader/asset-loader.php';
+	}
 
 	$constants = [
-		'ALTIS_DASHBOARD_OAUTH2_CLIENT_ID' => 'fcowf2sxofoa',
-		// 'ALTIS_DASHBOARD_OAUTH2_CLIENT_ID' => '2vceivjn7mgh',
-		'ALTIS_DASHBOARD_URL' => 'https://dashboard.altis-dxp.com',
-		// 'ALTIS_DASHBOARD_URL' => 'https://dashboard.humansmadeus.com/',
+		'ACCELERATE_DASHBOARD_OAUTH2_CLIENT_ID' => 'fcowf2sxofoa',
+		'ACCELERATE_DASHBOARD_URL' => 'https://www.accelerateplugin.com',
 	];
 	foreach ( $constants as $constant => $default ) {
 		if ( ! defined( $constant ) ) {
@@ -56,7 +61,7 @@ function bootstrap() : void {
 		'ALTIS_CLICKHOUSE_USER' => sprintf( 'u_%s', $config['app_id'] ),
 		'ALTIS_CLICKHOUSE_PASS' => $config['pass'],
 		'ALTIS_CLICKHOUSE_HOST' => 'eu.db.accelerate.altis.cloud',
-		'ALTIS_CLICKHOUSE_PORT' => '8443',
+		'ALTIS_CLICKHOUSE_PORT' => '443',
 	];
 
 	foreach ( $constants as $constant => $default ) {
@@ -92,7 +97,6 @@ function bootstrap() : void {
 	Analytics\setup();
 	API\setup();
 	GlobalBlocks\bootstrap();
-	AI\bootstrap();
 
 	if ( Utils\is_feature_enabled( 'dashboard' ) ) {
 		Dashboard\setup();
@@ -210,8 +214,8 @@ function extend_environment_traits( array $traits ) : array {
  *
  * @return string
  */
-function get_altis_dashboard_url() : string {
-	return ALTIS_DASHBOARD_URL;
+function get_accelerate_dashboard_url() : string {
+	return ACCELERATE_DASHBOARD_URL;
 }
 
 /**
@@ -219,7 +223,7 @@ function get_altis_dashboard_url() : string {
  *
  * @return string
  */
-function get_altis_dashboard_authorize_url() : string {
+function get_accelerate_dashboard_authorize_url() : string {
 	$args = [
 		'redirect_uri' => admin_url( 'admin.php?page=' . Admin\MENU_SLUG ),
 		'site_name' => get_bloginfo( 'name' ),
@@ -229,43 +233,43 @@ function get_altis_dashboard_authorize_url() : string {
 		$args['name'] = wp_get_current_user()->display_name;
 		$args['email'] = wp_get_current_user()->user_email;
 	}
-	return add_query_arg( $args, get_altis_dashboard_url() . '/wp-login.php?action=oauth2_authorize&response_type=code&client_id=' . get_altis_dashboard_oauth2_client_id() );
+	return add_query_arg( $args, get_accelerate_dashboard_url() . '/wp-login.php?action=oauth2_authorize&response_type=code&client_id=' . get_accelerate_dashboard_oauth2_client_id() );
 }
 
 /**
- * Get the Altis Dashboard URL.
+ * Get the Accelerate Dashboard URL.
  *
  * @return string
  */
-function get_altis_dashboard_oauth2_client_id() : string {
-	return ALTIS_DASHBOARD_OAUTH2_CLIENT_ID;
+function get_accelerate_dashboard_oauth2_client_id() : string {
+	return ACCELERATE_DASHBOARD_OAUTH2_CLIENT_ID;
 }
 
 /**
- * Set the Altis Dashboard Oauth2 Access token.
+ * Set the Accelerate Dashboard Oauth2 Access token.
  *
  * @param string $access_token
  * @return void
  */
-function set_altis_dashboard_access_token( string $access_token ) : void {
+function set_accelerate_dashboard_access_token( string $access_token ) : void {
 	update_option( 'altis_analytics_dashboard_access_token', $access_token );
 }
 
 /**
- * Delete the Altis Dashboard Oauth2 Access token.
+ * Delete the Accelerate Dashboard Oauth2 Access token.
  *
  * @return void
  */
-function delete_altis_dashboard_access_token() : void {
+function delete_accelerate_dashboard_access_token() : void {
 	delete_option( 'altis_analytics_dashboard_access_token' );
 }
 
 /**
- * Get the Altis Dashboard Oauth2 Access token.
+ * Get the Accelerate Dashboard Oauth2 Access token.
  *
  * @return string
  */
-function get_altis_dashboard_access_token() : ?string {
+function get_accelerate_dashboard_access_token() : ?string {
 	return get_option( 'altis_analytics_dashboard_access_token', null );
 }
 
@@ -277,16 +281,16 @@ function get_altis_dashboard_access_token() : ?string {
  * @param array $args
  * @return WP_Error|mixed
  */
-function altis_dashboard_remote_request( string $path, string $method = 'GET', array $args = [] ) {
+function accelerate_dashboard_remote_request( string $path, string $method = 'GET', array $args = [] ) {
 
-	$url = get_altis_dashboard_url() . '/api' . $path;
-	if ( ! get_altis_dashboard_access_token() ) {
+	$url = get_accelerate_dashboard_url() . '/wp-json' . $path;
+	if ( ! get_accelerate_dashboard_access_token() ) {
 		return new WP_Error( 'altis_analytics_dashboard_access_token_missing', __( 'Altis Dashboard access token is missing.', 'altis-analytics' ) );
 	}
 
 	$request_args = [
 		'headers' => [
-			'Authorization' => 'Bearer ' . get_altis_dashboard_access_token(),
+			'Authorization' => 'Bearer ' . get_accelerate_dashboard_access_token(),
 			'Accept' => 'application/json',
 			'Content-Type' => 'application/json',
 		],

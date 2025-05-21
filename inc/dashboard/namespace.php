@@ -45,6 +45,32 @@ function add_widgets_submenu() : void {
 		'',
 		1
 	);
+
+	$hook = add_submenu_page(
+		'accelerate',
+		_x( 'Analytics', 'page title', 'altis' ),
+		_x( 'Analytics', 'menu title', 'altis' ),
+		'read',
+		'altis-analytics',
+		__NAMESPACE__ . '\\render_analytics_page',
+		1000
+	);
+	add_action( 'load-' . $hook, function () {
+		wp_enqueue_style( 'altis-accelerate-tailwind-TEMP', plugins_url( 'build/blocks/ai.css', \Altis\Accelerate\PLUGIN_FILE ) );
+		Utils\register_assets( 'dashboard', [
+			'dependencies' => [
+				'altis-accelerate-audiences/data',
+				'wp-api-fetch',
+				'wp-components',
+				'wp-core-data',
+				'wp-data',
+				'wp-element',
+				'wp-i18n',
+				'wp-url',
+				'wp-html-entities',
+			],
+		], true );
+	} );
 }
 
 /**
@@ -244,4 +270,12 @@ function block_thumbnail_template_override() : void {
 	echo '</div>';
 	get_footer();
 	exit;
+}
+
+function render_analytics_page() {
+	echo '<div id="accelerate-analytics-root">';
+	if ( wp_get_environment_type() === 'local' ) {
+		echo "<p>Ensure you're running the Webpack server. You may also need to open the script URL directly to accept the SSL certificate.</p>";
+	}
+	echo '</div>';
 }

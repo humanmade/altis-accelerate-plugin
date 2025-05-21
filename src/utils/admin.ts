@@ -169,6 +169,8 @@ export type CustomFilters = {
 export interface Filter {
 	path?: string,
 	time?: number,
+	audience?: any,
+	audienceId?: number,
 }
 
 export type QueryArgs = {
