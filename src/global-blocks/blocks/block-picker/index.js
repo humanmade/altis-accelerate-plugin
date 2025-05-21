@@ -14,7 +14,7 @@ export const options = {
 	edit: Edit,
 	icon: GlobalBlockIcon,
 	save: () => null,
-	title: __( 'Global Block', 'altis' ),
+	title: __( 'Synced Pattern', 'altis' ),
 	supports: {
 		customClassName: false,
 		html: false,
