@@ -198,6 +198,10 @@ function register_post_ab_tests_rest_fields() {
 		'get_callback' => function ( array $post ) {
 			$response = [];
 			foreach ( array_keys( get_post_ab_tests() ) as $test_id ) {
+				if ( ! isset( $post['type'] ) ) {
+					// The wp-global-styles post type is show_in_rest, but has no 'type'.
+					continue;
+				}
 				// Skip this test for unsupported types.
 				if ( ! in_array( $post['type'], get_post_types_by_support( "altis.experiments.{$test_id}" ), true ) ) {
 					continue;
