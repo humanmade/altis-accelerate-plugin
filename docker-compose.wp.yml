@@ -1,9 +1,7 @@
-version: '3.1'
-
 services:
 
   wordpress:
-    image: wordpress:php7.4
+    image: wordpress:6.7-php8.1
     restart: always
     ports:
       - 8081:80
@@ -17,15 +15,19 @@ services:
       WORDPRESS_DEBUG: 1
       WP_ENVIRONMENT_TYPE: ${WP_ENVIRONMENT_TYPE:-local}
       ALTIS_ACCELERATE_PINPOINT_ENDPOINT: http://localhost:3399
+      WP_PHPUNIT__TESTS_CONFIG: /var/www/html/wp-content/plugins/altis-accelerate/tests/phpunit/wp-tests-config.php
       WORDPRESS_CONFIG_EXTRA: |
         define( 'WORDPRESS_DEBUG_LOG', true );
         define( 'WORDPRESS_DEBUG_DISPLAY', true );
     volumes:
       - ./:/var/www/html/wp-content/plugins/altis-accelerate
       - ./.wordpress:/var/www/html
+    depends_on:
+      db:
+        condition: service_healthy
 
   db:
-    image: mariadb
+    image: mariadb:11.7
     restart: always
     ports:
       - 3306
@@ -36,6 +38,11 @@ services:
       MYSQL_RANDOM_ROOT_PASSWORD: '1'
     volumes:
       - db:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mariadb-admin", "ping", "-h", "localhost", "-u", "wordpress", "-pwordpress"]
+      interval: 5s
+      timeout: 2s
+      retries: 10
 
 volumes:
   db:
