@@ -46,7 +46,19 @@ export default function VariantRow( props ) {
 			conversions: 0,
 		},
 	};
-	const rowAnalytics = ( analytics?.variants && analytics?.variants.find( variant => variant.id === index ) ) || defaultAnalytics;
+
+	// Finding the correct analytics data for the current variant is a little tricky, as the variant id is different for abtests or personalization blocks.
+	// AB tests are index-based, incrementing integer from 0. The fallback is id: 0, etc. So, we have to use the current row index (props.index) to find the corrosponding analytics data.
+	// Personalization blocks are are id-based whereby the variant ID is the audience ID.
+	let rowAnalytics;
+	if ( blockType === 'abtest' ) {
+		rowAnalytics = ( analytics?.variants && analytics?.variants.find( variant => variant.id === index ) ) || defaultAnalytics;
+	} else if ( blockType === 'personalization' ) {
+		rowAnalytics = ( analytics?.variants && analytics?.variants[ index ] ) || defaultAnalytics;
+	} else {
+		rowAnalytics = defaultAnalytics;
+	}
+
 	const fallbackAnalytics = ( analytics?.variants && analytics?.variants.find( variant => variant.id === 0 ) ) || defaultAnalytics;
 	const baseConversionRate = ( fallbackAnalytics?.unique?.views || 0 ) > 0
 		? ( fallbackAnalytics.unique.conversions / fallbackAnalytics.unique.views ) * 100
@@ -99,60 +111,62 @@ export default function VariantRow( props ) {
 			{ blockType === 'abtest' && (
 				<td className="">{ compactMetric( p2bb, '%' ) }</td>
 			) }
-			<td className="textright">
-				{ blockType === 'abtest' && (
-					<Button
-						icon={ CloneVariantIcon }
-						isTertiary
-						label={ __( 'Clone', 'altis' ) }
-						onClick={ () => {
-							const newVariant = cloneBlock( variant, {
-								fallback: false,
-								audience: null,
-								title: null,
-							} );
-							insertBlock( newVariant, variants.length, blockClientId || '' );
-							onSelectVariant( variants.length );
-						} }
-					/>
-				) }
-				{ blockType === 'personalization' && (
-					<AudiencePicker
-						audience={ null }
-						button={ ( { onOpen } ) => (
-							<Button
-								icon={ CloneVariantIcon }
-								isTertiary
-								label={ __( 'Clone', 'altis' ) }
-								onClick={ onOpen }
-							/>
-						) }
-						onSelect={ audience => {
-							const newVariant = cloneBlock( variant, {
-								fallback: false,
-								audience,
-								title: null,
-							} );
-							insertBlock( newVariant, variants.length, blockClientId || '' );
-							onSelectVariant( variants.length );
-						} }
-					/>
-				) }
-				{ index !== 0 && (
-					<Button
-						icon={ DeleteVariantIcon }
-						isTertiary
-						label={ __( 'Trash', 'altis' ) }
-						onClick={ () => {
-							// eslint-disable-next-line no-alert
-							if ( window.confirm( __( 'Are you sure you want to remove this variant?', 'altis' ) ) ) {
-								onSelectVariant( 0 );
-								removeBlock( clientId );
-							}
-						} }
-					/>
-				) }
-			</td>
+			{ ! blockClientId && (
+				<td className="textright">
+					{ blockType === 'abtest' && (
+						<Button
+							icon={ CloneVariantIcon }
+							isTertiary
+							label={ __( 'Clone', 'altis' ) }
+							onClick={ () => {
+								const newVariant = cloneBlock( variant, {
+									fallback: false,
+									audience: null,
+									title: null,
+								} );
+								insertBlock( newVariant, variants.length, '' );
+								onSelectVariant( variants.length );
+							} }
+						/>
+					) }
+					{ blockType === 'personalization' && (
+						<AudiencePicker
+							audience={ null }
+							button={ ( { onOpen } ) => (
+								<Button
+									icon={ CloneVariantIcon }
+									isTertiary
+									label={ __( 'Clone', 'altis' ) }
+									onClick={ onOpen }
+								/>
+							) }
+							onSelect={ audience => {
+								const newVariant = cloneBlock( variant, {
+									fallback: false,
+									audience,
+									title: null,
+								} );
+								insertBlock( newVariant, variants.length, '' );
+								onSelectVariant( variants.length );
+							} }
+						/>
+					) }
+					{ index !== 0 && (
+						<Button
+							icon={ DeleteVariantIcon }
+							isTertiary
+							label={ __( 'Trash', 'altis' ) }
+							onClick={ () => {
+								// eslint-disable-next-line no-alert
+								if ( window.confirm( __( 'Are you sure you want to remove this variant?', 'altis' ) ) ) {
+									onSelectVariant( 0 );
+									removeBlock( clientId );
+								}
+							} }
+						/>
+					) }
+				</td>
+			) }
 		</tr>
 	);
 };

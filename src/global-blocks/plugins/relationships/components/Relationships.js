@@ -178,8 +178,8 @@ class Relationships extends Component {
 	}
 }
 
-Relationships.propTypes = {
-	currentPostId: PropTypes.number.isRequired,
-};
+// Relationships.propTypes = {
+// 	currentPostId: PropTypes.number.isRequired,
+// };
 
 export default Relationships;
