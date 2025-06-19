@@ -75,10 +75,10 @@ function get_page_notice() : void {
 			'image' => plugins_url( 'assets/hiking.png', Accelerate\PLUGIN_FILE ),
 			'cta' => [
 				'label' => __( 'Create your account now', 'altis' ),
-				'link' => Accelerate\get_altis_dashboard_authorize_url(),
+				'link' => Accelerate\get_accelerate_dashboard_authorize_url(),
 			],
 			'condition' => function () {
-				return empty( Accelerate\get_altis_dashboard_access_token() );
+				return empty( Accelerate\get_accelerate_dashboard_access_token() );
 			}
 		],
 	];
