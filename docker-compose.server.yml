@@ -21,7 +21,7 @@ services:
       INDEX_ROTATION: OneDay
 
   clickhouse:
-    image: clickhouse/clickhouse-server
+    image: clickhouse/clickhouse-server:25.2
     ulimits:
       nofile:
         soft: 262144
@@ -32,6 +32,8 @@ services:
     volumes:
       - ch:/var/lib/clickhouse
       - ./.setup:/.setup
+    environment:
+      CLICKHOUSE_SKIP_USER_SETUP: 1
 
   grafana:
     image: grafana/grafana-enterprise

@@ -16,7 +16,6 @@ const {
 	Config,
 	Consent,
 	Data,
-	Noop,
 	Audiences,
 } = Altis.Analytics;
 
@@ -642,9 +641,11 @@ const Analytics = {
 			return;
 		}
 
-		// Snapshot events to send and clear.
+		// Snapshot events to send and clear if allowed to send.
 		const eventsToDeliver = Analytics.events;
-		Analytics.events = [];
+		if ( ! Altis.Analytics.Noop ) {
+			Analytics.events = [];
+		}
 
 		// Events are associated with an endpoint.
 		const UserId = Analytics.getUserId();
@@ -674,7 +675,7 @@ const Analytics = {
 		};
 
 		// If event delivery is enabled.
-		if ( ! Noop ) {
+		if ( ! Altis.Analytics.Noop ) {
 			navigator.sendBeacon( Config.PinpointEndpoint, JSON.stringify( {
 				app_id: Config.PinpointId,
 				region: Config.PinpointRegion,
