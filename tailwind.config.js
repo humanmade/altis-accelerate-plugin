@@ -1,6 +1,7 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
   content: ["./inc/ai/**/*.{html,js,ts,tsx}", "./src/**/*.{html,js,ts,tsx}"],
+  darkMode: 'media',
   theme: {
     extend: {
       colors: {
@@ -20,11 +21,9 @@ module.exports = {
       }
     }
   },
-
   plugins: [],
   important: '.tailwind',
   corePlugins: {
     preflight: false,
   }
 }
-
