@@ -31,10 +31,10 @@ function get_page_notice() : void {
 	$notices = [
 		'dashboard' => [
 			'dismissable' => true,
-			'heading' => __( 'Welcome to Altis Accelerate (Beta)', 'altis' ),
+			'heading' => __( 'Welcome to Accelerate (Beta)', 'altis' ),
 			'subheading' => '',
 			'body' => '<p>'
-				. __( 'Extend your <strong>WordPress blocks</strong> with the Altis Accelerate plugin. Built by one of WordPress’s most experienced agencies, these features bring together MarTech learnings into a solution powered by its own block-level analytics.', 'altis' )
+				. __( 'Extend your <strong>WordPress blocks</strong> with the Accelerate plugin. Built by one of WordPress’s most experienced agencies, these features bring together MarTech learnings into a solution powered by its own block-level analytics.', 'altis' )
 				. '</p>'
 				. '<ul><li>'
 				. __( 'Broadcast, distribute blocks quickly to the rest of your site.', 'altis' )
@@ -69,16 +69,16 @@ function get_page_notice() : void {
 		],
 		'accelerate_page_altis-accelerate-settings' => [
 			'dismissable' => false,
-			'heading' => __( 'Welcome to Altis Accelerate', 'altis' ),
+			'heading' => __( 'Welcome to Accelerate', 'altis' ),
 			'subheading' => __( 'Unlock marketing within WordPress', 'altis' ),
 			'body' => '<p>' . __( 'If you already have an account you can login via the button below. If you don\'t, creating an account takes just a few moments.', 'altis' ) . '</p>',
 			'image' => plugins_url( 'assets/hiking.png', Accelerate\PLUGIN_FILE ),
 			'cta' => [
 				'label' => __( 'Create your account now', 'altis' ),
-				'link' => Accelerate\get_altis_dashboard_authorize_url(),
+				'link' => Accelerate\get_accelerate_dashboard_authorize_url(),
 			],
 			'condition' => function () {
-				return empty( Accelerate\get_altis_dashboard_access_token() );
+				return empty( Accelerate\get_accelerate_dashboard_access_token() );
 			}
 		],
 	];

@@ -1,5 +1,6 @@
 import React, { Fragment } from 'react';
 
+import { useSelect } from '@wordpress/data';
 import TestPanel from './components/panel';
 import { context, getSidebarTests } from './data';
 
@@ -17,6 +18,13 @@ const { __ } = wp.i18n;
 const Plugin = () => {
 	const tests = getSidebarTests();
 	const { Provider: ContextProvider } = context;
+
+	// Don't render the plugin if we're editing a synced pattern.
+	const postType = useSelect((select) => select('core/editor').getCurrentPostType(), []);
+
+	if ( postType === 'wp_block' ) {
+		return null;
+	}
 
 	// Short circuit early if no panels are defined, to disable the sidebar completely.
 	if ( tests.length < 1 ) {

@@ -57,12 +57,12 @@ const Pagination = ( {
 	);
 };
 
-Pagination.propTypes = {
-	currentPage: PropTypes.number.isRequired,
-	goToPrevPage: PropTypes.func.isRequired,
-	goToNextPage: PropTypes.func.isRequired,
-	totalPages: PropTypes.number.isRequired,
-	totalItems: PropTypes.number.isRequired,
-};
+// Pagination.propTypes = {
+// 	currentPage: PropTypes.number.isRequired,
+// 	goToPrevPage: PropTypes.func.isRequired,
+// 	goToNextPage: PropTypes.func.isRequired,
+// 	totalPages: PropTypes.number.isRequired,
+// 	totalItems: PropTypes.number.isRequired,
+// };
 
 export default Pagination;

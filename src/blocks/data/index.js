@@ -2,6 +2,7 @@
  * Altis Analytics data store.
  */
 
+import { createReduxStore, register } from "@wordpress/data";
 import { resolveQueryArgs } from "../../data";
 
 const { apiFetch } = wp;
@@ -247,7 +248,7 @@ const resolvers = {
 	},
 };
 
-export const store = registerStore( 'accelerate/xbs', {
+export const store = createReduxStore( 'accelerate/xbs', {
 	actions,
 	controls,
 	initialState,
@@ -255,3 +256,5 @@ export const store = registerStore( 'accelerate/xbs', {
 	resolvers,
 	selectors,
 } );
+
+register( store );

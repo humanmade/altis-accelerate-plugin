@@ -16,7 +16,7 @@ const RELATIONSHIP_TAXONOMY = 'wp_block_to_post';
 const BLOCK_USAGE_COUNT_CACHE_KEY_FORMAT = 'block_usage_count_%d';
 
 /**
- * Altis\GlobalBlocks\Connections Bootstrap.
+ * Altis\Accelerate\GlobalBlocks\Connections Bootstrap.
  */
 function bootstrap() {
 	add_action( 'init',                                __NAMESPACE__ . '\\register_relationship_taxonomy' );

@@ -39,7 +39,7 @@ export default function SparkChart( props: Props ) {
 	};
 
 	// Set up default empty histogram to allow for animations.
-	const days = moment.duration( props.period || 'P7D' ).asDays();
+	const days = Math.ceil( moment.duration( props.period || 'P7D' ).asDays() );
 
 	let histogram : Datum[] = Array( days ).fill( {
 		index: 0,

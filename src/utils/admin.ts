@@ -33,6 +33,7 @@ export type Post = {
 	views: number,
 	lift: LiftStats | null,
 	goal?: string,
+	blockType: 'standard' | 'abtest' | 'personalization',
 	[ k: string ]: any,
 }
 
@@ -169,6 +170,8 @@ export type CustomFilters = {
 export interface Filter {
 	path?: string,
 	time?: number,
+	audience?: any,
+	audienceId?: number,
 }
 
 export type QueryArgs = {
@@ -392,3 +395,17 @@ export function convertPostResponse( post: { [ k:string ] : any } ) : Post {
 
 	return modified;
 }
+
+/**
+ * Calculate a rough probability to be best, based on the current p value.
+ *
+ * @TODO update this with a proper calculation using simulated test runs.
+ *
+ * @param {number} pValue
+ * @param {number} rate
+ * @param {number} maxRate
+ * @returns {number} Probability to be the best result based on max conversion rate.
+ */
+export function getP2BB( pValue: number, rate: number, maxRate: number ) {
+	return ( rate / maxRate ) * ( 1 - ( pValue || 1 ) );
+};
