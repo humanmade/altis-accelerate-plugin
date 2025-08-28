@@ -16,17 +16,14 @@ const {
 	Config,
 	Consent,
 	Data,
-	Noop,
 	Audiences,
 } = Altis.Analytics;
 
-if ( ! Config.PinpointId ) {
+if ( ! Config.AppId ) {
 	/* eslint-disable quotes */
 	console.warn(
-		"Altis Analytics: Missing configuration. \
-	You must define the following constants in PHP:\n \
-	define( 'ALTIS_ACCELERATE_PINPOINT_ID', '...' );\n \
-	define( 'ALTIS_ACCELERATE_PINPOINT_REGION', '...' );" );
+		"Altis Analytics: Missing configuration."
+	);
 	/* eslint-enable quotes */
 }
 
@@ -359,7 +356,7 @@ const Analytics = {
 		return Analytics.audiences;
 	},
 	/**
-	 * Updates the Pinpoint endpoint data.
+	 * Updates the Analytics endpoint data.
 	 *
 	 * @param {Object} endpoint The endpoint object with updates.
 	 * @returns {Promise} Update Promise.
@@ -534,7 +531,7 @@ const Analytics = {
 	},
 	events: [],
 	/**
-	 * Log an event to AWS Pinpoint.
+	 * Log an event to the Analytics database.
 	 *
 	 * @param {string} type The event type.
 	 * @param {Object} data The event data.
@@ -642,9 +639,11 @@ const Analytics = {
 			return;
 		}
 
-		// Snapshot events to send and clear.
+		// Snapshot events to send and clear if allowed to send.
 		const eventsToDeliver = Analytics.events;
-		Analytics.events = [];
+		if ( ! Altis.Analytics.Noop ) {
+			Analytics.events = [];
+		}
 
 		// Events are associated with an endpoint.
 		const UserId = Analytics.getUserId();
@@ -674,10 +673,9 @@ const Analytics = {
 		};
 
 		// If event delivery is enabled.
-		if ( ! Noop ) {
-			navigator.sendBeacon( Config.PinpointEndpoint, JSON.stringify( {
-				app_id: Config.PinpointId,
-				region: Config.PinpointRegion,
+		if ( ! Altis.Analytics.Noop ) {
+			navigator.sendBeacon( Config.LogEndpoint, JSON.stringify( {
+				app_id: Config.AppId,
 				events: EventsRequest,
 			} ) );
 		}

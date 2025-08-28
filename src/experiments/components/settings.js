@@ -1,7 +1,7 @@
 import React, { Fragment, useEffect } from 'react';
 
-import { trackEvent } from '../../utils/admin';
 import { arrayEquals } from '../../utils';
+import { trackEvent } from '../../utils/admin';
 import withTestData from '../data/with-test-data';
 
 import DateRangeField from './field-date-range';
