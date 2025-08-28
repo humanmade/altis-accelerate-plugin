@@ -1,9 +1,10 @@
 import React from 'react';
-import { __ } from '@wordpress/i18n';
+
 import { Dropdown, Button, MenuGroup, MenuItem, __experimentalRadioGroup as RadioGroup, __experimentalRadio as Radio } from '@wordpress/components';
 import { decodeEntities } from '@wordpress/html-entities';
-import Search from '../../components/Search';
+import { __ } from '@wordpress/i18n';
 
+import Search from '../../components/Search';
 import { CustomFilters, Duration, PostType, trackEvent, PeriodObject } from '../../utils/admin';
 
 let timer: ReturnType<typeof setTimeout> | undefined;
@@ -22,7 +23,7 @@ type Props = {
 	onAddNewItem: Function,
 };
 
-export default function ListFilters ( props: Props ) {
+export default function ListFilters( props: Props ) {
 	const {
 		listId,
 		periods,
@@ -76,7 +77,7 @@ export default function ListFilters ( props: Props ) {
 					label='Filter'
 					onChange={ ( value: string ) => {
 						trackEvent( listId, 'Filter', { type: value } );
-						onSetCustomFilter( value )
+						onSetCustomFilter( value );
 					} }
 				>
 					{ Object.entries( customFilters ).map( ( [ value, { label } ] )  => (

@@ -2,11 +2,13 @@
 
 import React from 'react';
 import ReactDOM from 'react-dom';
+
 import { SlotFillProvider } from '@wordpress/components';
 import { register } from '@wordpress/data';
 
-import AppComponent from './containers/App';
 import { store } from '../data';
+
+import AppComponent from './containers/App';
 
 import './index.scss';
 
