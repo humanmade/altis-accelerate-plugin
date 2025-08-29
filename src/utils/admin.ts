@@ -1,7 +1,6 @@
 // eslint-disable-next-line import/named
 import { Moment } from 'moment';
 
-
 export interface LiftStats {
 	views: number,
 	conversions: number,
@@ -33,6 +32,7 @@ export type Post = {
 	views: number,
 	lift: LiftStats | null,
 	goal?: string,
+	blockType: 'standard' | 'abtest' | 'personalization',
 	[ k: string ]: any,
 }
 
@@ -169,6 +169,8 @@ export type CustomFilters = {
 export interface Filter {
 	path?: string,
 	time?: number,
+	audience?: any,
+	audienceId?: number,
 }
 
 export type QueryArgs = {
@@ -287,7 +289,7 @@ export interface BlockFillProps {
  * @param {string} suffix The unit or suffix to append.
  * @returns {string} The metric compacted for display.
  */
- export const compactMetric = ( metric : number, suffix : string = '' ) => {
+export const compactMetric = ( metric : number, suffix : string = '' ) => {
 	if ( isNaN( metric ) ) {
 		return '0';
 	}
@@ -329,7 +331,7 @@ export const getLift = ( current: number, previous: number ) => ( ( current - pr
 
 export const getConversionRateLift = (
 	fallback: LiftStats['fallback'],
-	personalized: LiftStats['personalized'],
+	personalized: LiftStats['personalized']
 ) => {
 	const fallbackRate = getConversionRate( fallback.conversions, fallback.views );
 	const personalizedRate = getConversionRate( personalized.conversions, personalized.views );
@@ -347,7 +349,10 @@ export const getConversionRateLift = (
  */
 export function trackEvent( module: string, action: string, parameters: { [ k: string ]: any } = {} ) {
 	if ( window.analytics ) {
-		window.analytics.track( module, { action, ...parameters } );
+		window.analytics.track( module, {
+			action,
+			...parameters,
+		} );
 	}
 }
 
@@ -391,4 +396,18 @@ export function convertPostResponse( post: { [ k:string ] : any } ) : Post {
 	}
 
 	return modified;
+}
+
+/**
+ * Calculate a rough probability to be best, based on the current p value.
+ *
+ * @TODO update this with a proper calculation using simulated test runs.
+ *
+ * @param {number} pValue
+ * @param {number} rate
+ * @param {number} maxRate
+ * @returns {number} Probability to be the best result based on max conversion rate.
+ */
+export function getP2BB( pValue: number, rate: number, maxRate: number ) {
+	return ( rate / maxRate ) * ( 1 - ( pValue || 1 ) );
 }

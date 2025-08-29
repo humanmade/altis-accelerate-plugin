@@ -7,21 +7,14 @@ services:
     ports:
       - 3399:3000
     environment:
-      PINPOINT_ENDPOINT: http://pinpoint:3000
       ACCESS_KEY: admin
       SECRET_KEY: password
       CLICKHOUSE_HOST: clickhouse
       DO_CLICKHOUSE: true
-
-  pinpoint:
-    image: 'humanmade/local-pinpoint:1.3.0'
-    ports:
-      - 3333:3000
-    environment:
-      INDEX_ROTATION: OneDay
+      DO_PINPOINT: ''
 
   clickhouse:
-    image: clickhouse/clickhouse-server
+    image: clickhouse/clickhouse-server:25.2
     ulimits:
       nofile:
         soft: 262144
@@ -32,6 +25,8 @@ services:
     volumes:
       - ch:/var/lib/clickhouse
       - ./.setup:/.setup
+    environment:
+      CLICKHOUSE_SKIP_USER_SETUP: 1
 
   grafana:
     image: grafana/grafana-enterprise
