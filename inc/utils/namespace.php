@@ -20,8 +20,8 @@ function get_asset_manifest() : ?array {
 	static $manifest;
 
 	// Local dev.
-	if ( empty( $manifest ) && is_readable( dirname( __DIR__, 2 ) . '/build/asset-manifest.json' ) ) {
-		$manifest = [ 'file' => dirname( __DIR__, 2 ) . '/build/asset-manifest.json' ];
+	if ( empty( $manifest ) && is_readable( dirname( __DIR__, 2 ) . '/build/development-asset-manifest.json' ) ) {
+		$manifest = [ 'file' => dirname( __DIR__, 2 ) . '/build/development-asset-manifest.json' ];
 	}
 	// Production.
 	if ( empty( $manifest ) && is_readable( dirname( __DIR__, 2 ) . '/build/production-asset-manifest.json' ) ) {
@@ -128,6 +128,23 @@ function register_assets( string $entrypoint, array $options = [], bool $enqueue
 		);
 	}
 
+	// Do we have a runtime chunk? Does it need loading?
+	$runtime_chunk = $manifest['data']['runtime.js'] ?? false;
+	$runtime_handle = 'altis-accelerate-webpack-runtime';
+	if ( $runtime_chunk ) {
+		if ( ! wp_script_is( $runtime_handle, 'registered' ) ) {
+			$runtime_handle = Asset_Loader\register_asset(
+				$manifest['file'],
+				'runtime.js',
+				[
+					'handle' => $runtime_handle,
+				]
+			)['script'];
+		}
+		$options['dependencies'] = $options['dependencies'] ?? [];
+		$options['dependencies'][] = $runtime_handle;
+	}
+
 	$asset_handles = Asset_Loader\register_asset(
 		$manifest['file'],
 		"{$entrypoint}.js",
@@ -141,7 +158,6 @@ function register_assets( string $entrypoint, array $options = [], bool $enqueue
 	if ( $enqueue ) {
 		if ( $handles['script'] ) {
 			wp_enqueue_script( $handles['script'] );
-			wp_enqueue_style( 'wp-components' );
 		}
 		if ( $handles['style'] ) {
 			wp_enqueue_style( $handles['style'] );
