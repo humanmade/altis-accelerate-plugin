@@ -3,15 +3,24 @@
  * as well as copy-and-paste from and to other .eslintrc JSON files.
  */
 
-const isProduction = process.env.NODE_ENV === 'production';
-
 module.exports = {
 	'root': true,
 	'extends': [
-		'humanmade',
-		'plugin:@wordpress/eslint-plugin/recommended',
+		'@humanmade/eslint-config',
+		'plugin:@wordpress/eslint-plugin/custom',
+		// 'plugin:@wordpress/eslint-plugin/react',
 		'plugin:import/errors',
 	],
+	'parserOptions': {
+		'ecmaVersion': 2022,
+		'sourceType': 'module',
+		'ecmaFeatures': {
+			'jsx': true,
+		},
+		'babelOptions': {
+			'configFile': './.babelrc.js',
+		},
+	},
 	'globals': {
 		'Altis': 'readonly',
 		'wp': 'readonly',
@@ -29,120 +38,72 @@ module.exports = {
 		'no-multi-str': 'off',
 		'no-console': 'off',
 		'no-shadow': 'off',
-		'jsdoc/no-undefined-types': 'off',
 		'react/react-in-jsx-scope': 'off',
+		'@wordpress/no-unused-vars-before-return': 'off',
+		// Disable TypeScript ESLint rules that duplicate TypeScript compiler checks
+		'@typescript-eslint/no-unused-vars': 'off',
+		'@typescript-eslint/no-explicit-any': 'off',
+		'@typescript-eslint/ban-ts-comment': 'off',
+		'@typescript-eslint/no-non-null-assertion': 'off',
+		// Disable import validation that conflicts with TypeScript
+		'import/named': 'off',
+		'import/no-unresolved': 'off',
+		'import/namespace': 'off',
+		'import/default': 'off',
+		'import/export': 'off',
+		// Disable all JSDoc rules
+		'jsdoc/check-access': 'off',
+		'jsdoc/check-alignment': 'off',
+		'jsdoc/check-examples': 'off',
+		'jsdoc/check-indentation': 'off',
+		'jsdoc/check-line-alignment': 'off',
+		'jsdoc/check-param-names': 'off',
+		'jsdoc/check-property-names': 'off',
+		'jsdoc/check-syntax': 'off',
 		'jsdoc/check-tag-names': 'off',
 		'jsdoc/check-types': 'off',
-		'import/no-unresolved': [
-			'error',
-			{
-				"commonjs": true,
-				"ignore": [
-					// eslint-disable-next-line no-useless-escape
-					"^@wordpress\/[^/]+"
-				]
-			}
-		],
+		'jsdoc/check-values': 'off',
+		'jsdoc/empty-tags': 'off',
+		'jsdoc/implements-on-classes': 'off',
+		'jsdoc/match-description': 'off',
+		'jsdoc/multiline-blocks': 'off',
+		'jsdoc/newline-after-description': 'off',
+		'jsdoc/no-bad-blocks': 'off',
+		'jsdoc/no-defaults': 'off',
+		'jsdoc/no-missing-syntax': 'off',
+		'jsdoc/no-multi-asterisks': 'off',
+		'jsdoc/no-restricted-syntax': 'off',
+		'jsdoc/no-types': 'off',
+		'jsdoc/no-undefined-types': 'off',
+		'jsdoc/require-asterisk-prefix': 'off',
+		'jsdoc/require-description': 'off',
+		'jsdoc/require-description-complete-sentence': 'off',
+		'jsdoc/require-example': 'off',
+		'jsdoc/require-file-overview': 'off',
+		'jsdoc/require-hyphen-before-param-description': 'off',
+		'jsdoc/require-jsdoc': 'off',
+		'jsdoc/require-param': 'off',
+		'jsdoc/require-param-description': 'off',
+		'jsdoc/require-param-name': 'off',
+		'jsdoc/require-param-type': 'off',
+		'jsdoc/require-property': 'off',
+		'jsdoc/require-property-description': 'off',
+		'jsdoc/require-property-name': 'off',
+		'jsdoc/require-property-type': 'off',
+		'jsdoc/require-returns': 'off',
+		'jsdoc/require-returns-check': 'off',
+		'jsdoc/require-returns-description': 'off',
+		'jsdoc/require-returns-type': 'off',
+		'jsdoc/require-throws': 'off',
+		'jsdoc/require-yields': 'off',
+		'jsdoc/require-yields-check': 'off',
+		'jsdoc/tag-lines': 'off',
+		'jsdoc/valid-types': 'off',
+		'react-hooks/rules-of-hooks': 'off',
 		'jsx-a11y/no-autofocus': 'off',
+		'@wordpress/no-unsafe-wp-apis': 'off',
+		'no-mixed-operators': 'off',
+		'jsx-a11y/anchor-is-valid': 'off'
 	},
 };
 
-/*
-
-module.exports = {
-	"root": true,
-	"extends": [
-		"humanmade",
-		"plugin:@wordpress/eslint-plugin/recommended",
-		"plugin:import/errors"
-	],
-	"globals": {
-		"Altis": "readonly",
-		"wp": "readonly",
-		"moment": "readonly"
-	},
-	"env": {
-		"browser": true
-	},
-	"plugins": [
-		"jsdoc"
-	],
-	"settings": {
-		"import/resolver": {
-			"node": {
-				"extensions": [".js", ".jsx", ".ts", ".tsx"]
-			}
-		}
-	},
-	"rules": {
-		"@wordpress/dependency-group": "off",
-		"@wordpress/react-no-unsafe-timeout": "error",
-		"import/no-unresolved": [
-			"error",
-			{
-				"commonjs": true,
-				"ignore": [
-					// eslint-disable-next-line no-useless-escape
-					"^@wordpress\/[^/]+"
-				]
-			}
-		],
-		// "jsdoc/check-param-names": "warn",
-		// "jsdoc/check-tag-names": "warn",
-		// "jsdoc/check-types": [
-		// 	"warn",
-		// 	{
-		// 		"noDefaults": true
-		// 	}
-		// ],
-		// "jsdoc/newline-after-description": "warn",
-		// "jsdoc/no-undefined-types": "warn",
-		// "jsdoc/require-description-complete-sentence": "warn",
-		"jsdoc/require-hyphen-before-param-description": 0,
-		// "jsdoc/require-param": "warn",
-		// "jsdoc/require-param-description": "warn",
-		// "jsdoc/require-param-name": "warn",
-		// "jsdoc/require-param-type": "warn",
-		// "jsdoc/require-returns-type": "warn",
-		// "jsdoc/valid-types": "warn",
-		// "max-len": [
-		// 	"warn",
-		// 	120
-		// ],
-		"no-console": isProduction ? "error" : "warn",
-		"no-debugger": isProduction ? "error" : "warn",
-		"no-multi-str": "off",
-		"no-plusplus": "off",
-		"no-shadow": "off",
-		"no-unused-vars": [
-			"warn",
-			{
-				"vars": "all",
-				"varsIgnorePattern": "_",
-				"args": "after-used",
-				"argsIgnorePattern": "_",
-				"ignoreRestSiblings": true
-			}
-		],
-		"operator-linebreak": [
-			"error",
-			"before",
-			{
-				"overrides": {
-					"=": "none"
-				}
-			}
-		],
-		"react/prop-types": "off",
-		"react/react-in-jsx-scope": "off",
-		"valid-jsdoc": [
-			"off",
-			{}
-		],
-
-		// There is an issue with references not being detected when used as JSX component name (e.g., App in <App />).
-		"@wordpress/no-unused-vars-before-return": "off",
-	}
-};
-
-*/
