@@ -11,8 +11,8 @@ type Props = {
 
 const loaderProps = {
 	speed: 2,
-	foregroundColor: "#f5f6f8",
-	backgroundColor: "#fff",
+	foregroundColor: '#f5f6f8',
+	backgroundColor: '#fff',
 };
 
 export default function Image( props: Props ) {
@@ -25,14 +25,14 @@ export default function Image( props: Props ) {
 	}
 
 	return (
-		<>
+		<span className={ props.className }>
 			<ContentLoader
 				{ ...loaderProps }
 				height={ props.height }
 				style={ { display: isLoaded ? 'none' : 'block' } }
 				width={ props.width }
 			>
-				<rect height={ props.height } rx="5" ry="5" width={ props.width } x={ 0 } y={ 0 } />
+				<rect height={ props.height } rx="0" ry="0" width={ props.width } x={ 0 } y={ 0 } />
 			</ContentLoader>
 			<img
 				alt={ props.alt }
@@ -42,6 +42,6 @@ export default function Image( props: Props ) {
 				} }
 				{ ...props }
 			/>
-		</>
+		</span>
 	);
-};
+}
