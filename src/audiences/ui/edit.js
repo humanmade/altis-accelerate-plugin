@@ -117,7 +117,7 @@ class Edit extends Component {
 
 		// Edits have been saved now so it's safe to navigate again.
 		this.setState( { hasEdits: false } );
-	}
+	};
 
 	render() {
 		const {

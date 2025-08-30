@@ -6,7 +6,7 @@
         "composer/installers": "^1.7",
         "humanmade/asset-loader": "^0.6.1",
         "markrogoyski/math-php": "^0.51.0",
-        "segmentio/analytics-php": "^2.0.0",
+        "segmentio/analytics-php": "^2.0 || ^3.0",
         "php": ">=7.4",
         "guzzlehttp/guzzle": "^7.3"
     },
@@ -16,9 +16,9 @@
         "dealerdirect/phpcodesniffer-composer-installer": "^0.7.2",
         "phpcompatibility/phpcompatibility-wp": "^2.1",
         "squizlabs/php_codesniffer": "^3.4",
-        "brain/monkey": "^2.3",
-        "mockery/mockery": "^1.2",
-        "phpunit/phpunit": "^9.0"
+        "phpunit/phpunit": "^9.6",
+        "wp-phpunit/wp-phpunit": "^6.7",
+        "yoast/phpunit-polyfills": "^4.0"
     },
     "config": {
         "allow-plugins": {
@@ -33,15 +33,28 @@
     },
     "scripts": {
         "build-deps": [
-            "npm install && npm run build"
+            "npm install --legacy-peer-deps && npm run build"
         ],
         "start": [
             "if [ ! -d \".wordpress\" ]; then mkdir .wordpress; fi",
             "docker compose -f docker-compose.wp.yml -f docker-compose.server.yml -p accelerate up -d",
+            "composer run ch-setup",
+            "composer run cli-no-tty -- wp core is-installed || composer run install-wp",
+            "docker compose -f docker-compose.wp.yml -f docker-compose.server.yml -p accelerate exec wordpress bash -c 'cp wp-config-docker.php wp-config.php'",
             "cat .setup/help-text.txt"
+        ],
+        "install-wp": [
+            "composer run cli-no-tty -- wp core install --url=http://localhost:8081/ --title=Accelerate --admin_user=admin --admin_password=password --skip-email --admin_email=admin@example.com",
+            "composer run cli-no-tty -- wp core update --version=6.7",
+            "composer run cli-no-tty -- wp plugin activate altis-accelerate",
+            "composer run cli-no-tty -- option update altis_analytics_dashboard_access_token 7ROOa4lisBVu",
+            "composer run cli-no-tty -- option update altis_config \"eu-central-1:a5fc577ad7104d24bbbe9947585edf71:^WY1cz3C0Amw*G9E3WRumK&OSz6E^(hY\""
         ],
         "stop": [
             "docker compose -f docker-compose.wp.yml -f docker-compose.server.yml -p accelerate down"
+        ],
+        "destroy": [
+            "docker compose -f docker-compose.wp.yml -f docker-compose.server.yml -p accelerate down -v"
         ],
         "start-server": [
             "docker compose -f docker-compose.server.yml -p accelerate up -d",
@@ -53,6 +66,9 @@
         "cli": [
             "docker run -it --rm --volumes-from accelerate-wordpress-1 --env-file .wp-env --network accelerate_default wordpress:cli"
         ],
+        "cli-no-tty": [
+            "docker run -t --rm --volumes-from accelerate-wordpress-1 --env-file .wp-env --network accelerate_default wordpress:cli"
+        ],
         "shell": [
             "docker exec -it accelerate-wordpress-1 /bin/bash"
         ],
@@ -60,14 +76,20 @@
             "open http://localhost:3600"
         ],
         "ch-setup": [
-            "docker exec -it accelerate-clickhouse-1 clickhouse-client --queries-file /.setup/create-analytics-table.sql"
+            "docker exec -t accelerate-clickhouse-1 clickhouse-client --queries-file /.setup/create-analytics-table.sql"
         ],
         "ch-cli": [
             "docker exec -it accelerate-clickhouse-1 clickhouse-client"
         ],
         "ch-query": [
             "docker exec -it accelerate-clickhouse-1 clickhouse-client --query"
+        ],
+        "phpunit": "docker exec -t accelerate-wordpress-1 /bin/bash -c 'cd wp-content/plugins/altis-accelerate && ./vendor/bin/phpunit \"$@\"' --",
+        "playwright": "cd tests/e2e && npx playwright test",
+        "php-log": [
+            "tail -f .wordpress/wp-content/debug.log"
         ]
+
     },
     "autoload-dev": {
         "psr-4": {
@@ -103,15 +125,10 @@
             "inc/preview/namespace.php",
             "inc/admin/namespace.php",
             "inc/admin/notices.php",
-            "inc/beta/namespace.php",
             "inc/global-blocks/namespace.php",
-            "inc/global-blocks/categories.php",
             "inc/global-blocks/connections.php",
             "inc/global-blocks/rest-api/namespace.php",
-            "inc/global-blocks/variant/namespace.php",
-            "inc/ai/namespace.php",
-            "inc/ai/admin/namespace.php",
-            "inc/ai/rest-api/namespace.php"
+            "inc/global-blocks/variant/namespace.php"
         ]
     },
     "extra": {

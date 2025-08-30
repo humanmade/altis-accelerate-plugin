@@ -5,7 +5,7 @@ import styled from 'styled-components';
 const { __ } = wp.i18n;
 
 const StyledModal = styled.div`
-	z-index: 1000002;
+	z-index: 1000002 !important;
 	.media-frame-content {
 		bottom: 0;
 	}
@@ -39,7 +39,17 @@ class Modal extends Component {
 
 		return createPortal(
 			<Fragment>
-				<StyledModal aria-labelledby="media-frame-title" className={ `media-modal wp-core-ui ${ className }` } role="dialog" tabIndex="0">
+				<StyledModal
+					aria-labelledby="media-frame-title"
+					className={ `media-modal wp-core-ui ${ className }` }
+					role="dialog"
+					tabIndex="0"
+					onClick={ event => {
+						// Prevent the modal closing due to clicks propagating
+						// through to sub layers.
+						event.stopPropagation();
+					} }
+				>
 					<button className="media-modal-close" type="button" onClick={ onClose }>
 						<span className="media-modal-icon">
 							<span className="screen-reader-text">{ __( 'Close dialog' ) }</span>

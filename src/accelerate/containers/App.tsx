@@ -1,8 +1,8 @@
 import React from 'react';
 
-import Dashboard from '../content-explorer/Dashboard';
-import BroadcastManager from '../broadcast-manager';
 import { InitialData } from '../../utils/admin';
+import BroadcastManager from '../broadcast-manager';
+import Dashboard from '../content-explorer/Dashboard';
 
 interface State {
 	user: InitialData['user'],

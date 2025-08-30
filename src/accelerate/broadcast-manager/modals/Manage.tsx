@@ -1,14 +1,16 @@
-import React from "react";
-import { Button, Modal } from '@wordpress/components';
-import { useState } from '@wordpress/element';
-import { __ } from '@wordpress/i18n';
-import { useDispatch } from '@wordpress/data';
-import { decodeEntities } from '@wordpress/html-entities';
+import React from 'react';
 import styled from 'styled-components';
 
+import { Button, Modal } from '@wordpress/components';
+import { useDispatch } from '@wordpress/data';
+import { useState } from '@wordpress/element';
+import { decodeEntities } from '@wordpress/html-entities';
+import { __ } from '@wordpress/i18n';
+
 import { Post } from '../../../utils/admin';
-import Upsert from './Upsert';
+
 import Edit from './Edit';
+import Upsert from './Upsert';
 
 type Props = {
 	listId: string,
@@ -17,7 +19,7 @@ type Props = {
 	onSuccess( post: Post ): void,
 };
 
-const StyledModal = styled(Modal)`
+const StyledModal = styled( Modal )`
 	border-radius: 20px;
 	.accelerate-modal__header {
 		padding: 10px 0;
@@ -69,7 +71,10 @@ export default function ManageModal( props: Props ) {
 	return (
 		<StyledModal
 			className="altis-ui"
-			style={ { maxWidth: '600px', borderRadius: '20px' } }
+			style={ {
+				maxWidth: '600px',
+				borderRadius: '20px',
+			} }
 			title={ item === 'new' ? __( 'Create Broadcast', 'altis' ) : __( 'Edit Broadcast', 'altis' ) }
 			onRequestClose={ onClose }
 		>

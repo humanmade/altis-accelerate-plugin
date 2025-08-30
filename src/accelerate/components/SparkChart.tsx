@@ -1,10 +1,12 @@
-import React from 'react';
-import moment from 'moment';
 
-import { max, min } from 'd3-array';
 import { scaleBand, scaleLog } from '@visx/scale';
 import { Bar } from '@visx/shape';
+import { max, min } from 'd3-array';
+import moment from 'moment';
+import React from 'react';
+
 import { __, sprintf, _n } from '@wordpress/i18n';
+
 import { Duration } from '../../utils/admin';
 
 type Datum = {
@@ -39,7 +41,7 @@ export default function SparkChart( props: Props ) {
 	};
 
 	// Set up default empty histogram to allow for animations.
-	const days = moment.duration( props.period || 'P7D' ).asDays();
+	const days = Math.ceil( moment.duration( props.period || 'P7D' ).asDays() );
 
 	let histogram : Datum[] = Array( days ).fill( {
 		index: 0,
@@ -47,7 +49,10 @@ export default function SparkChart( props: Props ) {
 	} );
 
 	histogram.forEach( ( d, i ) => {
-		histogram[i] = { index: i, count: 0 };
+		histogram[i] = {
+			index: i,
+			count: 0,
+		};
 	} );
 
 	if ( props.histogram && props.histogram.length > 0 ) {
@@ -91,7 +96,7 @@ export default function SparkChart( props: Props ) {
 	} );
 
 	return (
-		<svg width={ trueWidth } height={ height }>
+		<svg height={ height } width={ trueWidth }>
 			{ histogram.map( ( d, i ) => {
 				const barWidth = xScale.bandwidth();
 				const barHeight = height + 1;
@@ -100,13 +105,13 @@ export default function SparkChart( props: Props ) {
 				return (
 					<Bar
 						key={ `bar-${ i }` }
-						x={ barX }
-						y={ barY }
-						rx={ 1 }
-						width={ barWidth }
-						height={ barHeight + 10 }
 						fill={ d.zeroData ? '#ECEEF1' : '#4667de' }
 						fillOpacity={ 0.8 }
+						height={ barHeight + 10 }
+						rx={ 1 }
+						width={ barWidth }
+						x={ barX }
+						y={ barY }
 					>
 						<title>{
 							d.zeroData
