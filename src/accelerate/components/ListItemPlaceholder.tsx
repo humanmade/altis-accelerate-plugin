@@ -7,8 +7,8 @@ type Props = {
 
 const loaderProps = {
 	speed: 2,
-	foregroundColor: "hsl(0, 0%, 99%)",
-	backgroundColor: "hsl(0, 0%, 95%)"
+	foregroundColor: 'hsl(0, 0%, 99%)',
+	backgroundColor: 'hsl(0, 0%, 95%)',
 };
 
 const ListItemPlaceholder = function ( props: Props ) {
