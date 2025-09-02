@@ -1,9 +1,9 @@
 import React, { Component } from 'react';
 import styled from 'styled-components';
 
+import AddNew from '../../components/AddNew';
 import { defaultPost } from '../data/defaults';
 
-import AddNew from '../../components/AddNew';
 import Edit from './edit';
 import List from './list';
 

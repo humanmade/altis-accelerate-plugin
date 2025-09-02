@@ -24,3 +24,4 @@ node_modules/
 
 # Caches
 .phpunit.result.cache
+tests/e2e/artifacts
