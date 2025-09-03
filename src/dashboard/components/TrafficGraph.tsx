@@ -11,6 +11,7 @@ import {
 	YAxis,
 } from 'recharts';
 import { AnimationTiming } from 'recharts/types/util/types';
+
 import { __ } from '@wordpress/i18n';
 
 import './TrafficGraph.css';
@@ -84,8 +85,8 @@ export default function TrafficGraph( props: Props ) {
 	return (
 		<div className="TrafficGraph">
 			<ResponsiveContainer
-				width="100%"
 				height={ 300 }
+				width="100%"
 			>
 				<BarChart
 					// barGap={ -0.8 * barWidth }
@@ -100,7 +101,7 @@ export default function TrafficGraph( props: Props ) {
 					<XAxis
 						allowDataOverflow
 						dataKey="date"
-						domain={ [ start.valueOf(), end.valueOf() ]}
+						domain={ [ start.valueOf(), end.valueOf() ] }
 						interval={ tickInterval }
 						padding={ {
 							left: barWidth,
@@ -121,9 +122,12 @@ export default function TrafficGraph( props: Props ) {
 					/>
 
 					<Tooltip
-						content={ CustomTooltip }
 						animationEasing={ false as unknown as AnimationTiming }
-						position={ { x: 'auto' as unknown as number, y: 0 } }
+						content={ CustomTooltip }
+						position={ {
+							x: 'auto' as unknown as number,
+							y: 0,
+						} }
 					/>
 
 					<Bar
