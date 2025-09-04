@@ -3,12 +3,12 @@ import { memoize } from 'lodash';
 import React, { Component, Fragment } from 'react';
 import styled, { css } from 'styled-components';
 
+import Search from '../../components/Search';
+import { trackEvent } from '../../utils/admin';
+
 import ListRow from './components/list-row';
 import ListRowHeading from './components/list-row-heading';
 import ListRowLoading from './components/list-row-loading';
-import Search from '../../components/Search';
-
-import { trackEvent } from '../../utils/admin';
 
 let timer;
 
@@ -176,7 +176,7 @@ class List extends Component {
 				status: this.props.canCreate ? 'publish,draft' : 'publish',
 			} );
 		}
-	}
+	};
 
 	/**
 	 * On audience selection.
@@ -205,7 +205,7 @@ class List extends Component {
 
 		// Trigger on select behaviour if we're in select mode.
 		this.props.onSelect && this.props.onSelect( post );
-	}
+	};
 
 	/**
 	 * Updates the audience priority.
@@ -227,7 +227,7 @@ class List extends Component {
 			id: posts[ index + directionInt ].id,
 			menu_order: post.menu_order,
 		} );
-	}
+	};
 
 	/**
 	 * Fetch the next page of results.
@@ -241,7 +241,7 @@ class List extends Component {
 			status: this.props.canCreate ? 'publish,draft' : 'publish',
 		} );
 		this.setState( { page: page + 1 } );
-	}
+	};
 
 	render() {
 		const {

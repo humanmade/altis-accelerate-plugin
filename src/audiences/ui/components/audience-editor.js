@@ -34,7 +34,7 @@ export default class AudienceEditor extends Component {
 			...this.props.audience,
 			include: e.target.value,
 		} );
-	}
+	};
 
 	/**
 	 * Add rule group handler.
@@ -47,7 +47,7 @@ export default class AudienceEditor extends Component {
 				defaultGroup,
 			],
 		} );
-	}
+	};
 
 	/**
 	 * Update group handler.
@@ -68,7 +68,7 @@ export default class AudienceEditor extends Component {
 				...audience.groups.slice( id + 1 ),
 			],
 		} );
-	}
+	};
 
 	/**
 	 * Remove group handler.
@@ -84,7 +84,7 @@ export default class AudienceEditor extends Component {
 				...audience.groups.slice( id + 1 ),
 			],
 		} );
-	}
+	};
 
 	render() {
 		const { audience } = this.props;
