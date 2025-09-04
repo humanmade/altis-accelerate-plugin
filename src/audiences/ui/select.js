@@ -89,7 +89,7 @@ class Select extends Component {
 
 	state = {
 		show: false,
-	}
+	};
 
 	render() {
 		const {
@@ -146,7 +146,6 @@ class Select extends Component {
 		return (
 			<StyledSelect className="audience-select">
 				<div className="audience-select__info">
-					{ /* eslint-disable jsx-a11y/label-has-for */ }
 					{ label && (
 						<label className="audience-select__label">{ label }</label>
 					) }

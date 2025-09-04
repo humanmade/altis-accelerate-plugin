@@ -1,11 +1,15 @@
+import { scopedPreflightStyles, isolateInsideOfContainer } from 'tailwindcss-scoped-preflight';
+
 /** @type {import('tailwindcss').Config} */
 module.exports = {
   content: ["./inc/ai/**/*.{html,js,ts,tsx}", "./src/**/*.{html,js,ts,tsx}"],
+  darkMode: 'media',
   theme: {
     extend: {
       colors: {
         'gradient-blue': 'rgba(70, 103, 222, 0.66)',
         'gradient-pink': 'rgba(232, 121, 249, 0.66)',
+        'synced-color': 'var(--wp-block-synced-color)',
       },
       animation: {
         loader: 'loader 0.6s infinite alternate'
@@ -21,10 +25,13 @@ module.exports = {
     }
   },
 
-  plugins: [],
-  important: '.tailwind',
-  corePlugins: {
-    preflight: false,
-  }
+  plugins: [
+    scopedPreflightStyles({
+      isolationStrategy: isolateInsideOfContainer('.tailwind', {
+        except: '.no-tailwind', // optional, to exclude some elements under .tailwind from being preflighted, like external markup
+      }),
+    }),
+  ],
+  important: '.tailwind', // This will scope utilities, but not preflight
+  corePlugins: {}
 }
-
