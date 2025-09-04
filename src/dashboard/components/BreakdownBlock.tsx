@@ -12,7 +12,9 @@ interface Props extends InheritedProps {
 export default function BreakdownBlock( props: Props ) {
 	return (
 		<Block
-			className={ `BreakdownBlock ${ props.className || '' }` }
+			className={ [
+				props.className || '',
+			].join( ' ' ) }
 		>
 			<BreakdownList
 				{ ...props }
@@ -20,3 +22,4 @@ export default function BreakdownBlock( props: Props ) {
 		</Block>
 	);
 }
+

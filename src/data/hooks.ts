@@ -1,6 +1,8 @@
 import { useState, Dispatch, SetStateAction } from 'react';
-import { useCallback } from '@wordpress/element';
+
 import { useSelect, useDispatch } from '@wordpress/data';
+import { useCallback } from '@wordpress/element';
+
 import { Post, PostUpdateObject } from '../utils/admin';
 
 interface UsePostReturn {
@@ -16,7 +18,7 @@ interface UsePostReturn {
  * @returns {UsePostReturn}
  */
 export const usePost = ( id: number ) : UsePostReturn => {
-	const post: Post = useSelect( ( select ) => select( 'accelerate' ).getPost( id ), [ id ] );
+	const post: Post = useSelect( select => select( 'accelerate' ).getPost( id ), [ id ] );
 
 	const { updatePost } = useDispatch( 'accelerate' );
 	const onUpdatePost = useCallback( ( post: PostUpdateObject ) => updatePost( post ), [ updatePost ] );
@@ -51,4 +53,4 @@ export function usePersistentState<T>( key: string, defaultValue: T ) : [ T, Dis
 	};
 
 	return [ pref, setPersistentPref ];
-};
+}
