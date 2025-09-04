@@ -1,12 +1,13 @@
 import React from 'react';
+
 import { __ } from '@wordpress/i18n';
 
-import Welcome from './Welcome';
-import List from '../components/List';
+import { usePersistentState } from '../../data/hooks';
 import { InitialData, Duration } from '../../utils/admin';
+import List from '../components/List';
 
 import HeroChart from './HeroChart';
-import { usePersistentState } from '../../data/hooks';
+import Welcome from './Welcome';
 
 interface Props {
 	postTypes: InitialData['postTypes'],
@@ -33,5 +34,5 @@ export default function Dashboard( props: Props ) {
 				onSetPeriod={ setPeriod }
 			/>
 		</div>
-	)
+	);
 }
