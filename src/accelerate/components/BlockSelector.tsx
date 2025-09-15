@@ -1,9 +1,11 @@
-import { __ } from '@wordpress/i18n';
+import { useSelect } from '@wordpress/data';
 import { useState } from '@wordpress/element';
-import BlockSelectorList from './BlockSelectorList';
+import { __ } from '@wordpress/i18n';
+
 import Search from '../../components/Search';
 import { Post } from '../../utils/admin';
-import { useSelect } from '@wordpress/data';
+
+import BlockSelectorList from './BlockSelectorList';
 
 type Props = {
 	value: number[],
