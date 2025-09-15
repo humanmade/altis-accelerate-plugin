@@ -1,6 +1,9 @@
-import { useSelect } from '@wordpress/data';
 import React from 'react';
+
+import { useSelect } from '@wordpress/data';
+
 import { Post } from '../../utils/admin';
+
 import Image from './Image';
 
 type Props = {
@@ -10,12 +13,12 @@ type Props = {
 	height?: number,
 };
 
-export default function ImageGroup ( props: Props ) {
+export default function ImageGroup( props: Props ) {
 	const {
 		blocks: blockIds,
 		className,
 		width,
-		height
+		height,
 	} = props;
 
 	const blocks = useSelect<Post[]>( select => {
@@ -28,7 +31,7 @@ export default function ImageGroup ( props: Props ) {
 	return (
 		<div
 			className={
-				`record-thumbnail-group-wrap ${blockIds.length > 1 ? "record-thumbnail-group-wrap--multiple" : ""}`
+				`record-thumbnail-group-wrap ${blockIds.length > 1 ? 'record-thumbnail-group-wrap--multiple' : ''}`
 			}
 		>
 			{ blocks.slice( 0, 2 ).reverse().map( block => (
@@ -43,4 +46,4 @@ export default function ImageGroup ( props: Props ) {
 			) ) }
 		</div>
 	);
-};
+}

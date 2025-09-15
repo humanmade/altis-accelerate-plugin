@@ -1,6 +1,6 @@
 import React from 'react';
 
-import './Block.css';
+import { cx } from '../../lib/utils';
 
 interface Props {
 	children: React.ReactNode,
@@ -8,9 +8,18 @@ interface Props {
 }
 
 export default function Block( props: Props ) {
-	const className = [ 'Block', props.className ].filter( Boolean ).join( ' ' );
 	return (
-		<div className={ className }>
+		<div
+			className={ cx( [
+				// base
+				'relative w-full rounded-lg border p-6 text-left shadow-sm',
+				// background color
+				'bg-white',
+				// border color
+				'border-gray-200',
+				props.className,
+			] ) }
+		>
 			{ props.children }
 		</div>
 	);

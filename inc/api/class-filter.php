@@ -59,4 +59,11 @@ class Filter {
 	 * @var int
 	 */
 	public $tz = 0;
+
+	/**
+	 * Audience query.
+	 *
+	 * @var array
+	 */
+	public $audience;
 }

@@ -1,3 +1,8 @@
+<?php
+
+/** @var array{ dismissable: bool, heading: string, subheading: string, body: string, cta: array{ link: string, label: string }, image: string } $notice */
+
+?>
 <style>.altis-ui{visibility: hidden;opacity:0;}</style>
 <div class="altis-ui altis-notice <?php echo $notice['dismissable'] ? 'is-dismissible' : '' ?>" id="altis-notice-<?php echo esc_attr( $notice_id ); ?>">
 	<?php if ( $notice['dismissable'] ) : ?>

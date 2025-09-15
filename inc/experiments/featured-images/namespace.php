@@ -79,9 +79,9 @@ function init() {
  *                                        an array of width and height values in pixels (in that order).
  * @param string       $attr              Query string of attributes.
  *
- * @return string
+ * @return string|null
  */
-function filter_post_thumbnail_html_ab_test_values( string $html, int $post_id, int $post_thumbnail_id, $size, $attr ) : string {
+function filter_post_thumbnail_html_ab_test_values( string $html, int $post_id, int $post_thumbnail_id, $size, $attr ) {
 	return Experiments\output_ab_test_html_for_post( 'featured_images', $post_id, $html, [
 		'size' => $size,
 		'attr' => $attr,

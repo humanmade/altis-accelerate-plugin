@@ -532,7 +532,7 @@ function track_new_or_updated_content( $post_id, $post, $update ) {
 /**
  * Track one-off activation events to support customer comms.
  *
- * @param string $name The action name
+ * @param string $action The action name
  * @param array $properties Optional extra properties.
  * @return void
  */
