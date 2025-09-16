@@ -53,6 +53,7 @@ function bootstrap() : void {
  * Register scripts for all admin pages.
  */
 function action_admin_enqueue_scripts() : void {
+	wp_enqueue_style( 'altis-admin-ui', plugins_url( 'build/tailwind.css', Accelerate\PLUGIN_FILE ), [] );
 	if ( ! is_altis_screen() ) {
 		return;
 	}
@@ -110,7 +111,8 @@ function add_plugin_header() : void {
 		<div class="altis-ui">
 			<div class="Header">
 				<h1 class="Logo">
-					<img alt="Altis Accelerate" height="26" src="%s" width="64" />
+					<!--<img alt="Altis Accelerate" height="26" src="%s" width="64" />-->
+					<span>Accelerate</span>
 					<span class="Beta">
 						%s
 					</span>
@@ -136,8 +138,6 @@ function add_plugin_header() : void {
 
 /**
  * Closes off the Altis UI div.
- *
- * @param string $data The data to print.
  */
 function add_plugin_footer() : void {
 	if ( ! is_altis_screen() ) {
@@ -233,18 +233,18 @@ function register_settings_admin_page() : void {
  * @return void
  */
 function render_settings_section() : void {
-	$connected = Accelerate\get_altis_dashboard_access_token();
+	$connected = Accelerate\get_accelerate_dashboard_access_token();
 
 	if ( ! $connected ) {
 		return;
 	}
 
-	$user = Accelerate\altis_dashboard_remote_request( '/wp/v2/users/me' );
+	$user = Accelerate\accelerate_dashboard_remote_request( '/wp/v2/users/me' );
 	?>
 	<?php if ( is_wp_error( $user ) ) : ?>
-		<p>Your connection to Altis Accelerate failed with <code><?php echo esc_html( $user->get_error_message() ) ?></code>. <a href="<?php echo esc_url( Accelerate\get_altis_dashboard_authorize_url() ) ?>">Relink your account.</a></p>
+		<p>Your connection to Accelerate failed with <code><?php echo esc_html( $user->get_error_message() ) ?></code>. <a href="<?php echo esc_url( Accelerate\get_accelerate_dashboard_authorize_url() ) ?>">Relink your account.</a></p>
 	<?php else : ?>
-		<p>Your site is connected to Altis Accelerate for the user <code><?php echo esc_html( $user->name ) ?></code>. <a href="<?php echo esc_url( Accelerate\get_altis_dashboard_url() . '/accelerate/' ) ?>">Manage your Altis Accelerate account.</a> If you want to change the linked account, <a href="<?php echo esc_url( wp_nonce_url( add_query_arg( 'action', 'unlink-altis-dashboard-oauth' ), 'unlink-altis-dashboard-oauth' ) ) ?>">unlink here</a>.</p>
+		<p>Your site is connected to Accelerate for the user <code><?php echo esc_html( $user->name ) ?></code>. <a href="<?php echo esc_url( Accelerate\get_accelerate_dashboard_url() . '/accelerate/' ) ?>">Manage your Altis Accelerate account.</a> If you want to change the linked account, <a href="<?php echo esc_url( wp_nonce_url( add_query_arg( 'action', 'unlink-altis-dashboard-oauth' ), 'unlink-altis-dashboard-oauth' ) ) ?>">unlink here</a>.</p>
 	<?php endif; ?>
 	<?php
 }
@@ -293,18 +293,6 @@ function render_settings_page() : void {
  * @return string
  */
 function sanitize_config_setting( string $config ) : string {
-	if ( strpos( $config, '{' ) === 0 ) {
-		$config = json_decode( $config, ARRAY_A );
-		$config = implode( ':', [
-			$config['pinpoint']['region'],
-			$config['pinpoint']['app_id'],
-			hash( 'sha256',
-				$config['elasticsearch']['access_key'] .
-				$config['elasticsearch']['access_secret'] .
-				$config['elasticsearch']['index_path']
-			),
-		] );
-	}
 	$parsed_config = explode( ':', $config, 3 );
 	if ( count( $parsed_config ) !== 3 ) {
 		// phpcs:ignore
@@ -480,16 +468,15 @@ function handle_authorize_callback() : void {
 	$code = sanitize_text_field( wp_unslash( $_GET['code'] ) );
 
 	// Exchange the code for an access token.
-	$request = wp_remote_post( Accelerate\get_altis_dashboard_url() . '/api/oauth2/access_token', [
+	$request = wp_remote_post( Accelerate\get_accelerate_dashboard_url() . '/wp-json/oauth2/access_token', [
 		'headers' => [
 			'Content-Type' => 'application/json',
 		],
 		'body' => wp_json_encode( [
-			'client_id' => Accelerate\get_altis_dashboard_oauth2_client_id(),
+			'client_id' => Accelerate\get_accelerate_dashboard_oauth2_client_id(),
 			'code' => $code,
 			'grant_type' => 'authorization_code',
 		] ),
-		'sslverify' => false,
 	] );
 
 	if ( is_wp_error( $request ) ) {
@@ -506,9 +493,9 @@ function handle_authorize_callback() : void {
 	}
 
 	// Save the access token.
-	Accelerate\set_altis_dashboard_access_token( $body->access_token );
+	Accelerate\set_accelerate_dashboard_access_token( $body->access_token );
 
-	$sites = Accelerate\altis_dashboard_remote_request( '/stack/accelerate/sites', 'GET' );
+	$sites = Accelerate\accelerate_dashboard_remote_request( '/accelerate/sites', 'GET' );
 	if ( is_wp_error( $sites ) ) {
 		wp_die( esc_html( $sites->get_error_message() ) );
 	}
@@ -520,7 +507,7 @@ function handle_authorize_callback() : void {
 
 	if ( empty( $site ) ) {
 		// Create a site for the current site's URL.
-		$site = Accelerate\altis_dashboard_remote_request( '/stack/accelerate/sites', 'POST', [
+		$site = Accelerate\accelerate_dashboard_remote_request( '/accelerate/sites', 'POST', [
 			'url' => home_url(),
 		] );
 	} else {
@@ -533,7 +520,7 @@ function handle_authorize_callback() : void {
 
 	while ( $site->status === 'creating' ) {
 		sleep( CREATE_SITE_POLLING_INTERVAL );
-		$sites = Accelerate\altis_dashboard_remote_request( '/stack/accelerate/sites', 'GET' );
+		$sites = Accelerate\accelerate_dashboard_remote_request( '/accelerate/sites', 'GET' );
 		if ( is_wp_error( $sites ) ) {
 			wp_die( esc_html( $sites->get_error_message() ) );
 		}
@@ -557,7 +544,7 @@ function unlink_altis_dashboard_action() : void {
 		return;
 	}
 
-	Accelerate\delete_altis_dashboard_access_token();
+	Accelerate\delete_accelerate_dashboard_access_token();
 	delete_option( 'altis_config');
 
 	wp_safe_redirect( remove_query_arg( 'action' ) );

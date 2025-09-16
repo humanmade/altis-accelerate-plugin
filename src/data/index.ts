@@ -1,9 +1,10 @@
+import { map } from 'd3-array';
+import moment, { DurationInputArg1 } from 'moment';
+
 import apiFetch, { APIFetchOptions } from '@wordpress/api-fetch';
 import { createReduxStore } from '@wordpress/data';
 import { addQueryArgs } from '@wordpress/url';
-import moment, { DurationInputArg1 } from 'moment';
 
-import reducer from './reducer';
 import {
 	Period,
 	Post,
@@ -22,20 +23,19 @@ import {
 	RefreshPostsAction,
 	RefreshStatsAction,
 	QueryArgs,
-	Filter,
 	DiffsResult,
 	SetDiffsAction,
 	SetIsLoadingDiffsAction,
-	Duration,
 	PostUpdateObject,
 	UpdatablePost,
 } from '../utils/admin';
-import { map } from 'd3-array';
+
+import reducer from './reducer';
 
 const API_NAMESPACE = 'accelerate/v1';
 const STATS_ENDPOINT = `${ API_NAMESPACE }/stats`;
-const TOP_ENDPOINT = `${API_NAMESPACE}/top`;
-const DIFF_ENDPOINT = `${API_NAMESPACE}/diff`;
+const TOP_ENDPOINT = `${ API_NAMESPACE }/top`;
+const DIFF_ENDPOINT = `${ API_NAMESPACE }/diff`;
 
 const POST_TYPE_ENDPOINTS = {
 	broadcast: `${ API_NAMESPACE }/broadcast`,
@@ -52,7 +52,7 @@ export const resolveSelectedDate = ( period: SelectableDate, diff: SelectableDat
 		end,
 		tz,
 	};
-}
+};
 
 const mapToKey = ( obj: QueryArgs ) : string => {
 	return Object.entries( resolveQueryArgs( obj ) )
@@ -65,7 +65,7 @@ const mapToKey = ( obj: QueryArgs ) : string => {
 export const resolveQueryArgs = ( queryArgs: QueryArgs = {} ) : QueryArgs => {
 	const { start, end, tz } = resolveSelectedDate(
 		queryArgs.period || 'P7D',
-		queryArgs.diff || null,
+		queryArgs.diff || null
 	);
 
 	queryArgs = Object.assign( {
@@ -314,7 +314,7 @@ const actionGenerators = {
 		yield actions.setIsUpdating( true );
 
 		const response: { [ k: string ] : any } = yield actions.fetch( {
-			path: `accelerate/v1/broadcast`,
+			path: 'accelerate/v1/broadcast',
 			method: 'POST',
 			data: post,
 		} );
@@ -352,7 +352,7 @@ const actionGenerators = {
 		yield actions.setIsUpdating( true );
 
 		const response: { [ k: string ] : any } = yield actions.fetch( {
-			path: `accelerate/v1/broadcast/${post.id}`,
+			path: `accelerate/v1/broadcast/${ post.id }`,
 			method: 'PATCH',
 			data: post,
 		} );
@@ -391,7 +391,7 @@ const actionGenerators = {
 
 		return;
 	},
-}
+};
 
 const selectors = {
 	/**
@@ -477,7 +477,7 @@ const selectors = {
 	 * @param {object} state The redux store state.
 	 * @returns {boolean} True if currently loading.
 	 */
-	getIsUpdating ( state: State ) {
+	getIsUpdating( state: State ) {
 		return state.isUpdating;
 	},
 };
@@ -595,6 +595,6 @@ export const store = createReduxStore( 'accelerate', {
 } );
 
 declare module '@wordpress/data' {
-    function dispatch(key: 'accelerate'): typeof actions;
-    function select(key: 'accelerate'): typeof selectors;
+    function dispatch( key: 'accelerate' ): typeof actions;
+    function select( key: 'accelerate' ): typeof selectors;
 }
