@@ -1,12 +1,13 @@
-import React from 'react';
-
 import {
 	Button,
 	RangeControl,
+	SelectControl,
 	ToggleControl,
 } from '@wordpress/components';
-import { useDispatch, useSelect } from '@wordpress/data';
+import { useDispatch, useRegistry, useSelect } from '@wordpress/data';
 import { __ } from '@wordpress/i18n';
+import { blockMeta, keyboardReturn, percent } from '@wordpress/icons';
+
 import Title from '../../variant/components/Title';
 
 export function AdvancedControls( props ) {
@@ -15,6 +16,7 @@ export function AdvancedControls( props ) {
 		wrapper,
 	} = props;
 
+	const registry = useRegistry();
 	const blocks = useSelect( select => select( 'core/block-editor' ).getBlocks( block?.clientId || '' ) );
 	const variants = blocks.filter( b => b.name === 'altis/variant' );
 	const { editEntityRecord } = useDispatch( 'core' );
@@ -28,32 +30,92 @@ export function AdvancedControls( props ) {
 	const blockPost = useSelect( select => {
 		return select( 'core' ).getEditedEntityRecord( 'postType', 'wp_block', props.blockPost.id );
 	}, [ props.blockPost.id ] );
+	const updateBlockPost = edits => {
+		editEntityRecord( 'postType', 'wp_block', blockPost.id, edits, {
+			undoIgnore: false,
+		} );
+	};
+
 	const panels = [];
+
+	panels.push( {
+		title: __( 'Conversion Goal', 'altis' ),
+		icon: percent,
+		children: (
+			<>
+				<SelectControl
+					__nextHasNoMarginBottom
+					options={ Object.values( window.Altis.Analytics.Experiments.Goals ).map( goalConfig => {
+						return {
+							label: goalConfig.label,
+							value: goalConfig.name,
+						};
+					} ) }
+					value={ blockPost?.goal || 'engagement' }
+					onChange={ newGoal => updateBlockPost( { goal: newGoal } ) }
+				/>
+				<p style={ {
+					fontSize: '12px',
+					color: '#666',
+					marginTop: '8px',
+				} }>
+					<strong>{ __( 'Engagement', 'altis' ) }:</strong> { __( 'Counts any click on a link or button, or a form submission.', 'altis' ) }<br/>
+					<strong>{ __( 'Link Click', 'altis' ) }:</strong> { __( 'Counts only clicks on HTML links.', 'altis' ) }<br/>
+					<strong>{ __( 'Form Submission', 'altis' ) }:</strong> { __( 'Counts only form submissions.', 'altis' ) }
+				</p>
+			</>
+		),
+	} );
 
 	if ( blockPost.blockType === 'abtest' ) {
 		panels.push( {
-			title: __( 'Advanced Controls', 'altis' ),
+			title: __( 'A/B Test Controls', 'altis' ),
+			initialOpen: true,
+			icon: blockMeta,
 			children: (
 				<>
-					{ blockPost?.ab_tests?.block && (
-						<ToggleControl
-							checked={ blockPost?.ab_tests?.block?.paused }
-							help={
-								blockPost?.ab_tests?.block?.paused
-									? 'Test paused.'
-									: 'Test is running. Edits will restart the test.'
-							}
-							label={ __( 'Pause A/B Test' ) }
-							onChange={ () => {
-								editEntityRecord( 'postType', 'wp_block', blockPost.id, {
-									ab_tests: {
-										...( blockPost?.ab_tests || {} ),
-										block: { ...( blockPost?.ab_tests?.block || {} ), paused: ! blockPost?.ab_tests?.block?.paused }
+					<p>
+						{ __( 'Test was started', 'altis' ) }
+						{ ' ' }
+						<strong>
+							{ ( () => {
+								const start = new Date( blockPost?.ab_tests?.block?.start_time );
+								const now = new Date();
+								const diffMs = now - start;
+								const diffDays = Math.floor( diffMs / ( 1000 * 60 * 60 * 24 ) );
+								const rtf = new Intl.RelativeTimeFormat( undefined, { numeric: 'auto' } );
+								const relative = rtf.format( -diffDays, 'day' );
+								return (
+									<abbr title={ start.toISOString() }>
+										{ relative }
+									</abbr>
+								);
+							} )() }
+						</strong>
+					</p>
+					<p>{ __( 'A/B tests are restarted each time any of the block variants are edited.', 'altis' ) }</p>
+					<hr />
+					<ToggleControl
+						checked={ blockPost?.ab_tests?.block?.paused }
+						help={
+							blockPost?.ab_tests?.block?.paused
+								? 'Test paused.'
+								: 'Test is running. Edits will restart the test.'
+						}
+						label={ __( 'Pause A/B Test' ) }
+						onChange={ () => {
+							updateBlockPost( {
+								ab_tests: {
+									...( blockPost?.ab_tests || {} ),
+									block: {
+										...( blockPost?.ab_tests?.block || {} ),
+										paused: ! blockPost?.ab_tests?.block?.paused,
 									},
-								} );
-							} }
-						/>
-					) }
+								},
+							} );
+						} }
+					/>
+					<hr />
 					<RangeControl
 						help={ __( 'How much of your total traffic to test. Those excluded will see Variant A and not factor into conversion rates.', 'altis' ) }
 						label={ __( 'Traffic Percentage', 'altis' ) }
@@ -62,37 +124,43 @@ export function AdvancedControls( props ) {
 						step={ 5 }
 						value={ blockPost?.ab_tests?.block?.traffic_percentage || 100 }
 						onChange={ newPercentage => {
-							editEntityRecord( 'postType', 'wp_block', blockPost.id, {
+							updateBlockPost( {
 								ab_tests: {
 									...( blockPost?.ab_tests || {} ),
-									block: { ...( blockPost?.ab_tests?.block || {} ), traffic_percentage: newPercentage }
+									block: {
+										...( blockPost?.ab_tests?.block || {} ),
+										traffic_percentage: newPercentage,
+									},
 								},
 							} );
 						} }
 					/>
 				</>
 			),
-		} )
+		} );
 	}
 
 	if ( ( blockPost.blockType || 'standard' ) !== 'standard' ) {
 		panels.push( {
 			title: __( 'Downgrade Block', 'altis' ),
+			icon: keyboardReturn,
 			children: (
 				<>
-					<p>{ __( 'Convert to standard Global Block using', 'altis' ) }:</p>
+					<p>{ __( 'Convert to standard Synced Pattern using (the test will be removed)', 'altis' ) }:</p>
 					{ variants.map( ( variant, index ) => {
 						return (
 							<p key={ variant.clientId }>
 								<Button
-									isSecondary
+									variant="secondary"
 									onClick={ () => {
 										// eslint-disable-next-line no-alert
-										if ( ! window.confirm( __( 'Are you sure you want to convert back to a standard block?', 'altis' ) ) ) {
+										if ( ! window.confirm( __( 'Are you sure you want to convert this block back to a regular WordPress Pattern?', 'altis' ) ) ) {
 											return;
 										}
-										editEntityRecord( 'postType', 'wp_block', blockPost.id, { blockType: 'standard' } );
-										replaceBlocks( variants.map( v => v.clientId ), variant.innerBlocks );
+										registry.batch( () => {
+											updateBlockPost( { blockType: 'standard' } );
+											replaceBlocks( variants.map( v => v.clientId ), variant.innerBlocks );
+										} );
 									} }
 								>
 									<Title
@@ -105,7 +173,7 @@ export function AdvancedControls( props ) {
 						);
 					} ) }
 				</>
-			)
+			),
 		} );
 	}
 
