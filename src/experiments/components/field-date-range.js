@@ -40,7 +40,6 @@ const DateRange = props => {
 		<StyledDateRange className="altis-experiments-date-range">
 			<div className="altis-experiments-date-range__field">
 				<div className="altis-experiments-date-range__label">
-					{ /* eslint-disable-next-line jsx-a11y/label-has-for */ }
 					<label>{ __( 'Start date', 'altis' ) }</label>
 				</div>
 				<TimePicker
@@ -53,7 +52,6 @@ const DateRange = props => {
 			</div>
 			<div className="altis-experiments-date-range__field">
 				<div className="altis-experiments-date-range__label">
-					{ /* eslint-disable-next-line jsx-a11y/label-has-for */ }
 					<label>{ __( 'End date', 'altis' ) }</label>
 				</div>
 				{ showTimeRecommendation && (
