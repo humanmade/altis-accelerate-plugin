@@ -39,7 +39,7 @@ const PluginIcon = props => {
 	);
 };
 
-export default withSelect( ( select ) => {
+export default withSelect( select => {
 	const tests = select( 'core/editor' ).getEditedPostAttribute( 'ab_tests' );
 
 	return {
