@@ -7,14 +7,14 @@
     box-shadow: none;
     border: 0;
     cursor: pointer;
-    background: #4667de !important;
+    background: #2271b1 !important;
     color: #fff;
 }
 
 .AddNew:hover,
 .AddNew:active,
 .AddNew:focus {
-    background: #4667de !important;
+    background: #2271b1 !important;
     color: #fff;
 }
 
