@@ -1,25 +1,31 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
+import ReactModal from 'react-modal';
+
 import { SlotFillProvider } from '@wordpress/components';
-import { register } from '@wordpress/data';
+
+import AppComponent from './components/App';
 
 import 'react-dates/initialize';
 import 'react-dates/lib/css/_datepicker.css';
+import './twreset.css';
 
-import AppComponent from './components/App';
-import { store } from '../data';
-
-register( store );
-
-const root = document.getElementById( 'altis-analytics-root' );
+const root = document.getElementById( 'accelerate-analytics-root' );
 
 // eslint-disable-next-line react/no-render-return-value
-const render = ( App: typeof AppComponent ) => ReactDOM.render(
-	<SlotFillProvider>
-		<App />
-	</SlotFillProvider>,
-	root
-);
+const render = ( App: typeof AppComponent ) => {
+	if ( ! root ) {
+		return;
+	}
+
+	ReactDOM.render(
+		<SlotFillProvider>
+			<App />
+		</SlotFillProvider>,
+		root
+	);
+	ReactModal.setAppElement( root );
+};
 
 render( AppComponent );
 

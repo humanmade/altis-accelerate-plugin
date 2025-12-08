@@ -1,20 +1,17 @@
-import React, { useEffect } from 'react';
-
-import { InnerBlocks } from '@wordpress/block-editor';
-import {
-	Button,
-} from '@wordpress/components';
+import { useBlockProps, useInnerBlocksProps } from '@wordpress/block-editor';
 import { createBlock, cloneBlock } from '@wordpress/blocks';
+import {
+	Placeholder,
+} from '@wordpress/components';
 import { compose } from '@wordpress/compose';
 import { withSelect, withDispatch } from '@wordpress/data';
+import { useEffect } from '@wordpress/element';
 import { __ } from '@wordpress/i18n';
 
-import { CloneVariantIcon } from '../../utils/icons';
+import { GlobalBlockIcon } from '../../utils/icons';
 
 // TODO re-add variant validation.
 // import VariantValidation from './components/Validation';
-
-const { AudiencePicker } = window.Altis.Analytics.components;
 
 /**
  * Personalized content variant edit mode component.
@@ -25,13 +22,13 @@ const { AudiencePicker } = window.Altis.Analytics.components;
 const Edit = ( {
 	hasChildBlocks,
 	isChildSelected,
+	isGlobalBlockPost,
 	isSelected,
 	isVisible,
-	parentPost,
 	selectedVariant,
-	variants,
-	onAddVariant,
-	onCloneVariant,
+	selectedVariantBlockIndex,
+	variantIndex,
+	variantIndexes,
 	onSelect,
 	onSelectVariant,
 } ) => {
@@ -44,59 +41,38 @@ const Edit = ( {
 
 	// Ensure a variant is always visible.
 	useEffect( () => {
-		if ( selectedVariant >= variants.length ) {
-			onSelectVariant( 0 );
+		if ( variantIndexes.indexOf( selectedVariantBlockIndex ) < 0 || selectedVariantBlockIndex < 0 ) {
+			onSelectVariant( variantIndexes[0] || 0 );
 		}
-	}, [ selectedVariant, variants.length, onSelectVariant ] );
+	}, [ selectedVariantBlockIndex, variantIndexes, onSelectVariant ] );
+
+	// If a child block is selected in some other way e.g. the outline view, show parent variant.
+	useEffect( () => {
+		if ( ! isVisible && isChildSelected && selectedVariantBlockIndex !== variantIndex ) {
+			onSelectVariant( variantIndex );
+		}
+	}, [ isChildSelected, isVisible, variantIndex, selectedVariantBlockIndex, onSelectVariant ] );
 
 	const props = {};
-	if ( ! hasChildBlocks || isChildSelected ) {
-		/**
-		 * If we don't have any child blocks, show standard block appender paragraph.
-		 *
-		 * @returns {InnerBlocks.DefaultBlockAppender} Block appender component.
-		 */
-		props.renderAppender = () => <InnerBlocks.DefaultBlockAppender />;
-	}
+
+	const blockProps = useBlockProps( {
+		className: 'accelerate-block-variant',
+	} );
+
+	const { children, ...innerBlocksProps } = useInnerBlocksProps( {
+		...blockProps,
+		...props,
+	} );
 
 	return (
-		<div key="blocks" className="altis-gb-variant" style={ { display: isVisible ? 'block' : 'none' } }>
-			<InnerBlocks { ...props } />
-			<div key="options" className="wp-block altis-gb-variant-options">
-				{ parentPost?.blockType === 'personalization' && (
-					<>
-						<AudiencePicker
-							audience={ null }
-							buttonLabel={ __( 'Clone variant', 'altis' ) }
-							icon={ CloneVariantIcon }
-							onSelect={ audience => onCloneVariant( { audience } ) }
-						/>
-						<AudiencePicker
-							audience={ null }
-							buttonLabel={ __( 'Add blank audience', 'altis' ) }
-							onSelect={ audience => onAddVariant( { audience } ) }
-						/>
-					</>
-				) }
-				{ parentPost?.blockType !== 'personalization' && (
-					<>
-						<Button
-							icon={ CloneVariantIcon }
-							isSecondary
-							onClick={ onCloneVariant }
-						>
-							{ __( 'Clone variant', 'altis' ) }
-						</Button>
-						<Button
-							icon="plus-alt"
-							isSecondary
-							onClick={ onAddVariant }
-						>
-							{ __( 'Add blank variant', 'altis' ) }
-						</Button>
-					</>
-				) }
-			</div>
+		<div { ...innerBlocksProps } style={ { display: isVisible ? 'block' : 'none' } }>
+			{ ! isGlobalBlockPost && ! hasChildBlocks && (
+				<Placeholder
+					icon={ GlobalBlockIcon }
+					label={ __( 'Empty variant', 'altis' ) }
+				/>
+			) }
+			{ children }
 		</div>
 	);
 };
@@ -104,32 +80,45 @@ const Edit = ( {
 export default compose(
 	withSelect( ( select, ownProps ) => {
 		const { clientId } = ownProps;
-		const { getBlockOrder, getBlocks, getSelectedBlock, getBlock, getBlockRootClientId, getBlockIndex } = select( 'core/block-editor' );
+		const { getBlockOrder, getBlocks, getSelectedBlock, getBlock, getBlockIndex, getBlockRootClientId } = select( 'core/block-editor' );
 		const { getEditedEntityRecord } = select( 'core' );
 		const { getCurrentPost } = select( 'core/editor' );
 		const post = getCurrentPost();
 		const parentClientId = getBlockRootClientId( clientId );
 		const parentBlock = parentClientId ? getBlock( parentClientId ) : null;
 		const blockId = post && post.type === 'wp_block' ? post.id : parentBlock.attributes.ref;
-		const variants = getBlocks( parentClientId );
-		const index = getBlockIndex( clientId );
+		const childBlocks = getBlocks( parentClientId );
+		const variants = ( childBlocks || [] ).filter( block => block.name === 'altis/variant' );
 		const parentPost = getEditedEntityRecord( 'postType', 'wp_block', blockId );
-		const selectedVariant = select( 'core/preferences' ).get( 'altis/global-blocks', `${ blockId }:variant` ) || 0;
+		const selectedVariantBlockIndex = select( 'core/preferences' ).get( 'altis/global-blocks', `${ blockId }:variant` ) || 0;
+
+		// Convert WordPress block index back to array index for visibility logic
+		const selectedVariantArrayIndex = variants.findIndex( v => {
+			const blockIndex = getBlockIndex( v.clientId );
+			return blockIndex === selectedVariantBlockIndex;
+		} );
+		const selectedVariant = selectedVariantArrayIndex >= 0 ? selectedVariantArrayIndex : 0;
 
 		let block = getSelectedBlock();
 		while ( block && block.name !== 'altis/variant' ) {
 			block = getBlock( getBlockRootClientId( block.clientId ) );
 		}
 
+		const variantIndexes = variants.map( variant => getBlockIndex( variant.clientId ) );
+		const isChildSelected = block && block.name === 'altis/variant' && block.clientId === clientId;
+
 		return {
 			blocks: getBlocks( clientId ),
 			hasChildBlocks: getBlockOrder( clientId ).length > 0,
-			index,
-			isChildSelected: block && block.name === 'altis/variant' && block.clientId === clientId,
-			isVisible: selectedVariant === index,
+			variantIndexes,
+			isChildSelected,
+			isGlobalBlockPost: post && post.type === 'wp_block',
+			isVisible: variants[ selectedVariant ]?.clientId === clientId,
 			parentClientId,
 			parentPost,
 			selectedVariant,
+			selectedVariantBlockIndex,
+			variantIndex: getBlockIndex( clientId ),
 			variants,
 		};
 	} ),
