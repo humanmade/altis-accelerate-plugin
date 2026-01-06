@@ -42,7 +42,6 @@ const StyledPopup = styled.div`
  */
 function Popup( { clientId } ) {
 
-	const [ show, setShow ] = useState( false );
 	const block = useSelect( select => {
 		return select( 'accelerate/xbs' ).getPost( clientId );
 	}, [ clientId ] );
@@ -50,6 +49,7 @@ function Popup( { clientId } ) {
 	if ( ! block || block.error ) {
 		return null;
 	}
+	const [ show, setShow ] = useState( false );
 
 	return (
 		<StyledPopup className="altis-popup">

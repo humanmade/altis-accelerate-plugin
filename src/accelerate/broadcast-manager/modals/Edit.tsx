@@ -1,10 +1,11 @@
-import React from "react";
+import React from 'react';
+
 import { useState } from '@wordpress/element';
 import { __ } from '@wordpress/i18n';
 
-import BlockSelector from "../../components/BlockSelector";
 import { usePost } from '../../../data/hooks';
 import { Post, trackEvent } from '../../../utils/admin';
+import BlockSelector from '../../components/BlockSelector';
 
 type Props = {
 	listId: string,
@@ -29,7 +30,11 @@ export default function Edit( props: Props ) {
 
 	const onSaveBlocks = function ( blocks: number[] ) {
 		setBlocks( blocks );
-		trackEvent( listId, 'Action', { action: 'update', type: post.type, blocks: blocks.length } );
+		trackEvent( listId, 'Action', {
+			action: 'update',
+			type: post.type,
+			blocks: blocks.length,
+		} );
 
 		onUpdatePost( {
 			id: post.id,
@@ -38,10 +43,12 @@ export default function Edit( props: Props ) {
 	};
 
 	return (
-		<BlockSelector
-			label={ __( 'Select blocks', 'altis' ) }
-			value={ blocks }
-			onChange={ onSaveBlocks }
-		/>
+		<div className="accelerate-broadcast-modal__edit">
+			<BlockSelector
+				label={ __( 'Select blocks', 'altis' ) }
+				value={ blocks }
+				onChange={ onSaveBlocks }
+			/>
+		</div>
 	);
 }
