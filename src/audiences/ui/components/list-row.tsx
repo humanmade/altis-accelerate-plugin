@@ -1,0 +1,220 @@
+import React, { Fragment } from 'react';
+
+import { Button } from '@wordpress/components';
+import { decodeEntities } from '@wordpress/html-entities';
+import { __ } from '@wordpress/i18n';
+
+import {
+	useCanDelete,
+	useCanEdit,
+	useDeletePost,
+	useUpdatePost,
+} from '../../data/hooks';
+import { Post } from '../../types';
+
+import ActionLink from './action-link';
+import AudienceSort from './audience-sort';
+import Estimate from './estimate';
+import StatusToggle from './status-toggle';
+
+interface Props {
+	/**
+	 * Post object.
+	 */
+	post: Post
+	/**
+	 * Index of the post in the list.
+	 */
+	index: number
+	/**
+	 * Whether the post can be moved down.
+	 */
+	canMoveDown: boolean
+	/**
+	 * Whether the post can be moved up.
+	 */
+	canMoveUp: boolean
+	/**
+	 * Move the post down handler.
+	 */
+	onMoveDown: () => void
+	/**
+	 * Move the post up handler.
+	 */
+	onMoveUp: () => void
+	/**
+	 * Click handler.
+	 */
+	onClick?: () => void
+	/**
+	 * Edit handler.
+	 */
+	onEdit: () => void
+	/**
+	 * Select handler. If present, a select button will be shown.
+	 */
+	onSelect?: ( post: Post ) => void
+}
+
+/**
+ * Audience list row component.
+ *
+ * @param {Object} props Component props.
+ * @returns {React.ReactNode} List row component.
+ */
+const ListRow = ( props: Props ) => {
+	const {
+		canMoveDown,
+		canMoveUp,
+		index,
+		post,
+		onMoveDown,
+		onMoveUp,
+		onClick,
+		onEdit,
+		onSelect,
+	} = props;
+
+	const isSelectMode = !! onSelect;
+	const isPublished = post.status === 'publish';
+	const canEdit = useCanEdit( post.id );
+	const canDelete = useCanDelete( post.id );
+	const deletePost = useDeletePost();
+	const updatePost = useUpdatePost();
+
+	/**
+	 * Delete post handler.
+	 */
+	const onDeletePost = () => {
+		// eslint-disable-next-line no-alert
+		if ( window.confirm( __( 'Are you sure you want to delete this audience?', 'altis' ) ) ) {
+			deletePost( post.id );
+		}
+	};
+
+	/**
+	 * Audience status change handler.
+	 *
+	 * @returns {void}
+	 */
+	const onStatusChange = () => updatePost( {
+		id: post.id,
+		status: post.status === 'publish' ? 'draft' : 'publish',
+	} );
+
+	/**
+	 * Audience on edit link component.
+	 *
+	 * @param {Object} props Component props.
+	 * @returns {ActionLink} Action link component.
+	 */
+	const EditLink = props => (
+		<ActionLink
+			label={ __( 'Edit “%s”' ) }
+			post={ post }
+			onClick={ onEdit }
+			{ ...props }
+		/>
+	);
+
+	/**
+	 * Audience trash link component.
+	 *
+	 * @param {Object} props Component props.
+	 * @returns {ActionLink} Action link component.
+	 */
+	const TrashLink = props => (
+		<ActionLink
+			className="is-destructive"
+			label={ __( 'Move “%s” to the Trash' ) }
+			post={ post }
+			onClick={ onDeletePost }
+			{ ...props }
+		/>
+	);
+
+	const postTitle = decodeEntities( post.title.rendered || __( '(no title)', 'altis' ) );
+
+	return (
+		<tr
+			className={ `audience-row audience-row--${ isPublished ? 'active' : 'inactive' }` }
+			onClick={ onClick }
+		>
+			<td>
+				<AudienceSort
+					canMoveDown={ canMoveDown }
+					canMoveUp={ canMoveUp }
+					index={ index }
+					onMoveDown={ onMoveDown }
+					onMoveUp={ onMoveUp }
+				/>
+			</td>
+			<td>
+				{ ! canEdit && (
+					<span className="row-title">
+						<strong>{ postTitle }</strong>
+					</span>
+				) }
+				{ canEdit && (
+					<EditLink className="row-title">
+						<strong>{ postTitle }</strong>
+					</EditLink>
+				) }
+				<div className="row-actions">
+					{ canEdit && (
+						<span className="edit">
+							<EditLink>
+								{ __( 'Edit' ) }
+							</EditLink>
+						</span>
+					) }
+					{ canDelete && (
+						<Fragment>
+							{ ' | ' }
+							<span className="trash">
+								<TrashLink>
+									{ __( 'Trash' ) }
+								</TrashLink>
+							</span>
+						</Fragment>
+					) }
+				</div>
+			</td>
+			<td>
+				{ canEdit && (
+					<StatusToggle
+						status={ post.status }
+						onChange={ onStatusChange }
+					/>
+				) }
+				{ ! canEdit && (
+					<span className="active">{ post.status === 'publish' ? __( 'Active', 'altis' ) : __( 'Inactive', 'altis' ) }</span>
+				) }
+			</td>
+			<td>
+				<Estimate estimate={ post.estimate } />
+			</td>
+			{ isSelectMode && (
+				<td>
+					{ isPublished && (
+						<Button
+							className="button"
+							onClick={ () => onSelect( post ) }
+						>
+							{ __( 'Select', 'altis' ) }
+						</Button>
+					) }
+				</td>
+			) }
+		</tr>
+	);
+};
+
+ListRow.defaultProps = {
+	/**
+	 * Default click handler.
+	 */
+	onClick: () => {},
+};
+
+export default ListRow;
