@@ -1,0 +1,17 @@
+# Welcome to Mago!
+# For full documentation, see https://mago.carthage.software/tools/overview
+php-version = "8.0.0"
+
+[source]
+paths = ["inc", "plugin.php", "mago-stubs.php"]
+includes = ["vendor", ".wordpress"]
+excludes = []
+
+[analyzer]
+find-unused-definitions = false
+find-unused-expressions = false
+analyze-dead-code = false
+check-throws = true
+allow-possibly-undefined-array-keys = true
+perform-heuristic-checks = true
+ignore = ["unused-parameter"]

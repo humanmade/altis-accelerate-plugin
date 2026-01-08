@@ -16,7 +16,7 @@ const RELATIONSHIP_TAXONOMY = 'wp_block_to_post';
 const BLOCK_USAGE_COUNT_CACHE_KEY_FORMAT = 'block_usage_count_%d';
 
 /**
- * Altis\GlobalBlocks\Connections Bootstrap.
+ * Altis\Accelerate\GlobalBlocks\Connections Bootstrap.
  */
 function bootstrap() {
 	add_action( 'init',                                __NAMESPACE__ . '\\register_relationship_taxonomy' );
@@ -140,7 +140,7 @@ function delete_shadow_term( int $post_id ) : bool {
 		return false;
 	}
 
-	$term = get_associated_term( $post_id, RELATIONSHIP_TAXONOMY );
+	$term = get_associated_term( $post_id );
 
 	if ( ! $term ) {
 		return false;
@@ -182,7 +182,7 @@ function get_associated_post_id( int $term_id ) : int {
  *
  * @param int $post_id Post ID to retreive the associated term object for.
  *
- * @return bool|WP_Term Returns the associated term object or false if no term is found.
+ * @return false|WP_Term Returns the associated term object or false if no term is found.
  */
 function get_associated_term( int $post_id ) {
 	$term_id = get_associated_term_id( $post_id );
@@ -193,7 +193,7 @@ function get_associated_term( int $post_id ) {
 /**
  * Gets the associated shadow term ID of a given post object
  *
- * @param int $post Post ID to get shadow term for.
+ * @param int $post_id Post ID to get shadow term for.
  *
  * @return int The term_id or 0 if no associated term was found.
  */
@@ -237,9 +237,12 @@ function synchronize_associated_terms( int $post_id, WP_Post $post_after, WP_Pos
 	}
 
 	// Get all the reusable blocks from the content.
+	/**
+	 * @var array<int, array{blockName: string, attrs: array<string, mixed>, ref: int}> $reusable_blocks
+	 */
 	$reusable_blocks = array_reduce(
 		parse_blocks( $post_after->post_content ),
-		function( $blocks, $block ) {
+		function( $blocks, $block ) : array {
 			if ( $block['blockName'] !== 'core/block' ) {
 				return $blocks;
 			}
@@ -251,7 +254,7 @@ function synchronize_associated_terms( int $post_id, WP_Post $post_after, WP_Pos
 	);
 
 	if ( empty( $reusable_blocks ) ) {
-		$terms_set = wp_set_object_terms( $post_id, null, RELATIONSHIP_TAXONOMY );
+		$terms_set = wp_set_object_terms( $post_id, [], RELATIONSHIP_TAXONOMY );
 
 		return ! is_wp_error( $terms_set );
 	}
@@ -308,6 +311,9 @@ function usage_column_output( $column, $post_id ) {
 
 	$cache_key = sprintf( BLOCK_USAGE_COUNT_CACHE_KEY_FORMAT, $post_id );
 
+	/**
+	 * @var int|false $count
+	 */
 	$count = wp_cache_get( $cache_key );
 
 	if ( $count === false ) {
@@ -336,5 +342,5 @@ function usage_column_output( $column, $post_id ) {
 		wp_cache_set( $cache_key, $count, '', 8 * 60 * 60 );
 	}
 
-	printf( '<a href="%s">%d</a>', esc_url( get_edit_post_link( $post_id ) ), esc_html( $count ) );
+	printf( '<a href="%s">%d</a>', esc_url( get_edit_post_link( $post_id ) ?: '' ), esc_html( (string) $count ) );
 }

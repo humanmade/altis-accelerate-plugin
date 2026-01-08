@@ -51,6 +51,10 @@ function enqueue_assets() {
 		true
 	);
 
+	if ( ! $block ) {
+		return;
+	}
+
 	wp_add_inline_script(
 		$block['script'],
 		sprintf(
@@ -70,7 +74,7 @@ function enqueue_assets() {
  * Because this block only saves <InnerBlocks.Content> on the JS side,
  * the content string represents only the wrapped inner block markup.
  *
- * @param array $attributes The block's attributes object.
+ * @param array{ clientId?: string, broadcast?: string, className?: string, align?: string } $attributes The block's attributes object.
  * @param string $inner_content The block's saved content.
  * @return string The final rendered block markup, as an HTML string.
  */
@@ -80,12 +84,17 @@ function render_block( array $attributes, ?string $inner_content = '' ) : string
 	$class_name = $attributes['className'] ?? '';
 	$align = $attributes['align'] ?? 'none';
 
+	if ( ! $broadcast_id ) {
+		return '';
+	}
+
 	// Add alignment class.
 	if ( ! empty( $align ) ) {
 		$class_name .= sprintf( 'align%s', $align );
 	}
 
-	$block_ids = get_post_meta( $broadcast_id, 'blocks' ) ?: [];
+	/** @var array<string|null> $block_ids */
+	$block_ids = get_post_meta( (int) $broadcast_id, 'blocks' ) ?: [];
 
 	if ( empty( $block_ids ) ) {
 		return '';
@@ -106,6 +115,8 @@ function render_block( array $attributes, ?string $inner_content = '' ) : string
 		'posts_per_page' => min( 20, count( $block_ids ) ),
 		'no_found_rows' => true,
 	] );
+	/** @var WP_Post[] $posts */
+	$posts = $blocks->posts;
 	$nested_blocks = array_map( function( WP_Post $block ) use ( $client_id ) : string {
 		$content = $block->post_type === 'wp_block'
 			? sprintf( '<!-- wp:block {"ref":%1$d} /-->', $block->ID )
@@ -113,10 +124,10 @@ function render_block( array $attributes, ?string $inner_content = '' ) : string
 		return sprintf(
 			'<template data-id="%1$d" data-parent-id="%2$s">%3$s</template>',
 			$block->ID,
-			$client_id,
+			$client_id ?? '',
 			$content
 		);
-	}, $blocks->posts );
+	}, $posts );
 	$inner_content = do_blocks( implode( '', $nested_blocks ) );
 
 	remove_filter( 'altis.analytics.block_event_attributes', $add_broadcast_id );
@@ -141,16 +152,16 @@ function render_block( array $attributes, ?string $inner_content = '' ) : string
 			</div>',
 			$inner_content,
 			$class_name,
-			$client_id,
-			$broadcast_id
+			$client_id ?? '',
+			$broadcast_id ?? ''
 		);
 	}
 
 	return sprintf(
 		'%4$s<broadcast-block class="%1$s" client-id="%2$s" broadcast-id="%3$d"></broadcast-block>',
 		$class_name,
-		$client_id,
-		$broadcast_id,
+		$client_id ?? '',
+		$broadcast_id ?? '',
 		$inner_content
 	);
 }

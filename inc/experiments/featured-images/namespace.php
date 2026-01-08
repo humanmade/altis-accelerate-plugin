@@ -27,6 +27,21 @@ function init() {
 		add_filter( 'post_thumbnail_html', __NAMESPACE__ . '\\filter_post_thumbnail_html_ab_test_values', 10, 5 );
 	}
 
+	$editor_scripts = [];
+	$asset = Utils\get_asset_url( 'featured-images.js' );
+	if ( $asset ) {
+		$editor_scripts[ $asset ] = [
+			'wp-plugins',
+			'wp-blocks',
+			'wp-i18n',
+			'wp-editor',
+			'wp-components',
+			'wp-core-data',
+			'wp-edit-post',
+			'moment',
+		];
+	}
+
 	Experiments\register_post_ab_test(
 		'featured_images',
 		[
@@ -35,9 +50,13 @@ function init() {
 			'rest_api_variants_type' => 'int',
 			'goal' => 'click',
 			'closest' => 'a',
-			'variant_callback' => function ( $value, int $post_id, array $args ) {
-				return wp_get_attachment_image( $value, $args['size'], false, $args['attr'] );
-			},
+			'variant_callback' =>
+				/**
+				 * @param array{ attr: array<array-key, mixed>, size: string } $args
+				 */
+				function ( int $value, int $post_id, array $args ) {
+					return wp_get_attachment_image( $value, $args['size'], false, $args['attr'] );
+				},
 			'winner_callback' => function ( int $post_id, string $value ) {
 				update_post_meta( $post_id, '_thumbnail_id', $value );
 			},
@@ -53,18 +72,7 @@ function init() {
 				];
 			},
 			'show_ui' => true,
-			'editor_scripts' => [
-				Utils\get_asset_url( 'featured-images.js' ) => [
-					'wp-plugins',
-					'wp-blocks',
-					'wp-i18n',
-					'wp-editor',
-					'wp-components',
-					'wp-core-data',
-					'wp-edit-post',
-					'moment',
-				],
-			],
+			'editor_scripts' => $editor_scripts,
 		]
 	);
 }
@@ -79,9 +87,9 @@ function init() {
  *                                        an array of width and height values in pixels (in that order).
  * @param string       $attr              Query string of attributes.
  *
- * @return string
+ * @return string|null
  */
-function filter_post_thumbnail_html_ab_test_values( string $html, int $post_id, int $post_thumbnail_id, $size, $attr ) : string {
+function filter_post_thumbnail_html_ab_test_values( string $html, int $post_id, int $post_thumbnail_id, $size, $attr ) {
 	return Experiments\output_ab_test_html_for_post( 'featured_images', $post_id, $html, [
 		'size' => $size,
 		'attr' => $attr,

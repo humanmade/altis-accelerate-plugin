@@ -1,19 +1,25 @@
 <?php
 /**
- * Plugin Name: Altis Accelerate
- * Description: Go beyond content with Altis Accelerate, the best way to personalize content in WordPress.
- * Author: Altis DXP
- * Author URI: https://www.altis-dxp.com/
- * Version: pull-request-public-mirror
+ * Plugin Name: Accelerate
+ * Description: Go beyond content with Accelerate, the best way to personalize content in WordPress.
+ * Author: Human Made
+ * Author URI: https://www.accelerateplugin.com/
+ * Version: pull-request-mago
  * Text Domain: altis-accelerate
  * Update URI: https://wordpress.org/plugins/altis-accelerate/
  */
 
 namespace Altis\Accelerate;
 
+/**
+ * @var string
+ */
 const PLUGIN_FILE = __FILE__;
+/**
+ * @var string
+ */
 const PLUGIN_DIR = __DIR__;
-const VERSION = 'pull-request-public-mirror';
+const VERSION = 'pull-request-mago';
 
 if ( ! defined( 'ABSPATH' ) ) {
 	return;
