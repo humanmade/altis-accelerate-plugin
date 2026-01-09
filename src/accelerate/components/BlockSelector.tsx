@@ -1,9 +1,11 @@
-import { __ } from '@wordpress/i18n';
+import { useSelect } from '@wordpress/data';
 import { useState } from '@wordpress/element';
-import BlockSelectorList from './BlockSelectorList';
+import { __ } from '@wordpress/i18n';
+
 import Search from '../../components/Search';
 import { Post } from '../../utils/admin';
-import { useSelect } from '@wordpress/data';
+
+import BlockSelectorList from './BlockSelectorList';
 
 type Props = {
 	value: number[],
@@ -39,7 +41,7 @@ export default function BlockSelector( props: Props ) {
 	}, [ search ] );
 
 	return (
-		<div>
+		<div className="accelerate__block-selector">
 			<div style={ { marginBottom: '20px' } }>
 				<Search
 					label={ __( 'Search blocks', 'altis' ) }

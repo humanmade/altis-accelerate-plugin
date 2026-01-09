@@ -1,19 +1,20 @@
 
 /* eslint-disable no-nested-ternary */
 
-import React, { useState } from 'react';
 import classNames from 'classnames';
-import { __, sprintf } from '@wordpress/i18n';
-import { decodeEntities } from '@wordpress/html-entities';
-import { Button } from '@wordpress/components';
 import moment from 'moment';
+import React, { useState } from 'react';
+
+import { Button } from '@wordpress/components';
+import { useSelect } from '@wordpress/data';
+import { decodeEntities } from '@wordpress/html-entities';
+import { __, sprintf } from '@wordpress/i18n';
 
 import { Duration, Post, HistogramDiffs, compactMetric, getConversionRateLift, trackEvent } from '../../utils/admin';
 
 import Image from './Image';
-import SparkChart from './SparkChart';
 import ImageGroup from './ImageGroup';
-import { useSelect } from '@wordpress/data';
+import SparkChart from './SparkChart';
 
 const ListItem = function ( props: {
 	listId: string,
@@ -60,17 +61,20 @@ const ListItem = function ( props: {
 		return select( 'accelerate' ).getPosts( {
 			type: 'wp_block',
 			include: post.blocks,
-		}, false )
+		}, false );
 	}, [ post.blocks, canFetch ] );
 
 	const onEdit = ( e: React.MouseEvent ) => {
-		trackEvent( listId, 'Action', { action: 'edit', type: post.type } );
+		trackEvent( listId, 'Action', {
+			action: 'edit',
+			type: post.type,
+		} );
 
 		if ( onManage ) {
 			e.preventDefault();
 			onManage( post );
 		}
-	}
+	};
 
 	return (
 		<>
@@ -79,30 +83,30 @@ const ListItem = function ( props: {
 				'record-item--nestable': isNestable,
 				'record-item--nested': isNested,
 				'record-item--empty': isNestable && post.blocks.length === 0,
-			}) }>
+			} ) }>
 				{ isNestable && (
 					<td className='record-expand'>
 						{
 							isExpanded
-							? (
-								<Button
-									icon={ "arrow-down-alt2" }
-									isTertiary
-									title={ __( 'Collapse', 'altis' ) }
-									onClick={ () => setIsExpanded( false ) }
-								/>
-							)
-							: (
-								<Button
-									icon={ "arrow-right-alt2" }
-									isTertiary
-									title={ __( 'Expand', 'altis' ) }
-									onClick={ () => {
-										setCanFetch( true );
-										setIsExpanded( true )
-									} }
-								/>
-							)
+								? (
+									<Button
+										icon={ 'arrow-down-alt2' }
+										isTertiary
+										title={ __( 'Collapse', 'altis' ) }
+										onClick={ () => setIsExpanded( false ) }
+									/>
+								)
+								: (
+									<Button
+										icon={ 'arrow-right-alt2' }
+										isTertiary
+										title={ __( 'Expand', 'altis' ) }
+										onClick={ () => {
+											setCanFetch( true );
+											setIsExpanded( true );
+										} }
+									/>
+								)
 						}
 					</td>
 				) }
@@ -113,49 +117,49 @@ const ListItem = function ( props: {
 					<div className='record-thumbnail-wrap'>
 						{
 							isNestable
-							? ( post.blocks.length > 0 )
-								? (
-									<ImageGroup
-										blocks={ post.blocks }
-										height={ 47 }
-										width={ 105 }
-									/>
-								) : (
-									<div
-										className='record-thumbnail__empty'
-									>
-									</div>
-								)
-							: post.thumbnail
-								? (
-									post.variants > 1
+								? ( post.blocks.length > 0 )
 									? (
-										<div className="record-thumbnail-group-wrap record-thumbnail-group-wrap--multiple">
-											{ post.variants > 2 && ( <span className="record-thumbnail-extra-variant-count">+{ post.variants - 2 }</span> ) }
-											{ Array( 2 ).fill( '' ).map( ( _, index ) => (
-												<Image
-													key={ `thumb-${ index }` }
-													alt={ post.title }
-													height={ 47 }
-													src={ post.thumbnail.replace(  /variant-id%3D0/, 'variant-id%3D' + index ) }
-													width={ 105 }
-												/>
-											) ) }
-										</div>
-									) : (
-										<Image
-											alt={ post.title }
+										<ImageGroup
+											blocks={ post.blocks }
 											height={ 47 }
-											src={ post.thumbnail }
 											width={ 105 }
 										/>
+									) : (
+										<div
+											className='record-thumbnail__empty'
+										>
+										</div>
 									)
-								) : post.editUrl && (
-									<div
-										className='record-thumbnail__empty'
-									>
-									</div>
-								)
+								: post.thumbnail
+									? (
+										post.variants > 1
+											? (
+												<div className="record-thumbnail-group-wrap record-thumbnail-group-wrap--multiple">
+													{ post.variants > 2 && ( <span className="record-thumbnail-extra-variant-count">+{ post.variants - 2 }</span> ) }
+													{ Array( 2 ).fill( '' ).map( ( _, index ) => (
+														<Image
+															key={ `thumb-${ index }` }
+															alt={ post.title }
+															height={ 47 }
+															src={ post.thumbnail.replace(  /variant-id%3D0/, 'variant-id%3D' + index ) }
+															width={ 105 }
+														/>
+													) ) }
+												</div>
+											) : (
+												<Image
+													alt={ post.title }
+													height={ 47 }
+													src={ post.thumbnail }
+													width={ 105 }
+												/>
+											)
+									) : post.editUrl && (
+										<div
+											className='record-thumbnail__empty'
+										>
+										</div>
+									)
 						}
 					</div>
 				</td>
@@ -229,7 +233,10 @@ const ListItem = function ( props: {
 								</> ) }
 								{ post.url && ( <>
 									{ ' ' }
-									<a href={ post.url } onClick={ () => trackEvent( listId, 'Action', { action: 'view', type: post.type } ) }>
+									<a href={ post.url } onClick={ () => trackEvent( listId, 'Action', {
+										action: 'view',
+										type: post.type,
+									} ) }>
 										{ __( 'View', 'altis' ) }
 									</a>
 								</> ) }
@@ -271,7 +278,7 @@ const ListItem = function ( props: {
 							<td className="record-item--nested-loading" colSpan={ 7 }>
 								{ __( 'Loading nested blocks...', 'altis' ) }
 							</td>
-						))
+						) )
 					) : (
 						<tr className="record-item--nested-empty">
 							<td colSpan={ 7 }>
@@ -286,7 +293,7 @@ const ListItem = function ( props: {
 			) }
 		</>
 	);
-}
+};
 
 function GlobalBlockConvertionRate( { post }: { post: Post } ) {
 	if ( ! post.lift || ! post.subtype || post.lift.conversions / post.lift.views * 100 === 0 ) {
@@ -302,7 +309,7 @@ function GlobalBlockConvertionRate( { post }: { post: Post } ) {
 	return (
 		<div
 			className="record-cell-col"
-			title={ sprintf( __( `The number of unique conversions for the global black. %d unique views, and %d conversions` ), post.lift.views, post.lift.conversions ) }
+			title={ sprintf( __( 'The number of unique conversions for the global black. %d unique views, and %d conversions' ), post.lift.views, post.lift.conversions ) }
 		>
 			<div className="record-cell-text-pri">{ Math.round( post.lift.conversions / post.lift.views * 100 ) }%</div>
 			<div className="record-cell-text-sec">{ ( goalLabelMap[ post.goal ] ) || '' }</div>
