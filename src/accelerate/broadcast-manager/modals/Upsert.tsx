@@ -1,9 +1,11 @@
-import React from "react";
+import React from 'react';
+
 import { Button, TextControl } from '@wordpress/components';
+import { useDispatch, useSelect } from '@wordpress/data';
 import { useState } from '@wordpress/element';
 import { __ } from '@wordpress/i18n';
+
 import { Post, trackEvent } from '../../../utils/admin';
-import { useDispatch, useSelect } from '@wordpress/data';
 
 type Props = {
 	listId: string,
@@ -36,11 +38,25 @@ export default function Upsert( props: Props ) {
 		let post: Post;
 
 		if ( item ) {
-			post = await updatePost( { id: item.id, title, type: 'broadcast' } );
-			trackEvent( listId, 'Action', { action: 'rename', type: 'broadcast' } );
+			post = await updatePost( {
+				id: item.id,
+				title,
+				type: 'broadcast',
+			} );
+			trackEvent( listId, 'Action', {
+				action: 'rename',
+				type: 'broadcast',
+			} );
 		} else {
-			post = await createPost( { title, type: 'broadcast', status: 'publish' } );
-			trackEvent( listId, 'Action', { action: 'create', type: 'broadcast' } );
+			post = await createPost( {
+				title,
+				type: 'broadcast',
+				status: 'publish',
+			} );
+			trackEvent( listId, 'Action', {
+				action: 'create',
+				type: 'broadcast',
+			} );
 		}
 
 		onSuccess( post );
@@ -63,8 +79,8 @@ export default function Upsert( props: Props ) {
 					{
 						/* eslint-disable no-nested-ternary */
 						item
-						? isSaving ? __( 'Updating…', 'altis' ) : __( 'Update', 'altis' )
-						: isSaving ? __( 'Creating…', 'altis' ) : __( 'Create', 'altis' )
+							? isSaving ? __( 'Updating…', 'altis' ) : __( 'Update', 'altis' )
+							: isSaving ? __( 'Creating…', 'altis' ) : __( 'Create', 'altis' )
 					}
 				</Button>
 				<Button disabled={ isSaving } isSecondary onClick={ onCancel }>
