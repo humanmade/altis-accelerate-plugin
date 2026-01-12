@@ -338,16 +338,22 @@
 		.record-thumbnail {
 			padding-top: 17px;
 			padding-left: 0;
+			vertical-align: middle;
 
 			.record-thumbnail-wrap {
 				width: 105px;
 				height: 47px;
+				display: flex;
+				align-items: center;
+				justify-content: flex-start;
 			}
 
 			.record-thumbnail-group-wrap--multiple {
 				position: relative;
 				margin-top: -7px;
 				margin-left: 5px;
+
+				// Legacy styles for img/svg elements (backwards compatibility)
 				svg,
 				img {
 					position: absolute;
@@ -363,6 +369,21 @@
 					position: absolute;
 					top: 10px;
 					left: -10px;
+				}
+
+				// Stacked preview styles for BlockPreview elements
+				// Position from bottom-left so the visible "peek" edges are consistent
+				// regardless of content height/rendering differences
+				.stacked-preview--back {
+					position: absolute;
+					bottom: -10px;
+					left: -10px;
+					z-index: 0;
+				}
+
+				.stacked-preview--front {
+					position: relative;
+					z-index: 1;
 				}
 			}
 
@@ -392,6 +413,7 @@
 			img, svg {
 				box-shadow: 0 4px 7px 0 rgba( 21, 42, 79, 0.2 );
 			}
+
 
 			&__empty {
 				width: 100%;

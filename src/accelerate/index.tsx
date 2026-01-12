@@ -2,13 +2,21 @@
 
 import React from 'react';
 import ReactDOM from 'react-dom';
+
 import { SlotFillProvider } from '@wordpress/components';
 import { register } from '@wordpress/data';
 
-import AppComponent from './containers/App';
 import { store } from '../data';
 
+import AppComponent from './containers/App';
+
 import './index.scss';
+
+// Register core blocks for BlockPreview parsing in admin context.
+// Uses WordPress global since @wordpress/block-library isn't bundled.
+if ( window.wp?.blockLibrary?.registerCoreBlocks ) {
+	window.wp.blockLibrary.registerCoreBlocks();
+}
 
 // Set up redux store.
 register( store );

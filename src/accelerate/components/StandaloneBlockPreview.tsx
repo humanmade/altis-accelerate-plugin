@@ -1,0 +1,184 @@
+import { BlockEditorProvider, BlockPreview } from '@wordpress/block-editor';
+import { BlockInstance, parse } from '@wordpress/blocks';
+import { useEffect, useMemo, useState } from '@wordpress/element';
+
+interface Props {
+	// Data - provide ONE of these:
+	content?: string;              // Raw block content to parse
+	blocks?: BlockInstance[];      // Pre-parsed blocks (skip parsing)
+
+	// Dimensions
+	width?: number;
+	height?: number;
+
+	// Styling
+	showShadow?: boolean;          // Default: true (list view has shadow)
+
+	// Other
+	variantIndex?: number;
+	className?: string;
+}
+
+// Cache fetched styles to avoid refetching on each render.
+let cachedStyles: { css: string }[] | null = null;
+let stylesFetchPromise: Promise<{ css: string }[]> | null = null;
+
+/**
+ * Collect block-related stylesheets from the page and fetch their CSS content.
+ * This is needed because BlockPreview renders in an iframe that doesn't inherit page styles.
+ */
+async function getBlockStyles(): Promise<{ css: string }[]> {
+	if ( cachedStyles ) {
+		return cachedStyles;
+	}
+
+	// Prevent multiple simultaneous fetches
+	if ( stylesFetchPromise ) {
+		return stylesFetchPromise;
+	}
+
+	stylesFetchPromise = ( async () => {
+		const styleSheets = Array.from( document.querySelectorAll( 'link[rel="stylesheet"]' ) ) as HTMLLinkElement[];
+		const blockStyleUrls = styleSheets
+			.map( link => link.href )
+			.filter( href =>
+				href.includes( 'wp-block-library' ) ||
+				href.includes( 'wp-block-editor' ) ||
+				href.includes( 'wp-components' )
+			);
+
+		const cssPromises = blockStyleUrls.map( async url => {
+			try {
+				const response = await fetch( url );
+				const css = await response.text();
+				return { css };
+			} catch {
+				return null;
+			}
+		} );
+
+		const results = await Promise.all( cssPromises );
+		cachedStyles = results.filter( ( result ): result is { css: string } => result !== null );
+		return cachedStyles;
+	} )();
+
+	return stylesFetchPromise;
+}
+
+/**
+ * Standalone BlockPreview component for use outside the block editor context.
+ * Wraps BlockPreview in a BlockEditorProvider to enable rendering in admin pages.
+ */
+export default function StandaloneBlockPreview( {
+	content,
+	blocks: providedBlocks,
+	width = 105,
+	height = 47,
+	showShadow = true,
+	variantIndex = 0,
+	className,
+}: Props ) {
+	const [ styles, setStyles ] = useState<{ css: string }[]>( cachedStyles || [] );
+	const [ isLoading, setIsLoading ] = useState( ! cachedStyles );
+
+	useEffect( () => {
+		if ( ! cachedStyles ) {
+			getBlockStyles().then( fetchedStyles => {
+				setStyles( fetchedStyles );
+				setIsLoading( false );
+			} );
+		}
+	}, [] );
+
+	const blocks = useMemo( () => {
+		// If blocks provided directly, use them (skip parsing)
+		// Check for actual blocks (not just truthy - empty array is truthy but has no content)
+		if ( providedBlocks && providedBlocks.length > 0 ) {
+			return providedBlocks;
+		}
+
+		// Otherwise parse content string
+		if ( ! content ) {
+			return [];
+		}
+
+		try {
+			const parsed = parse( content );
+			// For A/B test blocks with multiple variants, show the variant at variantIndex.
+			// WordPress parses unregistered blocks like altis/variant as core/missing,
+			// but preserves their innerBlocks which contain the real content.
+			const variants = parsed.filter(
+				block => block.name === 'core/missing' && block.innerBlocks?.length
+			);
+
+			if ( variants.length > 0 ) {
+				// Get specific variant by index, fallback to first if index out of bounds
+				const targetVariant = variants[ variantIndex ] || variants[ 0 ];
+				return targetVariant.innerBlocks;
+			}
+			// No variant wrapper found - return blocks as-is (standard block).
+			return parsed;
+		} catch {
+			return [];
+		}
+	}, [ content, providedBlocks, variantIndex ] );
+
+	// Show loading placeholder while styles are being fetched
+	if ( isLoading ) {
+		return (
+			<div
+				className={ `record-thumbnail__empty ${ className || '' }` }
+				style={ {
+					width,
+					height,
+				} }
+			/>
+		);
+	}
+
+	if ( ! blocks.length ) {
+		return (
+			<div
+				className={ `record-thumbnail__empty ${ className || '' }` }
+				style={ {
+					width,
+					height,
+				} }
+			/>
+		);
+	}
+
+	const settings = {
+		styles,
+	};
+
+	// Use 800px viewport for desktop layout, scales to ~13% in 105px container
+	const viewportWidth = 800;
+
+	return (
+		<div
+			className={ `standalone-block-preview ${ className || '' }`.trim() }
+			style={ {
+				borderRadius: '2px',
+				boxShadow: showShadow ? '0 4px 7px 0 rgba(21, 42, 79, 0.2)' : 'none',
+				maxWidth: width,
+			} }
+		>
+			<div
+				style={ {
+					width,
+					maxHeight: height,
+					overflow: 'hidden',
+					borderRadius: '2px',
+				} }
+			>
+				<BlockEditorProvider settings={ settings } value={ blocks }>
+					<BlockPreview
+						blocks={ blocks }
+						viewportWidth={ viewportWidth }
+					/>
+				</BlockEditorProvider>
+			</div>
+		</div>
+	);
+}

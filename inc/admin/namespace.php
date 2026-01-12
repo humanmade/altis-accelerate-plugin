@@ -6,6 +6,7 @@
 namespace Altis\Accelerate\Admin;
 
 use Altis\Accelerate;
+use Altis\Accelerate\Telemetry;
 use Altis\Accelerate\Utils;
 
 const MENU_SLUG = 'altis-accelerate-settings';
@@ -40,6 +41,7 @@ function bootstrap() : void {
 
 	add_action( 'load-accelerate_page_altis-accelerate-settings', __NAMESPACE__ . '\\handle_authorize_callback' );
 	add_action( 'load-accelerate_page_altis-accelerate-settings', __NAMESPACE__ . '\\unlink_altis_dashboard_action' );
+	add_action( 'load-accelerate_page_altis-accelerate-settings', __NAMESPACE__ . '\\handle_telemetry_settings' );
 
 	Notices\setup();
 
@@ -53,13 +55,23 @@ function bootstrap() : void {
  * Register scripts for all admin pages.
  */
 function action_admin_enqueue_scripts() : void {
+	wp_enqueue_style( 'altis-admin-ui', plugins_url( 'build/tailwind.css', Accelerate\PLUGIN_FILE ), [] );
 	if ( ! is_altis_screen() ) {
 		return;
 	}
 
+	// Enqueue block editor dependencies for BlockPreview in Content Explorer.
+	wp_enqueue_script( 'wp-block-editor' );
+	wp_enqueue_script( 'wp-block-library' );
+	wp_enqueue_style( 'wp-block-editor' );
+	wp_enqueue_style( 'wp-block-library' );
+
 	Utils\register_assets( 'accelerate-admin', [
 		'dependencies' => [
 			'wp-api-fetch',
+			'wp-blocks',
+			'wp-block-editor',
+			'wp-block-library',
 			'wp-components',
 			'wp-data',
 			'wp-element',
@@ -110,7 +122,8 @@ function add_plugin_header() : void {
 		<div class="altis-ui">
 			<div class="Header">
 				<h1 class="Logo">
-					<img alt="Altis Accelerate" height="26" src="%s" width="64" />
+					<!--<img alt="Altis Accelerate" height="26" src="%s" width="64" />-->
+					<span>Accelerate</span>
 					<span class="Beta">
 						%s
 					</span>
@@ -136,8 +149,6 @@ function add_plugin_header() : void {
 
 /**
  * Closes off the Altis UI div.
- *
- * @param string $data The data to print.
  */
 function add_plugin_footer() : void {
 	if ( ! is_altis_screen() ) {
@@ -218,12 +229,13 @@ function register_settings_admin_page() : void {
 		1000
 	);
 
-	// Register a new section in the "wporg" page.
+	// Register account connection section on its own page slug.
+	// This prevents nesting forms when telemetry has its own form.
 	add_settings_section(
 		'altis-accelerate-setup',
-		'',
+		__( 'Account', 'altis' ),
 		__NAMESPACE__ . '\\render_settings_section',
-		'altis-accelerate'
+		'altis-accelerate-account'
 	);
 }
 
@@ -233,19 +245,94 @@ function register_settings_admin_page() : void {
  * @return void
  */
 function render_settings_section() : void {
-	$connected = Accelerate\get_altis_dashboard_access_token();
+	$connected = Accelerate\get_accelerate_dashboard_access_token();
 
 	if ( ! $connected ) {
 		return;
 	}
 
-	$user = Accelerate\altis_dashboard_remote_request( '/wp/v2/users/me' );
+	$user = Accelerate\accelerate_dashboard_remote_request( '/wp/v2/users/me' );
 	?>
 	<?php if ( is_wp_error( $user ) ) : ?>
-		<p>Your connection to Altis Accelerate failed with <code><?php echo esc_html( $user->get_error_message() ) ?></code>. <a href="<?php echo esc_url( Accelerate\get_altis_dashboard_authorize_url() ) ?>">Relink your account.</a></p>
+		<p>Your connection to Accelerate failed with <code><?php echo esc_html( $user->get_error_message() ) ?></code>. <a href="<?php echo esc_url( Accelerate\get_accelerate_dashboard_authorize_url() ) ?>">Relink your account.</a></p>
 	<?php else : ?>
-		<p>Your site is connected to Altis Accelerate for the user <code><?php echo esc_html( $user->name ) ?></code>. <a href="<?php echo esc_url( Accelerate\get_altis_dashboard_url() . '/accelerate/' ) ?>">Manage your Altis Accelerate account.</a> If you want to change the linked account, <a href="<?php echo esc_url( wp_nonce_url( add_query_arg( 'action', 'unlink-altis-dashboard-oauth' ), 'unlink-altis-dashboard-oauth' ) ) ?>">unlink here</a>.</p>
+		<p>Your site is connected to Accelerate for the user <code><?php echo esc_html( $user->name ) ?></code>. <a href="<?php echo esc_url( Accelerate\get_accelerate_dashboard_url() . '/accelerate/' ) ?>">Manage your Altis Accelerate account.</a> If you want to change the linked account, <a href="<?php echo esc_url( wp_nonce_url( add_query_arg( 'action', 'unlink-altis-dashboard-oauth' ), 'unlink-altis-dashboard-oauth' ) ) ?>">unlink here</a>.</p>
 	<?php endif; ?>
+	<?php
+}
+
+/**
+ * Handle telemetry settings form submission.
+ *
+ * @return void
+ */
+function handle_telemetry_settings() : void {
+	if ( ! isset( $_POST['altis_telemetry_submit'] ) ) {
+		return;
+	}
+
+	// Verify nonce and capability.
+	$nonce = isset( $_POST['_wpnonce'] ) ? sanitize_text_field( $_POST['_wpnonce'] ) : '';
+	if ( ! wp_verify_nonce( $nonce, 'altis_telemetry_settings' ) || ! current_user_can( 'manage_options' ) ) {
+		wp_die( __( 'Security check failed. Please try again.', 'altis' ) );
+	}
+
+	$new_status = isset( $_POST['altis_telemetry_enabled'] );
+	Telemetry\opt_in( $new_status, null, 'settings' );
+
+	// Redirect to avoid form resubmission.
+	wp_safe_redirect( add_query_arg( 'telemetry_updated', '1' ) );
+	exit;
+}
+
+/**
+ * Render the telemetry settings section.
+ *
+ * @return void
+ */
+function render_telemetry_section() : void {
+	$is_opted_in = Telemetry\is_site_opted_in();
+
+	// Show success notice if just updated.
+	if ( isset( $_GET['telemetry_updated'] ) ) {
+		echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Setting saved.', 'altis' ) . '</p></div>';
+	}
+	?>
+	<p>
+		<?php esc_html_e( 'When enabled, we collect anonymous data about how your site uses Accelerate — things like which features you use and how often. This helps us prioritize improvements and provide better support.', 'altis' ); ?>
+	</p>
+	<p style="color: #666;">
+		<?php esc_html_e( 'This only shares plugin usage data (features used, versions) with Human Made. Your site\'s visitor analytics stays in your Accelerate account.', 'altis' ); ?>
+	</p>
+	<form method="post">
+		<?php wp_nonce_field( 'altis_telemetry_settings' ); ?>
+		<label style="display: flex; align-items: center; gap: 8px;">
+			<input type="checkbox" name="altis_telemetry_enabled" value="1" <?php checked( $is_opted_in ); ?> />
+			<span><?php esc_html_e( 'Help improve Accelerate by sharing usage data', 'altis' ); ?></span>
+		</label>
+		<p class="submit">
+			<input type="submit" name="altis_telemetry_submit" class="button button-primary" value="<?php esc_attr_e( 'Save', 'altis' ); ?>" />
+		</p>
+	</form>
+	<?php
+}
+
+/**
+ * Render telemetry section with its own heading.
+ *
+ * This is called directly from render_settings_page() to avoid
+ * nesting forms (telemetry has its own form, can't be inside options.php form).
+ *
+ * @return void
+ */
+function render_telemetry_section_with_heading() : void {
+	?>
+	<div style="padding-left: 5%;">
+		<h2><?php esc_html_e( 'Product Analytics', 'altis' ); ?></h2>
+		<div style="max-width: 600px;">
+			<?php render_telemetry_section(); ?>
+		</div>
+	</div>
 	<?php
 }
 
@@ -277,11 +364,15 @@ function render_settings_page() : void {
 		<form action="options.php" method="post">
 			<?php
 			settings_fields( 'altis-accelerate' );
-			do_settings_sections( 'altis-accelerate' );
-			// Output save settings button.
-			// submit_button( __( 'Save Changes', 'altis' ) );
+			// Render only the account section inside the WordPress settings form.
+			do_settings_sections( 'altis-accelerate-account' );
 			?>
 		</form>
+
+		<?php
+		// Render telemetry section separately (it has its own form).
+		render_telemetry_section_with_heading();
+		?>
 	</div>
 	<?php
 }
@@ -293,18 +384,6 @@ function render_settings_page() : void {
  * @return string
  */
 function sanitize_config_setting( string $config ) : string {
-	if ( strpos( $config, '{' ) === 0 ) {
-		$config = json_decode( $config, ARRAY_A );
-		$config = implode( ':', [
-			$config['pinpoint']['region'],
-			$config['pinpoint']['app_id'],
-			hash( 'sha256',
-				$config['elasticsearch']['access_key'] .
-				$config['elasticsearch']['access_secret'] .
-				$config['elasticsearch']['index_path']
-			),
-		] );
-	}
 	$parsed_config = explode( ':', $config, 3 );
 	if ( count( $parsed_config ) !== 3 ) {
 		// phpcs:ignore
@@ -480,16 +559,15 @@ function handle_authorize_callback() : void {
 	$code = sanitize_text_field( wp_unslash( $_GET['code'] ) );
 
 	// Exchange the code for an access token.
-	$request = wp_remote_post( Accelerate\get_altis_dashboard_url() . '/api/oauth2/access_token', [
+	$request = wp_remote_post( Accelerate\get_accelerate_dashboard_url() . '/wp-json/oauth2/access_token', [
 		'headers' => [
 			'Content-Type' => 'application/json',
 		],
 		'body' => wp_json_encode( [
-			'client_id' => Accelerate\get_altis_dashboard_oauth2_client_id(),
+			'client_id' => Accelerate\get_accelerate_dashboard_oauth2_client_id(),
 			'code' => $code,
 			'grant_type' => 'authorization_code',
 		] ),
-		'sslverify' => false,
 	] );
 
 	if ( is_wp_error( $request ) ) {
@@ -506,9 +584,9 @@ function handle_authorize_callback() : void {
 	}
 
 	// Save the access token.
-	Accelerate\set_altis_dashboard_access_token( $body->access_token );
+	Accelerate\set_accelerate_dashboard_access_token( $body->access_token );
 
-	$sites = Accelerate\altis_dashboard_remote_request( '/stack/accelerate/sites', 'GET' );
+	$sites = Accelerate\accelerate_dashboard_remote_request( '/accelerate/sites', 'GET' );
 	if ( is_wp_error( $sites ) ) {
 		wp_die( esc_html( $sites->get_error_message() ) );
 	}
@@ -520,7 +598,7 @@ function handle_authorize_callback() : void {
 
 	if ( empty( $site ) ) {
 		// Create a site for the current site's URL.
-		$site = Accelerate\altis_dashboard_remote_request( '/stack/accelerate/sites', 'POST', [
+		$site = Accelerate\accelerate_dashboard_remote_request( '/accelerate/sites', 'POST', [
 			'url' => home_url(),
 		] );
 	} else {
@@ -533,7 +611,7 @@ function handle_authorize_callback() : void {
 
 	while ( $site->status === 'creating' ) {
 		sleep( CREATE_SITE_POLLING_INTERVAL );
-		$sites = Accelerate\altis_dashboard_remote_request( '/stack/accelerate/sites', 'GET' );
+		$sites = Accelerate\accelerate_dashboard_remote_request( '/accelerate/sites', 'GET' );
 		if ( is_wp_error( $sites ) ) {
 			wp_die( esc_html( $sites->get_error_message() ) );
 		}
@@ -543,6 +621,10 @@ function handle_authorize_callback() : void {
 	}
 
 	update_option( 'altis_config', $site->plugin_config );
+
+	// Track site connection event for PLG analytics.
+	Telemetry\track_site_connected();
+
 	wp_safe_redirect( remove_query_arg( 'code' ) );
 	exit;
 }
@@ -557,7 +639,7 @@ function unlink_altis_dashboard_action() : void {
 		return;
 	}
 
-	Accelerate\delete_altis_dashboard_access_token();
+	Accelerate\delete_accelerate_dashboard_access_token();
 	delete_option( 'altis_config');
 
 	wp_safe_redirect( remove_query_arg( 'action' ) );

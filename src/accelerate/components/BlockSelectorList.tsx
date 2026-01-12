@@ -1,39 +1,27 @@
-import moment from 'moment';
-import { __ } from '@wordpress/i18n';
-import { Post } from "../../utils/admin";
-import Image from "./Image";
+import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
+import { useSortable, arrayMove, SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import classNames from 'classnames';
+import moment from 'moment';
+
+import { decodeEntities } from '@wordpress/html-entities';
+import { __ } from '@wordpress/i18n';
+
+import { Post } from '../../utils/admin';
+
+import Image from './Image';
+import StandaloneBlockPreview from './StandaloneBlockPreview';
+
 import './BlockSelectorList.scss';
 
-import { CSS } from '@dnd-kit/utilities';
-import {
-  DndContext,
-  closestCenter,
-  PointerSensor,
-  useSensor,
-  useSensors,
-} from '@dnd-kit/core';
-
-import {
-	useSortable,
-	arrayMove,
-	SortableContext,
-	verticalListSortingStrategy,
-} from '@dnd-kit/sortable';
-import { decodeEntities } from '@wordpress/html-entities';
-
 type ListProps = {
-	blocks: Post[],
-	selected: number[],
-	onChange: Function,
-}
+	blocks: Post[];
+	selected: number[];
+	onChange: Function;
+};
 
-export default function BlockSelectorList ( props: ListProps ) {
-	const {
-		blocks,
-		onChange,
-		selected,
-	} = props;
+export default function BlockSelectorList( props: ListProps ) {
+	const { blocks, onChange, selected } = props;
 
 	const sensors = useSensors(
 		useSensor( PointerSensor, {
@@ -41,10 +29,10 @@ export default function BlockSelectorList ( props: ListProps ) {
 			activationConstraint: {
 				distance: 10,
 			},
-		} ),
+		} )
 	);
 
-	function onDragEnd ( event: any ) {
+	function onDragEnd( event: any ) {
 		const { active, over } = event;
 
 		// We have to only account for sorted items that are actually selected.
@@ -54,7 +42,6 @@ export default function BlockSelectorList ( props: ListProps ) {
 		onChange( sorted );
 	}
 
-
 	// Sort selected blocks according to selection.
 	blocks.sort( ( a, b ) => selected.indexOf( a.id ) - selected.indexOf( b.id ) );
 	// Sort other blocks AFTER selected one.
@@ -62,15 +49,8 @@ export default function BlockSelectorList ( props: ListProps ) {
 
 	return (
 		<div className="accelerate__block-list_wrapper">
-			<DndContext
-				collisionDetection={ closestCenter }
-				sensors={ sensors }
-				onDragEnd={ onDragEnd }
-			>
-				<SortableContext
-					items={ blocks }
-					strategy={ verticalListSortingStrategy }
-				>
+			<DndContext collisionDetection={ closestCenter } sensors={ sensors } onDragEnd={ onDragEnd }>
+				<SortableContext items={ blocks } strategy={ verticalListSortingStrategy }>
 					<ul>
 						{ blocks.map( ( block: Post ) => (
 							<BlockSelectorListItem
@@ -85,42 +65,28 @@ export default function BlockSelectorList ( props: ListProps ) {
 				</SortableContext>
 			</DndContext>
 		</div>
-	)
+	);
 }
 
 type BlockItemProps = {
-	block: Post,
-	selected: boolean,
-	onAdd: Function,
-	onRemove: Function,
-}
+	block: Post;
+	selected: boolean;
+	onAdd: Function;
+	onRemove: Function;
+};
 
-function BlockSelectorListItem ( props: BlockItemProps ) {
-	const {
-		block,
-		selected,
-		onAdd,
-		onRemove
-	} = props;
+function BlockSelectorListItem( props: BlockItemProps ) {
+	const { block, selected, onAdd, onRemove } = props;
 
-	const {
-		attributes,
-		listeners,
-		setNodeRef,
-		transform,
-		transition,
-	} = useSortable( {
+	const { attributes, listeners, setNodeRef, transform, transition } = useSortable( {
 		id: block.id,
-		disabled: ! selected
+		disabled: ! selected,
 	} );
 
 	return (
 		<li
 			ref={ setNodeRef }
-			className={ classNames(
-				'accelerate__block-list_item',
-				{ 'accelerate__block-list_item--sortable': selected }
-			) }
+			className={ classNames( 'accelerate__block-list_item', { 'accelerate__block-list_item--sortable': selected } ) }
 			style={ {
 				transform: CSS.Transform.toString( transform ),
 				transition,
@@ -128,14 +94,25 @@ function BlockSelectorListItem ( props: BlockItemProps ) {
 			{ ...attributes }
 			{ ...listeners }
 		>
-			{/* { selected && ( <Icon icon="move" /> ) || ( <Icon icon='' /> ) } */}
+			{ /* { selected && ( <Icon icon="move" /> ) || ( <Icon icon='' /> ) } */ }
 			<div className="accelerate__block-list_item--thumb">
-				{ block.thumbnail && (
-					<Image
-						alt={ block.title }
+				{ /* Prefer native BlockPreview over external thumbnail API */ }
+				{ block.rawContent ? (
+					<StandaloneBlockPreview
+						content={ block.rawContent }
 						height={ 47 }
-						src={ block.thumbnail }
+						showShadow={ false }
 						width={ 105 }
+					/>
+				) : block.thumbnail ? (
+					<Image alt={ block.title } height={ 47 } src={ block.thumbnail } width={ 105 } />
+				) : (
+					<div
+						className="record-thumbnail__empty"
+						style={ {
+							width: 105,
+							height: 47,
+						} }
 					/>
 				) }
 			</div>
@@ -148,24 +125,15 @@ function BlockSelectorListItem ( props: BlockItemProps ) {
 				</div>
 			</div>
 			<div className="accelerate__block-list_item--actions">
-				{
-					selected
-					? (
-						<button
-							className="accelerate__block-list_item--remove"
-							onClick={ () => onRemove( block.id ) }
-						>
-							{ __( 'Remove', 'altis' ) }
-						</button>
-					) : (
-						<button
-							className="accelerate__block-list_item--add"
-							onClick={ () => onAdd( block.id ) }
-						>
-							{ __( 'Add', 'altis' ) }
-						</button>
-					)
-				}
+				{ selected ? (
+					<button className="accelerate__block-list_item--remove" onClick={ () => onRemove( block.id ) }>
+						{ __( 'Remove', 'altis' ) }
+					</button>
+				) : (
+					<button className="accelerate__block-list_item--add" onClick={ () => onAdd( block.id ) }>
+						{ __( 'Add', 'altis' ) }
+					</button>
+				) }
 			</div>
 		</li>
 	);
