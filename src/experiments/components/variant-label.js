@@ -20,7 +20,6 @@ const VariantLabel = props => {
 
 	return (
 		<VariantLabelContainer>
-			{ /* eslint-disable-next-line jsx-a11y/label-has-for */ }
 			<label className="components-base-control__label">{ label }</label>
 			{ isEditable && (
 				<Icon
