@@ -1,14 +1,12 @@
 import React from 'react';
+
 import { __ } from '@wordpress/i18n';
 
+import { BlockFillProps, StatsResult } from '../../utils/admin';
+
 import BreakdownBlock from './BreakdownBlock';
-import { StatsResult } from '../../utils/admin';
 
-interface Props {
-	data?: StatsResult,
-}
-
-export default function Browsers( props: Props ) {
+export default function Browsers( props: BlockFillProps ) {
 	const { data } = props;
 	if ( ! data || ! data.stats || ! data.stats.by_browser ) {
 		return null;
@@ -28,6 +26,12 @@ export default function Browsers( props: Props ) {
 			items={ stats }
 			maxItems={ 5 }
 			total={ data.stats.summary.views }
+			onSelectItem={ item => props.onAddRule( {
+				field: 'endpoint.Demographic.Model',
+				value: item.title,
+				type: 'string',
+				operator: '=',
+			} ) }
 		/>
 	);
 }
