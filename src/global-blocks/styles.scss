@@ -1,9 +1,6 @@
 @import '../accelerate/variables';
 
 // Set the Core "synced" color to Altis blue.
-:root{
-	--wp-block-synced-color: hsl(227, 70%, 57%);
-}
 
 // Relationships list styles
 .altis-reusable-block-relationships__relationships_list.components-panel__body {
@@ -46,8 +43,8 @@
 }
 
 // Block display styles
-.block-editor-block-list__layout .block-editor-block-list__block[data-title="Global Block"]:focus,
-.block-editor-block-list__layout .block-editor-block-list__block[data-title="Global Block"]:hover {
+.block-editor-block-list__layout .block-editor-block-list__block[data-title="Synced Pattern"]:focus,
+.block-editor-block-list__layout .block-editor-block-list__block[data-title="Synced Pattern"]:hover {
 
 	&:before {
 		background: none;
@@ -122,7 +119,7 @@
 		position: relative;
 		z-index: 2;
 
-		> div::before {
+		> .wp-block::before {
 			transition: all 340ms;
 		}
 	}
@@ -130,11 +127,11 @@
 	.global-block-wrapper:not(.is-selected) .global-block-wrapper-inner {
 		position: relative;
 
-		> div {
+		> .wp-block {
 			position: relative;
 		}
 
-		> div::before {
+		> .wp-block::before {
 			position: absolute;
 			content: " ";
 			top: 0;
@@ -149,8 +146,19 @@
 	}
 
 	.global-block-wrapper.is-selected .global-block-wrapper-inner {
-		> div::before {
+		> .wp-block::before {
 			outline: 5px solid fade-out($c-altis-400, 0.1);
+		}
+	}
+
+	.global-block-wrapper.is-empty .global-block-wrapper-inner {
+		> .wp-block {
+			position: absolute;
+			top: 0;
+			right: 0;
+			bottom: 0;
+			left: 0;
+			margin: 0;
 		}
 	}
 
@@ -259,15 +267,24 @@
 	min-height: auto;
 	background: $c-grey-50;
 
-	&:focus-within {
-		box-shadow: none;
-	}
-
-	> [role="presentation"] {
+	&:before {
+		background: white;
 		background: #fff;
 		box-shadow: 0 1px 3px rgba(0,0,0,0.05);
 		border-radius: 3px;
 		border: 1px solid #ddd;
+	}
+
+	&:focus-within {
+		box-shadow: none;
+	}
+
+	[role="presentation"] {
+		background: #fff;
+		box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+		border-radius: 3px;
+		border: 1px solid #ddd;
+		z-index: 0;
 		top: 0;
 		bottom: 0;
 	}
@@ -706,8 +723,13 @@ span.altis-score {
 }
 
 // Hide the default inserters after any variant block.
-.altis-gb-variant ~ p,
-.altis-gb-variant ~ .block-list-appender {
+.accelerate-block-variant ~ p,
+.accelerate-block-variant ~ .block-list-appender {
+	display: none;
+}
+
+// Hide empty paragraphs inside variant blocks (matching synced pattern editor behavior)
+.accelerate-block-variant > .wp-block[data-empty="true"] {
 	display: none;
 }
 
@@ -763,4 +785,24 @@ span.altis-score {
 
 .altis-gb-variant-label {
 	cursor: default;
+}
+
+// Custom purple convert buttons
+.altis-convert-button.components-button.is-compact.is-primary {
+	background-color: rgba(122, 0, 223, 0.1) !important; // Very light purple background
+	color: #7a00df !important; // Purple text
+	border-color: rgba(122, 0, 223, 0.2) !important; // Slightly darker purple border
+
+	&:hover:not(:disabled) {
+		background-color: rgba(122, 0, 223, 0.15) !important; // Slightly darker on hover
+		color: #7a00df !important;
+		border-color: rgba(122, 0, 223, 0.3) !important;
+	}
+
+	&:focus:not(:disabled) {
+		background-color: rgba(122, 0, 223, 0.15) !important;
+		color: #7a00df !important;
+		border-color: rgba(122, 0, 223, 0.4) !important;
+		box-shadow: 0 0 0 1px rgba(122, 0, 223, 0.3) !important;
+	}
 }

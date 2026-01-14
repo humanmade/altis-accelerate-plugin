@@ -10,132 +10,133 @@ const testIsTracked = {};
  *
  * @param {object} SuperClass
  */
-const Test = SuperClass => class extends SuperClass {
+const Test = SuperClass =>
+	class extends SuperClass {
+		storageKey = '_altis_ab_tests';
 
-	storageKey = '_altis_ab_tests';
+		tracked = false;
 
-	tracked = false;
-
-	get testId() {
-		return this.getAttribute( 'test-id' );
-	}
-
-	get postId() {
-		return this.getAttribute( 'post-id' );
-	}
-
-	get testIdWithPost() {
-		return `${ this.testId }_${ this.postId }`;
-	}
-
-	get trafficPercentage() {
-		return parseFloat( this.getAttribute( 'traffic-percentage' ) );
-	}
-
-	get variants() {
-		return JSON.parse( this.getAttribute( 'variants' ) ) || [];
-	}
-
-	get variantWeights() {
-		return ( JSON.parse( this.getAttribute( 'variant-weights' ) ) || [] ).map( parseFloat );
-	}
-
-	get fallback() {
-		return this.getAttribute( 'fallback' );
-	}
-
-	get goal() {
-		return this.getAttribute( 'goal' );
-	}
-
-	get selector() {
-		return this.getAttribute( 'selector' );
-	}
-
-	get closest() {
-		return this.getAttribute( 'closest' );
-	}
-
-	connectedCallback() {
-		// Extract test set by URL parameters.
-		const regex = new RegExp( `(utm_campaign|set_test)=test_${ this.testIdWithPost }:(\\d+)`, 'i' );
-		const urlTest = unescape( window.location.search ).match( regex );
-		if ( urlTest ) {
-			this.addTestForUser( { [ this.testIdWithPost ]: parseInt( urlTest[ 2 ], 10 ) } );
+		get testId() {
+			return this.getAttribute( 'test-id' );
 		}
 
-		// Initialise component.
-		this.init();
-	}
+		get postId() {
+			return this.getAttribute( 'post-id' );
+		}
 
-	init() {
-		window.console && window.console.error( 'Children of Class Test must implement an init() method.' );
-	}
+		get testIdWithPost() {
+			return `${ this.testId }_${ this.postId }`;
+		}
 
-	getTestsForUser() {
-		return JSON.parse( window.localStorage.getItem( this.storageKey ) ) || {};
-	}
+		get trafficPercentage() {
+			return parseFloat( this.getAttribute( 'traffic-percentage' ) );
+		}
 
-	addTestForUser( test ) {
-		window.localStorage.setItem( this.storageKey, JSON.stringify( {
-			...this.getTestsForUser(),
-			...test,
-		} ) );
-	}
+		get variants() {
+			return JSON.parse( this.getAttribute( 'variants' ) ) || [];
+		}
 
-	getVariantId() {
-		const testId = this.testIdWithPost;
-		const trafficPercentage = this.trafficPercentage;
+		get variantWeights() {
+			return ( JSON.parse( this.getAttribute( 'variant-weights' ) ) || [] ).map( parseFloat );
+		}
 
-		// Check if this user already have a variant for this test.
-		const currentTests = this.getTestsForUser();
-		let variantId = false;
-		// Test variant can be 0 so check for not undefined and not strictly false and
-		// that it's a valid index.
-		if (
-			typeof currentTests[ testId ] !== 'undefined' &&
-			currentTests[ testId ] !== false &&
-			currentTests[ testId ] < this.variants.length
-		) {
-			variantId = currentTests[ testId ];
-		} else if ( currentTests[ testId ] === false ) {
-			return variantId;
-		} else {
-			// Otherwise lets check the probability we should experiment on this individual.
-			// That sounded weird.
-			if ( Math.random() * 100 > trafficPercentage ) {
-				// Exclude from this test.
-				this.addTestForUser( {
-					[ testId ]: false,
-				} );
+		get fallback() {
+			return this.getAttribute( 'fallback' );
+		}
+
+		get goal() {
+			return this.getAttribute( 'goal' );
+		}
+
+		get selector() {
+			return this.getAttribute( 'selector' );
+		}
+
+		get closest() {
+			return this.getAttribute( 'closest' );
+		}
+
+		connectedCallback() {
+			// Extract test set by URL parameters.
+			const regex = new RegExp( `(utm_campaign|set_test)=test_${ this.testIdWithPost }:(\\d+)`, 'i' );
+			const urlTest = unescape( window.location.search ).match( regex );
+			if ( urlTest ) {
+				this.addTestForUser( { [this.testIdWithPost]: parseInt( urlTest[2], 10 ) } );
+			}
+
+			// Initialise component.
+			this.init();
+		}
+
+		init() {
+			window.console && window.console.error( 'Children of Class Test must implement an init() method.' );
+		}
+
+		getTestsForUser() {
+			return JSON.parse( window.localStorage.getItem( this.storageKey ) ) || {};
+		}
+
+		addTestForUser( test ) {
+			window.localStorage.setItem(
+				this.storageKey,
+				JSON.stringify( {
+					...this.getTestsForUser(),
+					...test,
+				} )
+			);
+		}
+
+		getVariantId() {
+			const testId = this.testIdWithPost;
+			const trafficPercentage = this.trafficPercentage;
+
+			// Check if this user already have a variant for this test.
+			const currentTests = this.getTestsForUser();
+			let variantId = false;
+			// Test variant can be 0 so check for not undefined and not strictly false and
+			// that it's a valid index.
+			if (
+				typeof currentTests[testId] !== 'undefined' &&
+				currentTests[testId] !== false &&
+				currentTests[testId] < this.variants.length
+			) {
+				variantId = currentTests[testId];
+			} else if ( currentTests[testId] === false ) {
 				return variantId;
-			}
-			// Add one of the variants to the cookie according to its weight.
-			const target = Math.random() * 100;
-			variantId = 0;
-			let percent = 0;
-			for ( let i = 0; i < this.variants.length; i++ ) {
-				percent += parseFloat( ( this.variantWeights[ i ] || ( 100 / this.variants.length ) ) );
-				if ( target < percent ) {
-					variantId = i;
-					break;
+			} else {
+				// Otherwise lets check the probability we should experiment on this individual.
+				// That sounded weird.
+				if ( Math.random() * 100 > trafficPercentage ) {
+					// Exclude from this test.
+					this.addTestForUser( {
+						[testId]: false,
+					} );
+					return variantId;
 				}
+				// Add one of the variants to the cookie according to its weight.
+				const target = Math.random() * 100;
+				variantId = 0;
+				let percent = 0;
+				for ( let i = 0; i < this.variants.length; i++ ) {
+					percent += parseFloat( this.variantWeights[i] || 100 / this.variants.length );
+					if ( target < percent ) {
+						variantId = i;
+						break;
+					}
+				}
+				this.addTestForUser( {
+					[testId]: variantId,
+				} );
 			}
-			this.addTestForUser( {
-				[ testId ]: variantId,
-			} );
+
+			return variantId;
 		}
-
-		return variantId;
-	}
-
-}
+	};
 
 /**
  * Custom AB Test element.
  */
-class ABTest extends Test(HTMLElement) {
-
+class ABTest extends Test( HTMLElement ) {
 	init() {
 		// Assign variant ID.
 		const variantId = this.getVariantId();
@@ -155,7 +156,7 @@ class ABTest extends Test(HTMLElement) {
 		const [ eventType, selector = this.selector ] = goal;
 
 		// Get the variant content.
-		const variant = this.variants[ variantId || 0 ];
+		const variant = this.variants[variantId || 0];
 
 		// Replace the contents of our <ab-test> element.
 		this.outerHTML = variant;
@@ -171,9 +172,9 @@ class ABTest extends Test(HTMLElement) {
 		}
 
 		// Log an event for tracking test views.
-		if ( ! testIsTracked[ testId ] ) {
+		if ( ! testIsTracked[testId] ) {
 			// Prevent spamming events.
-			testIsTracked[ testId ] = true;
+			testIsTracked[testId] = true;
 
 			window.Altis.Analytics.onReady( () => {
 				window.Altis.Analytics.record( 'testView', {
@@ -201,7 +202,6 @@ class ABTest extends Test(HTMLElement) {
 			} );
 		} );
 	}
-
 }
 
 /**
@@ -221,7 +221,7 @@ const goalHandlers = {};
  * @param {string[]} closest Array of allowed node types to bind listener to.
  */
 const registerGoalHandler = ( name, callback, closest = [] ) => {
-	goalHandlers[ name ] = {
+	goalHandlers[name] = {
 		callback,
 		closest: Array.isArray( closest ) ? closest : [ closest ],
 	};
@@ -235,13 +235,15 @@ const registerGoalHandler = ( name, callback, closest = [] ) => {
  * @param {string} on The JS dvent name to listen on.
  * @returns {?EventListener} The event listener handle if successful or undefined.
  */
-const bindListener = ( node, record, on ) => node && node.addEventListener( on, event => {
-	if ( typeof record !== 'function' ) {
-		console.error( 'Altis Analytics goal handler is not a function', node, event );
-		return;
-	}
-	record( event );
-} );
+const bindListener = ( node, record, on ) =>
+	node &&
+	node.addEventListener( on, event => {
+		if ( typeof record !== 'function' ) {
+			console.error( 'Altis Analytics goal handler is not a function', node, event );
+			return;
+		}
+		record( event );
+	} );
 
 /**
  * Get a goal handling function.
@@ -256,14 +258,14 @@ const getGoalHandler = ( name, options = {} ) => {
 		name,
 		event: name,
 		callback: bindListener,
-		...( window.Altis.Analytics.Experiments.Goals[ name ] || {} ),
-		...( goalHandlers[ name ] || {} ),
+		...( window.Altis.Analytics.Experiments.Goals[name] || {} ),
+		...( goalHandlers[name] || {} ),
 		...options,
 	};
 
 	// Return a callback that handles the goal configuration and binds event listeners.
 	return ( node, record ) => {
-		if ( goal.closest ) {
+		if ( goal.closest && goal.closest.length > 0 ) {
 			node = node.closest( goal.closest );
 		}
 
@@ -277,37 +279,42 @@ const getGoalHandler = ( name, options = {} ) => {
 };
 
 // Register built in click goal handler.
-registerGoalHandler( 'click', ( element, record ) => {
-	if ( ! element ) {
-		return;
-	}
+registerGoalHandler(
+	'click',
+	( element, record ) => {
+		if ( ! element ) {
+			return;
+		}
 
-	// Collect attributes.
-	const attributes = {
-		elementNode: element.nodeName || '',
-		elementText: element.innerText || '',
-		elementClassName: element.className || '',
-		elementId: element.id || '',
-		elementHref: element.href || '',
-	};
+		// Collect attributes.
+		const attributes = {
+			elementNode: element.nodeName || '',
+			elementText: element.innerText || '',
+			elementClassName: element.className || '',
+			elementId: element.id || '',
+			elementHref: element.href || '',
+		};
 
-	// Bind handler.
-	element.addEventListener( 'click', event => {
-		record( Object.assign( {}, attributes, {
-			targetNode: event.target.nodeName || '',
-			targetText: event.target.innerText || '',
-			targetClassName: event.target.className || '',
-			targetId: event.target.id || '',
-			targetSrc: event.target.nodeName === 'IMG' ? event.target.src : '',
-		} ) );
-	} );
-}, [ 'a' ] );
+		// Bind handler.
+		element.addEventListener( 'click', event => {
+			record(
+				Object.assign( {}, attributes, {
+					targetNode: event.target.nodeName || '',
+					targetText: event.target.innerText || '',
+					targetClassName: event.target.className || '',
+					targetId: event.target.id || '',
+					targetSrc: event.target.nodeName === 'IMG' ? event.target.src : '',
+				} )
+			);
+		} );
+	},
+	[ 'a' ]
+);
 
 /**
  * Broadcast content block element.
  */
 class BroadcastBlock extends HTMLElement {
-
 	get clientId() {
 		return this.getAttribute( 'client-id' );
 	}
@@ -344,7 +351,9 @@ class BroadcastBlock extends HTMLElement {
 		const templates = document.querySelectorAll( `template[data-parent-id="${ this.clientId }"]` );
 		if ( templates.length < 1 ) {
 			// eslint-disable-next-line no-console,max-len
-			console.info( `Could not find blocks to render for this Broadcast [ ${ this.clientId }, ${ this.broadcastId} ].` );
+			console.info(
+				`Could not find blocks to render for this Broadcast [ ${ this.clientId }, ${ this.broadcastId } ].`
+			);
 			return;
 		}
 
@@ -353,11 +362,13 @@ class BroadcastBlock extends HTMLElement {
 
 		if ( index < 0 ) {
 			// eslint-disable-next-line no-console,max-len
-			console.info( `Could not choose a block to render for this Broadcast [ ${ this.clientId }, ${ this.broadcastId} ].` );
+			console.info(
+				`Could not choose a block to render for this Broadcast [ ${ this.clientId }, ${ this.broadcastId } ].`
+			);
 			return;
 		}
 
-		const template = templates[ index ];
+		const template = templates[index];
 
 		// Populate broadcast block content.
 		const experience = template.content.cloneNode( true );
@@ -366,36 +377,38 @@ class BroadcastBlock extends HTMLElement {
 
 		// Log an event for tracking views and audience when scrolled into view.
 		let tracked = false;
-		const observer = new IntersectionObserver( ( entries, _observer ) => {
-			entries.forEach( entry => {
-				if ( entry.target !== this || ! entry.isIntersecting ) {
-					return;
-				}
+		const observer = new IntersectionObserver(
+			( entries, _observer ) => {
+				entries.forEach( entry => {
+					if ( entry.target !== this || ! entry.isIntersecting ) {
+						return;
+					}
 
-				if ( tracked ) {
-					return;
-				}
+					if ( tracked ) {
+						return;
+					}
 
-				// Prevent spamming events.
-				tracked = true;
-				_observer.disconnect();
+					// Prevent spamming events.
+					tracked = true;
+					_observer.disconnect();
 
-				window.Altis.Analytics.record( 'blockView', {
-					attributes: {
-						clientId: this.clientId,
-						blockId: this.broadcastId,
-						selected: index,
-						type: 'broadcast',
-					},
+					window.Altis.Analytics.record( 'blockView', {
+						attributes: {
+							clientId: this.clientId,
+							blockId: this.broadcastId,
+							selected: index,
+							type: 'broadcast',
+						},
+					} );
 				} );
-			} );
-		}, {
-			threshold: 0.75,
-		} );
+			},
+			{
+				threshold: 0.75,
+			}
+		);
 
 		// Trigger scroll handler.
 		observer.observe( this );
-
 	}
 
 	/**
@@ -423,44 +436,41 @@ class BroadcastBlock extends HTMLElement {
 		window.localStorage.setItem( key, index );
 		return index;
 	}
-
 }
 
-
 /**
- * Global Block content block element.
+ * Synced Pattern content block element.
  *
  * @param {object} SuperClass
  */
-const Global = SuperClass => class extends SuperClass {
+const Global = SuperClass =>
+	class extends SuperClass {
+		logEvents = true;
 
-	logEvents = true;
+		get blockId() {
+			return this.getAttribute( 'block-id' );
+		}
 
-	get blockId() {
-		console.log(this, this.getAttribute( 'block-id' ))
-		return this.getAttribute( 'block-id' );
-	}
+		get goal() {
+			return this.getAttribute( 'goal' ) || 'engagement';
+		}
 
-	get goal() {
-		return this.getAttribute( 'goal' ) || 'engagement';
-	}
+		get type() {
+			return 'standard';
+		}
 
-	get type() {
-		return 'standard';
-	}
+		get attributes() {
+			return JSON.parse( this.getAttribute( 'attributes' ) );
+		}
 
-	get attributes() {
-		return JSON.parse( this.getAttribute( 'attributes' ) );
-	}
+		get metrics() {
+			return JSON.parse( this.getAttribute( 'metrics' ) );
+		}
 
-	get metrics() {
-		return JSON.parse( this.getAttribute( 'metrics' ) );
-	}
-
-	connectedCallback() {
-		// Set default styles.
-		this.attachShadow( { mode: 'open' } );
-		this.shadowRoot.innerHTML = `
+		connectedCallback() {
+			// Set default styles.
+			this.attachShadow( { mode: 'open' } );
+			this.shadowRoot.innerHTML = `
 			<style>
 				:host {
 					display: block;
@@ -473,100 +483,111 @@ const Global = SuperClass => class extends SuperClass {
 			<slot></slot>
 		`;
 
-		// Optional setup prior to setContent.
-		this.setup();
+			// Optional setup prior to setContent.
+			this.setup();
 
-		// If block has a setContent method.
-		this.setContent();
+			// If block has a setContent method.
+			this.setContent();
 
-		if ( ! this.logEvents ) {
-			return;
-		}
-
-		window.Altis.Analytics.record( 'blockLoad', {
-			attributes: {
-				blockId: this.blockId,
-				type: this.type,
-				...this.attributes,
-			},
-			metrics: this.metrics,
-		} );
-
-		// Log an event for tracking views and audience when scrolled into view.
-		let tracked = false;
-		const observer = new IntersectionObserver( ( entries, _observer ) => {
-			entries.forEach( entry => {
-				if ( entry.target !== this || ! entry.isIntersecting ) {
-					return;
-				}
-
-				if ( tracked ) {
-					return;
-				}
-
-				// Prevent spamming events.
-				tracked = true;
-				_observer.disconnect();
-
-				window.Altis.Analytics.record( 'blockView', {
-					attributes: {
-						blockId: this.blockId,
-						type: this.type,
-						...this.attributes,
-					},
-					metrics: this.metrics,
-				} );
-			} );
-		}, {
-			threshold: 0.75,
-		} );
-
-		// Trigger scroll handler.
-		observer.observe( this );
-
-		// Get goal handler from registered goals.
-		const goalHandler = getGoalHandler( this.goal );
-		if ( ! goalHandler ) {
-			return;
-		}
-
-		// Bind goal event handler to this component.
-		let goalTracked = false;
-		goalHandler( this, event => {
-			if ( goalTracked ) {
+			if ( ! this.logEvents ) {
 				return;
 			}
 
-			// Only track once.
-			goalTracked = true;
-
-			window.Altis.Analytics.record( 'conversion', {
+			window.Altis.Analytics.record( 'blockLoad', {
 				attributes: {
 					blockId: this.blockId,
 					type: this.type,
-					goal: this.goal,
 					...this.attributes,
 				},
 				metrics: this.metrics,
-			}, false );
-		} );
-	}
+			} );
 
-	// Optional set up before triggering.
-	setup() {}
+			// Log an event for tracking views and audience when scrolled into view.
+			let tracked = false;
+			const observer = new IntersectionObserver(
+				( entries, _observer ) => {
+					entries.forEach( entry => {
+						if ( entry.target !== this || ! entry.isIntersecting ) {
+							return;
+						}
 
-	// Callback to set content, by default renders contents via <slot></slot>.
-	setContent() {}
+						if ( tracked ) {
+							return;
+						}
 
-};
+						// Prevent spamming events.
+						tracked = true;
+						_observer.disconnect();
 
-class GlobalBlock extends Global(HTMLElement) {}
+						window.Altis.Analytics.record( 'blockView', {
+							attributes: {
+								blockId: this.blockId,
+								type: this.type,
+								...this.attributes,
+							},
+							metrics: this.metrics,
+						} );
+					} );
+				},
+				{
+					threshold: 0.75,
+				}
+			);
+
+			// Trigger scroll handler.
+			observer.observe( this );
+
+			// Start tracking goals.
+			this.setupGoal();
+		}
+
+		// Optional set up before triggering.
+		setup() {}
+
+		// Callback to set content, by default renders contents via <slot></slot>.
+		setContent() {}
+
+		// Sets up the goal handling for conversions.
+		setupGoal() {
+			// Get goal handler from registered goals.
+			const goalHandler = getGoalHandler( this.goal );
+			if ( ! goalHandler ) {
+				return;
+			}
+
+			// Bind goal event handler to this component.
+			let goalTracked = false;
+			goalHandler( this, event => {
+				if ( goalTracked ) {
+					return;
+				}
+
+				// Only track once.
+				goalTracked = true;
+
+				window.Altis.Analytics.record(
+					'conversion',
+					{
+						attributes: {
+							blockId: this.blockId,
+							type: this.type,
+							goal: this.goal,
+							...this.attributes,
+						},
+						metrics: this.metrics,
+					},
+					false
+				);
+			} );
+		}
+	};
+
+class GlobalBlock extends Global( HTMLElement ) {}
 
 /**
  * Personalized content block element.
  */
-class PersonalizationBlock extends Global(HTMLElement) {
-
+class PersonalizationBlock extends Global( HTMLElement ) {
 	get attributes() {
 		const attributes = JSON.parse( this.getAttribute( 'attributes' ) || '{}' );
 		attributes.audience = this.audience || 0;
@@ -597,13 +618,15 @@ class PersonalizationBlock extends Global(HTMLElement) {
 		// Find a matching template.
 		for ( let index = 0; index < audiences.length; index++ ) {
 			// Find the first matching audience template.
-			template = document.querySelector( `template[data-audience="${ audiences[ index ] }"][data-parent-id="${ this.blockId }"]` );
+			template = document.querySelector(
+				`template[data-audience="${ audiences[index] }"][data-parent-id="${ this.blockId }"]`
+			);
 			if ( ! template ) {
 				continue;
 			}
 
 			// We have a matching template, update audience and fallback value.
-			audience = audiences[ index ];
+			audience = audiences[index];
 
 			// Set goal.
 			this.setAttribute( 'goal', template.dataset.goal || this.goal );
@@ -635,20 +658,23 @@ class PersonalizationBlock extends Global(HTMLElement) {
 		this.appendChild( experience );
 
 		// Trigger content change event.
-		window.dispatchEvent( new CustomEvent( 'altisBlockContentChanged', {
-			detail: {
-				target: this,
-			},
-		} ) );
-	}
+		window.dispatchEvent(
+			new CustomEvent( 'altisBlockContentChanged', {
+				detail: {
+					target: this,
+				},
+			} )
+		);
 
+		// Rebind goal handlers.
+		this.setupGoal();
+	}
 }
 
 /**
  * Custom AB Test Block element.
  */
-class ABTestBlock extends Global(Test(HTMLElement)) {
-
+class ABTestBlock extends Global( Test( HTMLElement ) ) {
 	logEvents = false;
 
 	get attributes() {
@@ -661,7 +687,7 @@ class ABTestBlock extends Global(Test(HTMLElement)) {
 
 	get type() {
 		return 'abtest';
- 	}
+	}
 
 	get paused() {
 		return this.hasAttribute( 'paused' );
@@ -680,12 +706,14 @@ class ABTestBlock extends Global(Test(HTMLElement)) {
 	}
 
 	get variantWeights() {
-		return Array.from( this.variants ).map( variant => parseFloat( variant.dataset.weight || ( 100 / this.variants.length ) ) );
+		return Array.from( this.variants ).map( variant =>
+			parseFloat( variant.dataset.weight || 100 / this.variants.length )
+		);
 	}
 
 	get winner() {
 		if ( this.hasAttribute( 'winner' ) ) {
-			return this.variants[ parseInt( this.getAttribute( 'winner' ), 10 ) ] || false;
+			return this.variants[parseInt( this.getAttribute( 'winner' ), 10 )] || false;
 		}
 		return false;
 	}
@@ -695,7 +723,7 @@ class ABTestBlock extends Global(Test(HTMLElement)) {
 		const regex = new RegExp( `(utm_campaign|set_test)=test_${ this.testIdWithPost }:(\\d+)`, 'i' );
 		const urlTest = unescape( window.location.search ).match( regex );
 		if ( urlTest ) {
-			this.addTestForUser( { [ this.testIdWithPost ]: parseInt( urlTest[ 2 ], 10 ) } );
+			this.addTestForUser( { [this.testIdWithPost]: parseInt( urlTest[2], 10 ) } );
 		}
 	}
 
@@ -718,7 +746,7 @@ class ABTestBlock extends Global(Test(HTMLElement)) {
 		const variantId = this.getVariantId();
 
 		// Get the variant template we want.
-		const template = this.variants[ variantId || 0 ];
+		const template = this.variants[variantId || 0];
 		if ( ! template ) {
 			return;
 		}
@@ -729,11 +757,13 @@ class ABTestBlock extends Global(Test(HTMLElement)) {
 		this.appendChild( experience );
 
 		// Dispatch the altisblockcontentchanged event.
-		window.dispatchEvent( new CustomEvent( 'altisBlockContentChanged', {
-			detail: {
-				target: this,
-			},
-		} ) );
+		window.dispatchEvent(
+			new CustomEvent( 'altisBlockContentChanged', {
+				detail: {
+					target: this,
+				},
+			} )
+		);
 
 		// If variant ID is false then this viewer is not part of the test so don't log events.
 		if ( variantId === false ) {
@@ -744,13 +774,18 @@ class ABTestBlock extends Global(Test(HTMLElement)) {
 		this.setAttribute( 'goal', template.dataset.goal || this.goal || 'engagement' );
 		this.logEvents = true;
 
+		// Rebind goal handlers.
+		this.setupGoal();
 	}
-
 }
 
 // Expose experiments API functions.
 window.Altis.Analytics.Experiments.registerGoal = registerGoalHandler; // Back compat.
 window.Altis.Analytics.Experiments.registerGoalHandler = registerGoalHandler;
+
+// Fire a load event once userland API has been exported.
+const loadEvent = new CustomEvent( 'altis.experiments.loaded' );
+window.dispatchEvent( loadEvent );
 
 // Define custom elements when analytics has loaded.
 window.Altis.Analytics.onLoad( () => {
@@ -761,6 +796,6 @@ window.Altis.Analytics.onLoad( () => {
 	window.customElements.define( 'broadcast-block', BroadcastBlock );
 } );
 
-// Fire a ready event once userland API has been exported.
+// Fire a ready event once the custom elements have been defined.
 const readyEvent = new CustomEvent( 'altis.experiments.ready' );
 window.dispatchEvent( readyEvent );
