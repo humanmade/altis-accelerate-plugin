@@ -159,9 +159,18 @@ function load_broadcast_manager() {
 
 	Admin\add_notices_wrapper();
 
+	// Enqueue block editor dependencies for BlockPreview in broadcast thumbnails.
+	wp_enqueue_script( 'wp-block-editor' );
+	wp_enqueue_script( 'wp-block-library' );
+	wp_enqueue_style( 'wp-block-editor' );
+	wp_enqueue_style( 'wp-block-library' );
+
 	Utils\register_assets( 'accelerate-admin', [
 		'dependencies' => [
 			'wp-api-fetch',
+			'wp-blocks',
+			'wp-block-editor',
+			'wp-block-library',
 			'wp-components',
 			'wp-data',
 			'wp-element',
