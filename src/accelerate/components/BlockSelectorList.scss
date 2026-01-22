@@ -2,58 +2,108 @@
 
 .accelerate__block-list {
 	&_wrapper {
-		display: flex;
-		flex-direction: column;
 		margin: 0;
-		min-width: 500px;
 		box-sizing: border-box;
-		background: $c-grey-50;
-		padding: 0 32px;
-		margin-bottom: 10px;
 
 		ul {
 			margin: 0;
 			padding: 0;
+			list-style: none;
+			display: flex;
+			flex-direction: column;
+			gap: 5px;
+		}
+	}
+
+	&_section {
+		&--header {
+			margin: 0 0 10px;
+			padding: 0;
+			font-size: 0.75rem;
+			font-weight: 600;
+			text-transform: uppercase;
+			letter-spacing: 0.05em;
+			color: $c-grey-400;
+		}
+
+		&--empty-inline {
+			font-weight: 400;
+			font-style: italic;
+			margin-left: 5px;
+		}
+
+		&--available {
+			margin-top: 20px;
+			padding-top: 20px;
+			border-top: 1px solid $c-grey-200;
+
+			ul {
+				min-height: 80px;
+			}
+		}
+	}
+
+	&_empty {
+		padding: 15px 10px;
+		color: $c-grey-400;
+		font-size: 0.85rem;
+		font-style: italic;
+
+		a {
+			color: $c-grey-400;
+			text-decoration: underline;
+
+			&:hover,
+			&:focus {
+				color: $c-grey-600;
+			}
 		}
 	}
 
 	&_item {
+		// Note: transform transitions are handled by useSortable inline styles
+		transition: opacity 250ms ease-out;
+		animation: accelerate-block-fade-in 250ms ease-out;
 		display: flex;
 		flex-direction: row;
+		align-items: center;
 		flex-grow: 1;
-		margin: 30px 0;
+		margin: 0;
+		padding: 10px 10px 10px 0;
+		border-radius: 7px;
 
 		&--sortable {
 			cursor: move;
 		}
 
-		> * {
+		&--actions {
 			display: flex;
-			align-self: center;
-		}
-
-		&--actions button {
-			background: $c-white;
-			box-shadow: 0 5px 10px $sh-black-05;
-			border: 1px solid $c-grey-200;
-			font-weight: 600;
-			padding: 5px 8px;
-			color: $c-grey-400;
-			cursor: pointer;
-		}
-
-		&--actions button:hover,
-		&--actions button:focus {
-			box-shadow: 0 5px 10px $sh-black-05, inset 0 0 0 1px rgba( 0, 0, 0, 0.1 );
-		}
-
-		&--actions &--remove {
-			color: $c-negative-400;
+			align-items: center;
 		}
 
 		&--thumb {
-			flex: 0;
+			flex: 0 0 105px;
+			width: 105px;
+			height: 47px;
 			margin: 0 10px;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+
+			// Constrain any child content (BlockPreview, img, empty placeholder)
+			> * {
+				width: 105px;
+				height: 47px;
+				overflow: hidden;
+				border-radius: 2px;
+				box-shadow: 0 4px 7px 0 rgba(21, 42, 79, 0.2);
+			}
+
+			// Empty placeholder styling
+			.record-thumbnail__empty {
+				background-color: $c-grey-100;
+				box-shadow: none;
+			}
 		}
 
 		&--details {
@@ -81,3 +131,17 @@
 	}
 
 }
+
+// Subtle fade-in animation for blocks when they move between sections
+@keyframes accelerate-block-fade-in {
+	from {
+		opacity: 0.5;
+		transform: translateY( 10px );
+	}
+
+	to {
+		opacity: 1;
+		transform: translateY( 0 );
+	}
+}
+
