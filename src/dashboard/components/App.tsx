@@ -1,6 +1,13 @@
+import { isEqual } from 'lodash';
 import React, { useState } from 'react';
+
 import { createSlotFill } from '@wordpress/components';
 import { useSelect } from '@wordpress/data';
+
+import { defaultAudience } from '../../audiences/data/defaults';
+import { Post, Rule } from '../../audiences/types';
+import { resolveSelectedDate } from '../../data';
+import { BlockFillProps, Filter, SelectableDate, StatsResult } from '../../utils/admin';
 
 import Browsers from './Browsers';
 import Country from './Country';
@@ -10,9 +17,7 @@ import Referrers from './Referrers';
 import Searches from './Searches';
 import Summary from './Summary';
 import TopUrls from './TopUrls';
-import TrafficGraph from './TrafficGraph';
-import { BlockFillProps, Filter, SelectableDate, StatsResult } from '../../utils/admin';
-import { resolveSelectedDate } from '../../data';
+import TrafficGraphNew from './TrafficGraphNew';
 
 import './App.css';
 
@@ -31,14 +36,41 @@ export default function App() {
 			interval: '1 day',
 		} );
 	}, [ filter, period ] );
+	const isLoadingStats = useSelect<boolean>( select => select( 'accelerate' ).getIsLoadingStats(), [] );
+	const currentAudience: Post | null = useSelect( select => filter.audienceId ? select( 'audience' ).getPost( filter.audienceId ) : null );
 
 	const blockFillProps: BlockFillProps = {
 		data,
+		// Convenience function for adding a single rule.
+		onAddRule: ( rule: Rule ) => {
+			const audience = filter.audience || defaultAudience;
+			const nextFilter = {
+				...filter,
+				audience: {
+					...audience,
+					groups: [
+						{
+							...audience.groups[ 0 ],
+							rules: [
+								...audience.groups[ 0 ].rules.filter( r => !! r.field ),
+								rule,
+							],
+						},
+						...audience.groups.slice( 1 ),
+					],
+				},
+			};
+			setFilter( nextFilter );
+		},
 		onUpdateFilter: setFilter, // callback => this.setState( state => ( { filter: callback( state.filter ) } ) ),
 	};
 
+	const isNew = ! filter.audienceId;
+	const hasAudienceFilter = !! filter.audience;
+	const isModified = ! currentAudience || ! isEqual( filter.audience, currentAudience.audience );
+
 	return (
-		<main className="App">
+		<main className="App tailwind">
 			<Header
 				filter={ filter }
 				period={ period }
@@ -50,16 +82,54 @@ export default function App() {
 				onUpdateFilter={ setFilter }
 			/>
 
+			<div className="mx-2 lg:mx-16 mb-4 flex justify-between">
+				{ currentAudience ? (
+					<p>
+						Selected audience <span className="font-semibold">{ currentAudience.title.rendered }</span>
+						{ isModified ? ' (modified)' : '' }
+					</p>
+				) : (
+					<p>
+						Selected audience <span className="font-semibold">All visitors</span>
+					</p>
+				) }
+				{ /* <div className="flex items-center gap-4">
+					{ ! isNew && (
+						<button
+							className={ [
+								'text-md text-blue-600 hover:text-blue-800',
+								( ! hasAudienceFilter || ! isModified ) ? 'opacity-50 cursor-not-allowed' : '',
+							].join( ' ' ) }
+							disabled={ ! hasAudienceFilter || ! isModified }
+							onClick={ () => { console.log( 'saving' ) } }
+						>
+							Update audience →
+						</button>
+					) }
+					<button
+						className={ [
+							'text-md text-blue-600 hover:text-blue-800',
+							( ! hasAudienceFilter || ! isModified ) ? 'opacity-50 cursor-not-allowed' : '',
+						].join( ' ' ) }
+						disabled={ ! hasAudienceFilter || ! isModified }
+						onClick={ () => { console.log( 'saving' ) } }
+					>
+						Save as new audience →
+					</button>
+				</div> */ }
+			</div>
+
 			<Summary
 				data={ data }
 			/>
 
-			<TrafficGraph
+			<TrafficGraphNew
 				data={ data }
+				isLoading={ isLoadingStats }
 				period={ resolveSelectedDate( period, null ) }
 			/>
 
-			<div className="App__blocks App__blocks--three">
+			<div className="mx-2 lg:mx-16 grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
 				<BlockSlotFill.Slot
 					fillProps={ blockFillProps }
 				/>

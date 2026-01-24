@@ -1,6 +1,7 @@
 // eslint-disable-next-line import/named
 import { Moment } from 'moment';
 
+import { Audience, Rule } from '../audiences/types';
 
 export interface LiftStats {
 	views: number,
@@ -33,6 +34,8 @@ export type Post = {
 	views: number,
 	lift: LiftStats | null,
 	goal?: string,
+	blockType: 'standard' | 'abtest' | 'personalization',
+	rawContent?: string,
 	[ k: string ]: any,
 }
 
@@ -169,6 +172,9 @@ export type CustomFilters = {
 export interface Filter {
 	path?: string,
 	time?: number,
+	audience?: Audience,
+	audienceId?: number,
+	audienceName?: string,
 }
 
 export type QueryArgs = {
@@ -277,6 +283,7 @@ export type Action = SetPostsAction | SetPostAction | SetStatsAction | SetIsLoad
 
 export interface BlockFillProps {
 	data?: StatsResult,
+	onAddRule( rule: Rule ): void,
 	onUpdateFilter( callback: ( filter: Filter ) => Filter ): void,
 }
 
@@ -287,7 +294,7 @@ export interface BlockFillProps {
  * @param {string} suffix The unit or suffix to append.
  * @returns {string} The metric compacted for display.
  */
- export const compactMetric = ( metric : number, suffix : string = '' ) => {
+export const compactMetric = ( metric : number, suffix : string = '' ) => {
 	if ( isNaN( metric ) ) {
 		return '0';
 	}
@@ -329,7 +336,7 @@ export const getLift = ( current: number, previous: number ) => ( ( current - pr
 
 export const getConversionRateLift = (
 	fallback: LiftStats['fallback'],
-	personalized: LiftStats['personalized'],
+	personalized: LiftStats['personalized']
 ) => {
 	const fallbackRate = getConversionRate( fallback.conversions, fallback.views );
 	const personalizedRate = getConversionRate( personalized.conversions, personalized.views );
@@ -347,7 +354,13 @@ export const getConversionRateLift = (
  */
 export function trackEvent( module: string, action: string, parameters: { [ k: string ]: any } = {} ) {
 	if ( window.analytics ) {
-		window.analytics.track( module, { action, ...parameters } );
+		window.analytics.track( module, {
+			action,
+			source: 'plugin',
+			page: window.location.pathname,
+			domain: ( window as any ).accelerateTelemetryDomain || undefined,
+			...parameters,
+		} );
 	}
 }
 
@@ -391,4 +404,18 @@ export function convertPostResponse( post: { [ k:string ] : any } ) : Post {
 	}
 
 	return modified;
+}
+
+/**
+ * Get Bayesian P2BB as percentage.
+ *
+ * @param {number} p2bb Pre-calculated P2BB value (0-1) from backend Bayesian analysis
+ * @param {number} rate Legacy parameter (ignored)
+ * @param {number} maxRate Legacy parameter (ignored)
+ * @returns {number} P2BB as percentage (0-100)
+ */
+export function getP2BB( p2bb: number, rate: number = 0, maxRate: number = 1 ): number {
+	// p2bb now comes pre-calculated from PHP Bayesian analysis
+	// Convert 0-1 probability to 0-100 percentage
+	return Math.max( 0, Math.min( 100, p2bb * 100 ) );
 }
