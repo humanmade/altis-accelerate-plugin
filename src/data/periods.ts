@@ -4,14 +4,32 @@ import { PeriodObject } from '../utils/admin';
 
 export const periods: PeriodObject[] = [
 	{
+		label: __( 'Realtime', 'altis' ),
+		period_label: __( 'Realtime', 'altis' ),
+		value: 'PT30M',
+		diff: null,
+		intervals: [
+			{
+				interval: '1 minute',
+				label: __( 'Minute', 'altis' ),
+			},
+		],
+	},
+	{
 		label: __( '7 Days', 'altis' ),
 		period_label: __( '7-Day', 'altis' ),
 		value: 'P7D',
 		diff: 'P7D',
 		defaultInterval: 1,
 		intervals: [
-			{ interval: '1 hour', label:  __( 'Hourly', 'altis' ), },
-			{ interval: '1 day', label:  __( 'Daily', 'altis' ), },
+			{
+				interval: '1 hour',
+				label: __( 'Hourly', 'altis' ),
+			},
+			{
+				interval: '1 day',
+				label: __( 'Daily', 'altis' ),
+			},
 		],
 	},
 	{
@@ -20,7 +38,10 @@ export const periods: PeriodObject[] = [
 		value: 'P14D',
 		diff: 'P14D',
 		intervals: [
-			{ interval: '1 day', label:  __( 'Daily', 'altis' ), },
+			{
+				interval: '1 day',
+				label: __( 'Daily', 'altis' ),
+			},
 		],
 	},
 	{
@@ -29,7 +50,10 @@ export const periods: PeriodObject[] = [
 		value: 'P30D',
 		diff: 'P30D',
 		intervals: [
-			{ interval: '1 day', label: __( 'Daily', 'altis' ), },
+			{
+				interval: '1 day',
+				label: __( 'Daily', 'altis' ),
+			},
 		],
 	},
 	{
@@ -38,8 +62,14 @@ export const periods: PeriodObject[] = [
 		value: 'P90D',
 		diff: null,
 		intervals: [
-			{ interval: '1 day', label: __( 'Daily', 'altis' ), },
-			{ interval: '7 day', label: __( 'Weekly', 'altis' ), },
+			{
+				interval: '1 day',
+				label: __( 'Daily', 'altis' ),
+			},
+			{
+				interval: '7 day',
+				label: __( 'Weekly', 'altis' ),
+			},
 		],
 	},
 ];
