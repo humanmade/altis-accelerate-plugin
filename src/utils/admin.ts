@@ -1,6 +1,7 @@
 // eslint-disable-next-line import/named
 import { Moment } from 'moment';
 
+import { Audience, Rule } from '../audiences/types';
 
 export interface LiftStats {
 	views: number,
@@ -27,12 +28,16 @@ export type Post = {
 		name: string,
 		avatar: string,
 	},
-	title: string,
+	title: {
+		rendered: string,
+	},
 	url: string | null,
 	editUrl: string | null,
 	views: number,
 	lift: LiftStats | null,
 	goal?: string,
+	blockType: 'standard' | 'abtest' | 'personalization',
+	rawContent?: string,
 	[ k: string ]: any,
 }
 
@@ -144,7 +149,7 @@ export interface Period {
 	tz?: string,
 }
 
-export type Duration = 'P7D' | 'P14D' | 'P30D' | 'P60D' | 'P90D' | 'P1M' | Period;
+export type Duration = 'PT30M' | 'P7D' | 'P14D' | 'P30D' | 'P60D' | 'P90D' | 'P1M' | Period;
 export type SelectableDate = Period | Duration;
 
 export type PeriodObject = {
@@ -169,12 +174,16 @@ export type CustomFilters = {
 export interface Filter {
 	path?: string,
 	time?: number,
+	audience?: Audience,
+	audienceId?: number,
+	audienceName?: string,
 }
 
 export type QueryArgs = {
 	diff?: SelectableDate,
 	end?: string | Moment,
 	period?: SelectableDate,
+	interval?: '1 day' | '1 minute',
 	search?: string,
 	start?: string | Moment,
 	type?: string,
@@ -182,7 +191,7 @@ export type QueryArgs = {
 	include?: number[],
 	refresh?: number,
 	ids?: number[],
-	tz?: number,
+	tz?: string,
 };
 
 export interface State {
@@ -277,6 +286,7 @@ export type Action = SetPostsAction | SetPostAction | SetStatsAction | SetIsLoad
 
 export interface BlockFillProps {
 	data?: StatsResult,
+	onAddRule( rule: Rule ): void,
 	onUpdateFilter( callback: ( filter: Filter ) => Filter ): void,
 }
 
@@ -287,7 +297,7 @@ export interface BlockFillProps {
  * @param {string} suffix The unit or suffix to append.
  * @returns {string} The metric compacted for display.
  */
- export const compactMetric = ( metric : number, suffix : string = '' ) => {
+export const compactMetric = ( metric : number, suffix : string = '' ) => {
 	if ( isNaN( metric ) ) {
 		return '0';
 	}
@@ -329,7 +339,7 @@ export const getLift = ( current: number, previous: number ) => ( ( current - pr
 
 export const getConversionRateLift = (
 	fallback: LiftStats['fallback'],
-	personalized: LiftStats['personalized'],
+	personalized: LiftStats['personalized']
 ) => {
 	const fallbackRate = getConversionRate( fallback.conversions, fallback.views );
 	const personalizedRate = getConversionRate( personalized.conversions, personalized.views );
@@ -347,7 +357,13 @@ export const getConversionRateLift = (
  */
 export function trackEvent( module: string, action: string, parameters: { [ k: string ]: any } = {} ) {
 	if ( window.analytics ) {
-		window.analytics.track( module, { action, ...parameters } );
+		window.analytics.track( module, {
+			action,
+			source: 'plugin',
+			page: window.location.pathname,
+			domain: ( window as any ).accelerateTelemetryDomain || undefined,
+			...parameters,
+		} );
 	}
 }
 
@@ -391,4 +407,18 @@ export function convertPostResponse( post: { [ k:string ] : any } ) : Post {
 	}
 
 	return modified;
+}
+
+/**
+ * Calculate a rough probability to be best, based on the current p value.
+ *
+ * @TODO update this with a proper calculation using simulated test runs.
+ *
+ * @param {number} pValue
+ * @param {number} rate
+ * @param {number} maxRate
+ * @returns {number} Probability to be the best result based on max conversion rate.
+ */
+export function getP2BB( pValue: number, rate: number, maxRate: number ) {
+	return ( rate / maxRate ) * ( 1 - ( pValue || 1 ) );
 }

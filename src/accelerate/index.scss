@@ -37,6 +37,11 @@ body.wp-admin {
     margin: 15px 5% 5px 5%;
 }
 
+#Altis_Dashboard__all_notices > .altis-notice,
+#Altis_Dashboard__notices > .altis-notice {
+    margin: 0 0 35px 0;
+}
+
 .altis-ui .wrap > .notice,
 #message {
 	margin-left: 5%;
@@ -75,23 +80,23 @@ body.wp-admin {
 
 .altis-notice {
 	position: relative;
-	background: $c-white;
+	background: #1d2327;
 	box-shadow: 0 5px 10px 0 rgba(0,0,0,0.05);
-	border-radius: 10px;
-	margin: 25px 5% 35px;
+	border-radius: 0;
+	margin: 0 0 35px;
 	overflow: hidden;
-	color: $c-space-400;
-	border: 1px solid $c-grey-150;
+	color: #ffffff;
+	border: 1px solid #333;
 
 	h1 {
 		font-size: 2rem;
 		font-weight: 300;
 		margin: 30px 0 30px;
-		color: $c-space-400;
+		color: #ffffff;
 	}
 
 	h2 {
-		color: $c-space-400;
+		color: #ffffff;
 	}
 
 	ul {
@@ -99,29 +104,42 @@ body.wp-admin {
 		list-style-position: inside;
 		font-size: 1rem;
 		line-height: 1.6;
+		color: #ffffff;
 	}
 
 	p {
 		font-size: 1rem;
 		line-height: 1.6;
+		color: #ffffff;
+
+		a {
+			color: #ffffff;
+
+			&:hover,
+			&:focus {
+				color: #ffffff;
+			}
+		}
 	}
 
 	&__top {
-		background: $c-altis-400;
+		background: #3c434a;
 		color: $c-white;
-		padding: 1% 4%;
-		border-radius: 10px 10px 0 0;
+		padding: 1% 5%;
+		border-radius: 0;
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		position: relative;
 	}
 
 	&__dismiss {
-		position: absolute;
-		right: 1%;
-		top: 10px;
 		cursor: pointer;
 		color: $c-grey-200;
 		background: none;
 		border: 0;
 		box-shadow: none;
+		transform: scale(1.5);
 
 		&:hover {
 			opacity: 0.75;
@@ -132,20 +150,20 @@ body.wp-admin {
 		display: flex;
 		flex-direction: row;
 		align-items: stretch;
-		background: #fff;
 		padding-bottom: 25px;
-		background: rgb(255,255,255);
-		background: linear-gradient(52deg, rgba(255,255,255,0) 0%, rgba(248,249,254,1) 68%, rgba(69,102,222,0.49625787815126055) 100%);
+		background: linear-gradient(90deg, #1d2327 0%, #1d2327 50%, rgba(29, 35, 39, 0.7) 75%, rgba(29, 35, 39, 0) 100%);
+		background-size: auto 100%, 50% 100%;
+		background-position: 0 0, 100% center;
+		background-repeat: no-repeat;
 
 		img {
-			width: 300px;
-			height: 300px;
+			display: none;
 		}
 	}
 
 	&__col {
 		flex: 3;
-		padding: 2% 4%;
+		padding: 2% 5%;
 
 		&:last-child {
 			flex: 2;
@@ -170,17 +188,56 @@ body.wp-admin {
 
 		.components-button.is-secondary {
 			background-color: transparent;
-			border: 2px solid $c-space-400;
-			color: $c-space-400;
+			border: 2px solid #ffffff;
+			color: #ffffff;
 			padding: 10px 30px;
 			height: auto;
 
 			&:hover,
 			&:hover:not(:disabled) {
-				background-color: transparent;
-				color: $c-space-300;
-				border-color: $c-space-300;
+				background-color: rgba(255, 255, 255, 0.1);
+				color: #ffffff;
+				border-color: #ffffff;
 			}
+		}
+	}
+
+	// Dynamic background images based on notice type
+	&[data-notice="dashboard"] &__content {
+		background-image: linear-gradient(90deg, #1d2327 0%, #1d2327 50%, rgba(29, 35, 39, 0.7) 75%, rgba(29, 35, 39, 0) 100%),
+		                  url('../../assets/acc-bg.jpg');
+	}
+
+	&[data-notice="edit-broadcast"] &__content {
+		background-image: linear-gradient(90deg, #1d2327 0%, #1d2327 50%, rgba(29, 35, 39, 0.7) 75%, rgba(29, 35, 39, 0) 100%),
+		                  url('../../assets/acc-bg2.jpg');
+	}
+
+	&[data-notice="accelerate_page_altis-accelerate-settings"] &__content {
+		background-image: linear-gradient(90deg, #1d2327 0%, #1d2327 50%, rgba(29, 35, 39, 0.7) 75%, rgba(29, 35, 39, 0) 100%),
+		                  url('../../assets/acc-bg3.jpg');
+	}
+
+	// Mobile: Hide background images and gradients for full-width text
+	@media (max-width: 768px) {
+		&__content {
+			background: #1d2327 !important;
+			flex-direction: column;
+		}
+
+		&__col {
+			flex: 1 !important;
+
+			&:last-child {
+				flex: 0 !important;
+				display: none !important;
+			}
+		}
+
+		&[data-notice="dashboard"] &__content,
+		&[data-notice="edit-broadcast"] &__content,
+		&[data-notice="accelerate_page_altis-accelerate-settings"] &__content {
+			background: #1d2327 !important;
 		}
 	}
 }
@@ -200,7 +257,13 @@ body.wp-admin {
 	padding: 25px 5% 15px;
 	display: flex;
 	justify-content: space-between;
+	align-items: center;
 	margin: 0 0 30px;
+}
+
+// Remove gap when notices are present
+.altis-ui.altis-notice {
+	margin-top: -30px;
 }
 
 .Header	.Logo {
@@ -208,6 +271,12 @@ body.wp-admin {
 	padding: 0;
 	display: flex;
 	line-height: 32px;
+	align-items: center;
+	gap: 8px;
+}
+
+.Header .Logo__mark {
+	flex-shrink: 0;
 }
 
 .Header .Beta {
@@ -233,31 +302,6 @@ body.wp-admin {
     letter-spacing: 0.05rem;
 }
 
-.Header .CannyWrap {
-	position: relative;
-}
-
-.Header .Canny {
-	position: absolute;
-	top: -8px;
-	right: 0;
-	color: $c-space-400;
-	background: $c-altis-50;
-	border-radius: 5px 5px 0 0;
-	padding: 15px 10px 15px 38px;
-	min-width: 270px;
-	line-height: 1;
-	box-shadow: inset 0 -1px 3px rgba(0,0,0,0.2);
-
-	img {
-		position: absolute;
-		top: -5px;
-		left: -25px;
-		height: 50px;
-		width: 50px;
-	}
-
-}
 
 .index-php .Header .Title {
     visibility: hidden;
@@ -342,9 +386,31 @@ body.wp-admin {
 	}
 }
 
+@keyframes hero-pulse {
+	0%, 100% {
+		opacity: 1;
+	}
+	50% {
+		opacity: 0.4;
+	}
+}
+
+@keyframes hero-countdown {
+	from {
+		stroke-dashoffset: 0;
+	}
+	to {
+		stroke-dashoffset: var(--circumference);
+	}
+}
+
 .HeroChart {
 	position: relative;
 	margin: 20px 0;
+
+	&__tooltip {
+		z-index: 10;
+	}
 
 	&__loader {
 		margin-left: 5%;
@@ -364,6 +430,34 @@ body.wp-admin {
 			display: inline-block;
 			margin-right: 8px;
 		}
+	}
+
+	&__realtime-indicator {
+		margin-left: 5%;
+		float: left;
+		margin-bottom: -16px;
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		font-size: 13px;
+		color: #7a00df;
+		font-weight: 500;
+	}
+
+	&__pulse {
+		flex-shrink: 0;
+
+		&--loading {
+			opacity: 0.6;
+		}
+	}
+
+	&__pulse-dot {
+		animation: hero-pulse 1.5s ease-in-out infinite;
+	}
+
+	&__progress-ring {
+		animation: hero-countdown 30s linear forwards;
 	}
 
 	&__controls {
