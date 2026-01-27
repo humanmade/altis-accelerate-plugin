@@ -17,9 +17,9 @@ export default function Loading( props : Props ) {
 			version="1.1"
 			viewBox="0 0 243 226.8"
 			x="0px"
-			xmlSpace="preserve"
 			xmlns="http://www.w3.org/2000/svg"
 			xmlnsXlink="http://www.w3.org/1999/xlink"
+			xmlSpace="preserve"
 			y="0px"
 			{ ...svgProps }
 			className={ `altis-svg-shape ${ svgProps.className || '' }` }
@@ -32,4 +32,4 @@ export default function Loading( props : Props ) {
 			/>
 		</svg>
 	);
-};
+}

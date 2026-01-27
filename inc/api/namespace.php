@@ -7,6 +7,7 @@
 
 namespace Altis\Accelerate\API;
 
+use Altis\Accelerate\Audiences;
 use Altis\Accelerate\Blocks;
 use Altis\Accelerate\Broadcast;
 use Altis\Accelerate\Dashboard;
@@ -29,7 +30,7 @@ function setup() {
 	add_action( 'rest_api_init', __NAMESPACE__ . '\\register_endpoints' );
 
 	// Add our standard stats aggs.
-	register_default_aggregations();
+	add_action( 'init', __NAMESPACE__ . '\\register_default_aggregations' );
 }
 
 /**
@@ -136,6 +137,7 @@ function get_stats( WP_REST_Request $request ) {
 	if ( $request['filter'] && is_array( $request['filter'] ) ) {
 		foreach ( $request['filter'] as $key => $value ) {
 			if ( property_exists( $filter, $key ) ) {
+				// todo: validate/sanitize values.
 				$filter->$key = $value;
 			}
 		}
@@ -240,6 +242,13 @@ function get_graph_data( $start, $end, $resolution = '1 day', ?Filter $filter = 
 			$query_where[] = 'post_id IN {include:Array(String)}';
 			$query_params['include'] = array_map( 'strval', $filter->include );
 		}
+
+		if ( $filter->audience ) {
+			// Get the audience query and params.
+			[ $audience_where, $audience_params ] = Audiences\build_audience_query( $filter->audience );
+			$query_where[] = $audience_where;
+			$query_params = array_merge( $query_params, $audience_params );
+		}
 	}
 
 	$query_where = sprintf( 'AND (%s)', implode( ') AND (', $query_where ) );
@@ -302,7 +311,8 @@ function get_graph_data( $start, $end, $resolution = '1 day', ?Filter $filter = 
 	];
 
 	foreach ( $res as $row ) {
-		if ( strpos( $row->date, '1970-' ) !== false || empty( strtotime( $row->date ) ) ) {
+		// Check if the date is 1970 which means it's a roll-up / summary. Due to timezones, this date can also be 1969.
+		if ( strpos( $row->date, '1970-' ) !== false || strpos( $row->date, '1969-' ) !== false || empty( strtotime( $row->date ) ) ) {
 			$data['stats']['summary'] = [
 				'views' => (int) $row->views,
 				'visitors' => (int) $row->uniques,
@@ -565,6 +575,7 @@ function get_top_data( $start, $end, ?Filter $filter = null ) {
 				'avatar' => get_avatar_url( $post->post_author ),
 			],
 			'thumbnail' => get_block_preview_thumbnail( $post->ID ),
+			'rawContent' => get_post_field( 'post_content', $post->ID ),
 			'views' => intval( $processed[ $post->ID ]->views ?? 0 ),
 			'blocks' => [],
 			'variants' => 0,
