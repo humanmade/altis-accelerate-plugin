@@ -1,0 +1,42 @@
+.accelerate-broadcast-modal {
+	// Constrain dialog height and add scrolling
+	max-height: 80vh;
+	display: flex;
+	flex-direction: column;
+
+	// Inner wrapper - scrollable area
+	.accelerate-broadcast-modal__inner {
+		flex: 1;
+		overflow-y: auto;
+		overflow-x: hidden;
+
+		// Hide scrollbars but keep functionality
+		scrollbar-width: none; // Firefox
+		-ms-overflow-style: none; // IE/Edge
+
+		&::-webkit-scrollbar {
+			display: none; // Chrome/Safari
+		}
+	}
+
+	// Header with title and icon buttons - now uses Tailwind flex classes
+	.accelerate-modal__header {
+		padding: 0 0 10px;
+		margin-bottom: 10px;
+
+		h1 {
+			line-height: 1.2;
+		}
+	}
+
+	// Fixed height for block list area to prevent resize during search
+	.accelerate__block-list_wrapper {
+		min-height: 350px;
+		overflow: visible;
+	}
+
+	// Match row item background to wrapper when dragging
+	.accelerate__block-list_item {
+		background: hsl(0, 0%, 97%); // $c-grey-50
+	}
+}
