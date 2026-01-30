@@ -19,8 +19,13 @@ node_modules/
 # Built and generated files
 /deploy/
 
+# Local AU tasks
+/tasks/
+
 # Git
 !.gitkeep
 
 # Caches
 .phpunit.result.cache
+tests/e2e/artifacts
+.claude/
