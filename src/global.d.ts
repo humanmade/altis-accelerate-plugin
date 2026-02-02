@@ -1,3 +1,5 @@
+import { ReactComponentLike } from 'prop-types';
+
 declare interface Window {
 	AltisAccelerateDashboardData: {
 		post_types: {
@@ -20,4 +22,49 @@ declare interface Window {
 		title?: string,
 	};
 	analytics: any;
+	Altis: {
+		Analytics: {
+			Experiments: {
+				Goals: {
+					label: string,
+					name: string,
+				}[]
+			},
+			components: ReactComponentLike[],
+		},
+	};
+}
+
+interface BlockAnalytics {
+	loads: number,
+	views: number,
+	conversions: number,
+	unique: {
+		loads: number,
+		views: number,
+		conversions: number,
+	},
+	variants?: {
+		id: number,
+		loads: number,
+		views: number,
+		conversions: number,
+		unique: {
+			loads: number,
+			views: number,
+			conversions: number,
+		},
+	}[],
+}
+
+interface ABTest {
+	start_time: number, // JS timestamp.
+	end_time: number, // JS timestamp.
+	results: {
+		winner: number | null,
+		variants: {
+			p: number,
+			rate: number,
+		}[],
+	},
 }
