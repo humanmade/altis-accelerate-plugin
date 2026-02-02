@@ -1,0 +1,48 @@
+.accelerate-broadcast-modal {
+	border-radius: 20px;
+	width: 600px;
+	overflow: hidden;
+
+	// Hide scrollbars and prevent horizontal scroll
+	.components-modal__content {
+		scrollbar-width: none; // Firefox
+		-ms-overflow-style: none; // IE/Edge
+
+		&::-webkit-scrollbar {
+			display: none; // Chrome/Safari
+		}
+	}
+
+	// Inner wrapper
+	.accelerate-broadcast-modal__inner {
+		overflow: visible;
+	}
+
+	.accelerate-modal__header {
+		padding: 10px 0;
+		display: flex;
+		margin-bottom: 20px;
+		align-items: center;
+
+		h1 {
+			margin: 0 30px 0 0;
+			flex: 1;
+		}
+
+		button {
+			flex: 0;
+			margin-left: 5px;
+		}
+	}
+
+	// Fixed height for block list area to prevent resize during search
+	.accelerate__block-list_wrapper {
+		min-height: 350px;
+		overflow: visible;
+	}
+
+	// Match row item background to wrapper when dragging
+	.accelerate__block-list_item {
+		background: hsl(0, 0%, 97%); // $c-grey-50
+	}
+}

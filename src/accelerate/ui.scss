@@ -43,6 +43,7 @@ a:focus,
 	box-sizing: border-box;
 	box-shadow: none;
 	display: inline-block;
+	transition: all 0.2s ease;
 
 	&.dashicons-before::before {
 		margin-right: 5px;
@@ -61,8 +62,8 @@ a:focus,
 .components-button:focus:not(:disabled):not([aria-disabled="true"]),
 .components-button:active:not(:disabled):not([aria-disabled="true"]) {
 	color: $c-altis-300;
-	background: none;
-	box-shadow: inset 0 0 0 1px $c-altis-300;
+	background: rgba($c-altis-400, 0.1);
+	box-shadow: inset 0 0 0 1px rgba($c-altis-300, 0.5);
 }
 
 .button.button-primary,
@@ -96,7 +97,7 @@ a:focus,
 .components-button[aria-disabled="true"]:active {
 	background: $c-grey-200;
 	box-shadow: none;
-	border-color: $c-grey-200;
+	border-color: transparent;
 	cursor: not-allowed;
 }
 
