@@ -1,5 +1,4 @@
 import _uniqBy from 'lodash/uniqBy';
-import PropTypes from 'prop-types';
 
 import {
 	PanelBody,
@@ -53,7 +52,7 @@ class Relationships extends Component {
 			const data = await fetchJson(
 				{
 					path: addQueryArgs(
-						`/altis-global-blocks/v1/relationships`, {
+						'/altis-global-blocks/v1/relationships', {
 							block_id: currentPostId,
 							page,
 						}
@@ -83,7 +82,7 @@ class Relationships extends Component {
 	updateRelationshipsList = ( [ newRelationshipsList, headers ] ) => {
 		const { relationshipsList } = this.state;
 
-		if ( ! newRelationshipsList.every( ( item ) => relationshipsList.includes( item ) ) ) {
+		if ( ! newRelationshipsList.every( item => relationshipsList.includes( item ) ) ) {
 			const totalPages = parseInt( headers[ 'x-wp-totalpages' ], 10 );
 			const totalItems = parseInt( headers[ 'x-wp-total' ], 10 );
 
@@ -144,7 +143,7 @@ class Relationships extends Component {
 
 		const items = relationshipsList.slice( startIndex, relationshipsPerPage * currentPage );
 		const relationshipItems = items.length
-			? items.map( ( relationshipItem ) => {
+			? items.map( relationshipItem => {
 				return ( <RelationshipItem { ...relationshipItem } key={ relationshipItem.id } /> );
 			} )
 			: <PanelRow>{ __( 'No Relationships to Display', 'altis' ) }</PanelRow>;
@@ -178,8 +177,8 @@ class Relationships extends Component {
 	}
 }
 
-Relationships.propTypes = {
-	currentPostId: PropTypes.number.isRequired,
-};
+// Relationships.propTypes = {
+// 	currentPostId: PropTypes.number.isRequired,
+// };
 
 export default Relationships;

@@ -1,7 +1,7 @@
 {
     "name": "altis/broadcast",
     "title": "Broadcast",
-    "description": "Broadcast Global Blocks and Experience Blocks on rotation across your site",
+    "description": "Broadcast Synced Patterns and Experience Blocks on rotation across your site",
     "icon": "",
     "category": "altis-experience-blocks",
     "supports": {
