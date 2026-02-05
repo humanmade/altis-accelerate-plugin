@@ -9,7 +9,7 @@ const { __ } = wp.i18n;
 function Suggest( props ) {
 	const {
 		prompt,
-		onChange
+		onChange,
 	} = props;
 
 	const { Icon, useAiSummary } = window.AltisAi;
