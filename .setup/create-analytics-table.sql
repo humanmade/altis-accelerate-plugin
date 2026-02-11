@@ -1,5 +1,4 @@
-drop table if exists analytics;
-create table analytics (
+create table if not exists analytics (
   request_id UUID DEFAULT generateUUIDv4(),
   app_id String,
   blog_id String materialized accurateCastOrDefault(attributes['blogId'], 'String', '1'),
