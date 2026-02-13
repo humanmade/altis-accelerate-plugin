@@ -44,77 +44,19 @@
 			flex: 2;
 
 			&__period {
-				min-width: 120px;
+				min-width: 210px;
 				flex: 0 1 160px;
-
-				button {
-					&.is-primary {
-						&::after {
-							content: "D";
-							padding-left: 1px;
-						}
-					}
-				}
+				margin-right: 2rem;
 			}
 
 			&__custom {
 				justify-content: flex-start;
 				gap: 1rem;
-
-				> div {
-					display: flex;
-					gap: 1rem;
-					margin-bottom: -1rem;
-				}
-
-				.components-button {
-					display: flex;
-					background: none;
-					border: 0;
-					border-radius: 0;
-					box-shadow: none;
-					cursor: pointer;
-					padding: 7px 10px 1rem;
-					height: 50px;
-					font-weight: 500;
-					border-bottom: 2px solid transparent;
-					color: $c-altis-400;
-
-					&:hover:not(:disabled):not([aria-disabled=true]),
-					&:active:not(:disabled):not([aria-disabled=true]),
-					&:focus:not(:disabled):not([aria-disabled=true]) {
-						box-shadow: none!important;
-						background: none!important;
-						color: $c-altis-400;
-						border: 0;
-						border-bottom: 2px solid transparent;
-					}
-
-					&:last-child {
-						margin-right: 0;
-					}
-
-					&.is-primary:not(:disabled):not([aria-disabled=true]) {
-						color: $c-altis-400;
-						border-bottom: 2px solid $c-altis-400;
-						background: none;
-					}
-				}
 			}
 		}
 
 		.table-add-new {
 			position: relative;
-
-			.components-menu-group > [role="group"] {
-				display: flex;
-				flex-flow: column wrap;
-
-				button:hover {
-					color: $c-altis-400;
-					cursor: pointer;
-				}
-			}
 		}
 
 	}
@@ -265,6 +207,14 @@
 		.record-expand {
 			width: 80px;
 			padding-left: 0;
+
+			.components-button {
+				color: $gray-700;
+
+				&:hover {
+					color: $gray-900;
+				}
+			}
 		}
 
 		.record-loading {
@@ -338,16 +288,22 @@
 		.record-thumbnail {
 			padding-top: 17px;
 			padding-left: 0;
+			vertical-align: middle;
 
 			.record-thumbnail-wrap {
 				width: 105px;
 				height: 47px;
+				display: flex;
+				align-items: center;
+				justify-content: flex-start;
 			}
 
 			.record-thumbnail-group-wrap--multiple {
 				position: relative;
 				margin-top: -7px;
 				margin-left: 5px;
+
+				// Legacy styles for img/svg elements (backwards compatibility)
 				svg,
 				img {
 					position: absolute;
@@ -363,6 +319,21 @@
 					position: absolute;
 					top: 10px;
 					left: -10px;
+				}
+
+				// Stacked preview styles for BlockPreview elements
+				// Position from bottom-left so the visible "peek" edges are consistent
+				// regardless of content height/rendering differences
+				.stacked-preview--back {
+					position: absolute;
+					bottom: -10px;
+					left: -10px;
+					z-index: 0;
+				}
+
+				.stacked-preview--front {
+					position: relative;
+					z-index: 1;
 				}
 			}
 
@@ -392,6 +363,7 @@
 			img, svg {
 				box-shadow: 0 4px 7px 0 rgba( 21, 42, 79, 0.2 );
 			}
+
 
 			&__empty {
 				width: 100%;
@@ -479,6 +451,7 @@
 		.table-header-lift,
 		.record-lift {
 			width: 140px;
+			white-space: nowrap;
 		}
 		.record-lift {
 			&__label {
@@ -514,8 +487,29 @@
 
 			&__links {
 
-				a, button {
+				a, button, .components-button {
 					margin-right: 10px;
+					color: $gray-700;
+					transition: opacity 0.15s ease;
+
+					&:hover {
+						opacity: 0.85;
+					}
+				}
+
+				.components-button.is-link {
+					color: $gray-700;
+					background: transparent;
+					text-decoration: none;
+
+					&:hover,
+					&:focus,
+					&:active {
+						color: $gray-700;
+						background: transparent;
+						box-shadow: none;
+						opacity: 0.85;
+					}
 				}
 			}
 
@@ -525,51 +519,15 @@
 }
 
 .table-footer {
-	.pagination {
-		padding: 20px 0;
-		display: flex;
-		justify-content: center;
-		flex-wrap: wrap;
+	padding: 20px 0;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	gap: 16px;
+
+	.current-page {
+		color: $c-grey-200;
 		font-size: 0.9rem;
-		color: $c-altis-400;
-		font-weight: 500;
-		text-align: center;
-		align-items: baseline;
-
-		.rpb-item {
-			padding: 2px 10px;
-			margin: 0 2px;
-			border: 0;
-			border-radius: 4px;
-			background: none;
-
-			&.rpb-item--active {
-				background: fade-out( $c-altis-400, 0.9 );
-			}
-
-			&:hover {
-				background: fade-out( $c-altis-400, 0.95 );
-			}
-
-			&.rpb-item--disabled {
-				color: $c-grey-200;
-			}
-		}
-
-		.rpb-root {
-			ul {
-				margin: 0;
-			}
-
-			li {
-				display: inline-block;
-			}
-		}
-
-		.current-page {
-			color: $c-grey-200;
-			margin-left: 5px;
-		}
 	}
 }
 

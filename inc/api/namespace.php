@@ -7,6 +7,7 @@
 
 namespace Altis\Accelerate\API;
 
+use Altis\Accelerate\Audiences;
 use Altis\Accelerate\Blocks;
 use Altis\Accelerate\Broadcast;
 use Altis\Accelerate\Dashboard;
@@ -29,7 +30,11 @@ function setup() {
 	add_action( 'rest_api_init', __NAMESPACE__ . '\\register_endpoints' );
 
 	// Add our standard stats aggs.
-	register_default_aggregations();
+	add_action( 'init', __NAMESPACE__ . '\\register_default_aggregations' );
+
+	// Set up remote API endpoints (HMAC-authenticated).
+	require_once __DIR__ . '/remote.php';
+	Remote\setup();
 }
 
 /**
@@ -136,6 +141,7 @@ function get_stats( WP_REST_Request $request ) {
 	if ( $request['filter'] && is_array( $request['filter'] ) ) {
 		foreach ( $request['filter'] as $key => $value ) {
 			if ( property_exists( $filter, $key ) ) {
+				// todo: validate/sanitize values.
 				$filter->$key = $value;
 			}
 		}
@@ -240,6 +246,13 @@ function get_graph_data( $start, $end, $resolution = '1 day', ?Filter $filter = 
 			$query_where[] = 'post_id IN {include:Array(String)}';
 			$query_params['include'] = array_map( 'strval', $filter->include );
 		}
+
+		if ( $filter->audience ) {
+			// Get the audience query and params.
+			[ $audience_where, $audience_params ] = Audiences\build_audience_query( $filter->audience );
+			$query_where[] = $audience_where;
+			$query_params = array_merge( $query_params, $audience_params );
+		}
 	}
 
 	$query_where = sprintf( 'AND (%s)', implode( ') AND (', $query_where ) );
@@ -247,31 +260,120 @@ function get_graph_data( $start, $end, $resolution = '1 day', ?Filter $filter = 
 	$query_params['tz'] = $filter->tz;
 
 	// Build SQL query.
-	$query =
-		"SELECT
-			toStartOfInterval(event_timestamp, INTERVAL {$resolution}, {tz:String}) as `date`,
-			-- views
-			count() as views,
-			-- uniques
-			uniqCombined64(endpoint_id) as uniques,
-			-- returning
-			uniqCombined64If(endpoint_id, endpoint_sessions > 1) as returning,
-			-- bounce
-			uniqCombined64If(endpoint_id, endpoint_views < 2) as bounce
-		FROM analytics
-		WHERE
-			blog_id = {blog_id:String}
-			AND event_timestamp >= toDateTime64({start:UInt64},3)
-			AND event_timestamp <= toDateTime64({end:UInt64},3)
-			AND event_type = 'pageView'
-			{$query_where}
-		GROUP BY
-			`date`
-			WITH ROLLUP
-		ORDER BY `date` ASC
-			WITH FILL
-				FROM toDateTime({start:UInt64}) TO toDateTime({end:UInt64})
-				STEP INTERVAL {$resolution}";
+	// Choose the best table based on filters and resolution:
+	// - analytics_hourly: No filters + hourly resolution + last 7 days ONLY
+	// - analytics_daily: No filters + daily+ resolution
+	// - analytics: Everything else (has filters or needs sub-hourly data)
+
+	$has_filters = ! empty( $filter->path ) || ! empty( $filter->include ) || ! empty( $filter->audience );
+	$is_daily_or_larger = preg_match( '/^\d+\s+(day|week|month|year)s?$/i', $resolution );
+	$is_hourly = preg_match( '/^\d+\s+hours?$/i', $resolution );
+	$date_range_days = ( $end - $start ) / DAY_IN_SECONDS;
+	$is_within_7_days = $date_range_days <= 7;
+
+	// Reject hourly queries beyond 7 days (prevents expensive raw table scans).
+	if ( $is_hourly && ! $is_within_7_days ) {
+		return new WP_Error(
+			'analytics.invalid_resolution',
+			sprintf(
+				'Hourly resolution is only available for date ranges up to 7 days. Your range is %.1f days. Please use daily resolution instead.',
+				$date_range_days
+			),
+			[ 'status' => 400 ]
+		);
+	}
+
+	// Also reject hourly queries with filters (would need raw table which is expensive).
+	if ( $is_hourly && $has_filters ) {
+		return new WP_Error(
+			'analytics.invalid_resolution',
+			'Hourly resolution is not available when using filters (path, audience, or post filters). Please use daily resolution instead.',
+			[ 'status' => 400 ]
+		);
+	}
+
+	// Use hourly table for recent hourly queries.
+	$use_hourly_view = ! $has_filters && $is_hourly;
+	// Use daily table for daily+ resolution queries.
+	$use_daily_view = ! $has_filters && $is_daily_or_larger;
+
+	if ( $use_hourly_view ) {
+		// Use hourly materialized view for recent hourly queries.
+		$query =
+			"SELECT
+				toStartOfInterval(hour, INTERVAL {$resolution}, {tz:String}) as `date`,
+				-- views
+				sum(views) as views,
+				-- uniques
+				uniqCombined64Merge(unique_visitors) as uniques,
+				-- returning
+				uniqCombined64Merge(returning_visitors) as returning,
+				-- bounce
+				uniqCombined64Merge(bounce_visitors) as bounce
+			FROM analytics_hourly
+			WHERE
+				blog_id = {blog_id:String}
+				AND hour >= toStartOfHour(toDateTime64({start:UInt64},3))
+				AND hour <= toStartOfHour(toDateTime64({end:UInt64},3))
+			GROUP BY
+				`date`
+				WITH ROLLUP
+			ORDER BY `date` ASC
+				WITH FILL
+					FROM toDateTime({start:UInt64}) TO toDateTime({end:UInt64})
+					STEP INTERVAL {$resolution}";
+	} elseif ( $use_daily_view ) {
+		// Use daily materialized view for daily+ queries.
+		$query =
+			"SELECT
+				toStartOfInterval(toDateTime(day, {tz:String}), INTERVAL {$resolution}, {tz:String}) as `date`,
+				-- views
+				sum(views) as views,
+				-- uniques
+				uniqCombined64Merge(unique_visitors) as uniques,
+				-- returning
+				uniqCombined64Merge(returning_visitors) as returning,
+				-- bounce
+				uniqCombined64Merge(bounce_visitors) as bounce
+			FROM analytics_daily
+			WHERE
+				blog_id = {blog_id:String}
+				AND day >= toDate(toDateTime64({start:UInt64},3))
+				AND day <= toDate(toDateTime64({end:UInt64},3))
+			GROUP BY
+				`date`
+				WITH ROLLUP
+			ORDER BY `date` ASC
+				WITH FILL
+					FROM toDateTime({start:UInt64}) TO toDateTime({end:UInt64})
+					STEP INTERVAL {$resolution}";
+	} else {
+		$query =
+			"SELECT
+				toStartOfInterval(event_timestamp, INTERVAL {$resolution}, {tz:String}) as `date`,
+				-- views
+				count() as views,
+				-- uniques
+				uniqCombined64(endpoint_id) as uniques,
+				-- returning
+				uniqCombined64If(endpoint_id, endpoint_sessions > 1) as returning,
+				-- bounce
+				uniqCombined64If(endpoint_id, endpoint_views < 2) as bounce
+			FROM analytics
+			WHERE
+				blog_id = {blog_id:String}
+				AND event_timestamp >= toDateTime64({start:UInt64},3)
+				AND event_timestamp <= toDateTime64({end:UInt64},3)
+				AND event_type = 'pageView'
+				{$query_where}
+			GROUP BY
+				`date`
+				WITH ROLLUP
+			ORDER BY `date` ASC
+				WITH FILL
+					FROM toDateTime({start:UInt64}) TO toDateTime({end:UInt64})
+					STEP INTERVAL {$resolution}";
+	}
 
 	$key = Utils\get_cache_key( 'analytics:stats', $query, $query_params, $filter );
 	$cache = wp_cache_get( $key, 'altis' );
@@ -302,7 +404,8 @@ function get_graph_data( $start, $end, $resolution = '1 day', ?Filter $filter = 
 	];
 
 	foreach ( $res as $row ) {
-		if ( strpos( $row->date, '1970-' ) !== false || empty( strtotime( $row->date ) ) ) {
+		// Check if the date is 1970 which means it's a roll-up / summary. Due to timezones, this date can also be 1969.
+		if ( strpos( $row->date, '1970-' ) !== false || strpos( $row->date, '1969-' ) !== false || empty( strtotime( $row->date ) ) ) {
 			$data['stats']['summary'] = [
 				'views' => (int) $row->views,
 				'visitors' => (int) $row->uniques,
@@ -421,6 +524,8 @@ function get_top_data( $start, $end, ?Filter $filter = null ) {
 
 	$query_where = sprintf( ' AND (%s) ', implode( ') AND (', $query_where ) );
 
+	// Note: This query uses raw analytics table due to complex conditional logic for A/B testing.
+	// analytics_daily_items exists but stores fallback/control separately, while this adds them together.
 	$query =
 		"SELECT
 			item_id,
@@ -565,6 +670,7 @@ function get_top_data( $start, $end, ?Filter $filter = null ) {
 				'avatar' => get_avatar_url( $post->post_author ),
 			],
 			'thumbnail' => get_block_preview_thumbnail( $post->ID ),
+			'rawContent' => get_post_field( 'post_content', $post->ID ),
 			'views' => intval( $processed[ $post->ID ]->views ?? 0 ),
 			'blocks' => [],
 			'variants' => 0,
