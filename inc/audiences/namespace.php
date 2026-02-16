@@ -870,6 +870,10 @@ function build_audience_query( array $audience, bool $with_join = false ) : arra
 		}
 	}
 
+	if ( empty( $group_queries ) ) {
+		return [ '1 = 1', [] ];
+	}
+
 	$groups_include = $include_map[ $audience['include'] ];
 	$groups_query = sprintf( ' (%s) ', implode( $groups_include, $group_queries ) );
 
@@ -889,7 +893,7 @@ function query_audiences( $args = null ) {
 	 *
 	 * @param int $limit The number of audiences to fetch for use client side.
 	 */
-	$limit = apply_filters( 'altis.analytics.audiences.limit', 20 );
+	$limit = apply_filters( 'altis.analytics.audiences.limit', 100 );
 
 	// Prevent negative values, -1 in this case means an unbounded query.
 	$limit = absint( $limit );
