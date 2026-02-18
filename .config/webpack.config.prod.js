@@ -1,22 +1,22 @@
 /**
  * This file defines the production build configuration
 */
-const { helpers, externals, loaders, presets } = require( '@humanmade/webpack-helpers' );
+const { helpers, loaders, presets } = require( '@humanmade/webpack-helpers' );
+const externals = require( './externals' );
 const { filePath } = helpers;
 
 // Mutate the loader defaults.
 loaders.ts.defaults.loader = 'babel-loader';
-// Increase url-loader limit to embed logo inline.
-loaders.url.defaults.options.limit = 200000;
 
 module.exports = presets.production( {
 	externals,
 	entry: {
 		"accelerate-admin": filePath( 'src/accelerate/index.tsx' ),
+		"accelerate-settings": filePath( 'src/accelerate/settings/index.tsx' ),
 		"dashboard": filePath( 'src/dashboard/index.tsx' ),
 		"global-blocks": filePath( 'src/global-blocks/index.js' ),
 		'accelerate': filePath( 'src/accelerate.js' ),
-		'audiences/data': filePath( 'src/audiences/data/index.js' ),
+		'audiences/data': filePath( 'src/audiences/data/index.ts' ),
 		'audiences/preview': filePath( 'src/audiences/preview/index.js' ),
 		'audiences/ui': filePath( 'src/audiences/index.js' ),
 		'blocks/data': filePath( 'src/blocks/data/index.js' ),
@@ -24,7 +24,6 @@ module.exports = presets.production( {
 		'blocks/ab-test-preview': filePath( 'src/ab-test-preview.js' ),
 		'blocks/altis-xb-preview': filePath( 'src/preview/altis-xb-preview.js' ),
 		'blocks/broadcast': filePath( 'inc/blocks/broadcast/index.js' ),
-		'blocks/ai': filePath( 'inc/ai/admin/index.js' ),
 		'experiments': filePath( 'src/experiments.js' ),
 		'experiments/sidebar': filePath( 'src/experiments/index.js' ),
 		'titles': filePath( 'src/experiments/titles/index.js' ),
@@ -44,5 +43,8 @@ module.exports = presets.production( {
 			'.js',
 			'.json',
 		],
+		alias: {
+			'@': filePath( 'src' ),
+		},
 	},
 } );
