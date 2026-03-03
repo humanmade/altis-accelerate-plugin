@@ -198,6 +198,10 @@ function register_post_ab_tests_rest_fields() {
 		'get_callback' => function ( array $post ) {
 			$response = [];
 			foreach ( array_keys( get_post_ab_tests() ) as $test_id ) {
+				if ( ! isset( $post['type'] ) ) {
+					// The wp-global-styles post type is show_in_rest, but has no 'type'.
+					continue;
+				}
 				// Skip this test for unsupported types.
 				if ( ! in_array( $post['type'], get_post_types_by_support( "altis.experiments.{$test_id}" ), true ) ) {
 					continue;
@@ -323,8 +327,8 @@ function register_post_ab_tests_rest_fields() {
 											],
 											'p' => [
 												'type' => 'number',
-												'default' => 1,
-												'description' => __( 'Variant p-value', 'altis' ),
+												'default' => 0,
+												'description' => __( 'Variant probability to be best (P2BB)', 'altis' ),
 											],
 										],
 									],
@@ -478,22 +482,6 @@ function enqueue_experiments_editor_scripts( string $hook ) : void {
 		return;
 	}
 
-	$sidebar = Utils\register_assets(
-		'experiments/sidebar',
-		[
-			'dependencies' => [
-				'wp-plugins',
-				'wp-blocks',
-				'wp-i18n',
-				'wp-editor',
-				'wp-components',
-				'wp-core-data',
-				'wp-edit-post',
-				'moment',
-			],
-		]
-	);
-
 	// Retrieve the labels for tests that show UI.
 	$js_data = [];
 
@@ -507,7 +495,7 @@ function enqueue_experiments_editor_scripts( string $hook ) : void {
 		}
 
 		foreach ( $test['editor_scripts'] as $script => $deps ) {
-			wp_enqueue_script( "altis-accelerate-experiments/{ $test_id }", $script, array_merge( $deps, [ $sidebar['script'] ] ), null );
+			wp_enqueue_script( "altis-accelerate-experiments/{ $test_id }", $script, array_merge( $deps, [ 'altis-accelerate-global-blocks' ] ), null );
 		}
 
 		if ( $test['show_ui'] ) {
@@ -520,7 +508,7 @@ function enqueue_experiments_editor_scripts( string $hook ) : void {
 	}
 
 	wp_add_inline_script(
-		'altis-accelerate-experiments/sidebar',
+		'altis-accelerate-global-blocks',
 		sprintf(
 			'window.Altis = window.Altis || {};' .
 			'window.Altis.Analytics = window.Altis.Analytics || {};' .
@@ -1097,6 +1085,149 @@ function process_post_ab_test_result( string $test_id, int $post_id ) {
 }
 
 /**
+ * Calculate Beta distribution parameters from conversion data.
+ * Uses conjugate prior: Beta(1,1) = Uniform distribution
+ *
+ * @param int $successes Number of conversions.
+ * @param int $trials Total number of impressions.
+ * @return array Alpha and beta parameters.
+ */
+function calculate_beta_parameters( int $successes, int $trials ): array {
+	return [
+		'alpha' => 1 + $successes,  // Uniform prior alpha=1
+		'beta' => 1 + ( $trials - $successes ),  // Uniform prior beta=1
+	];
+}
+
+/**
+ * Generate a random variate from Gamma(shape, 1) distribution.
+ * Uses Marsaglia and Tsang's method for shape >= 1.
+ *
+ * @param float $shape Shape parameter (alpha).
+ * @return float Random Gamma variate.
+ */
+function gamma_rand( float $shape ): float {
+	// Handle shape < 1 using Ahrens-Dieter method
+	if ( $shape < 1 ) {
+		return gamma_rand( $shape + 1 ) * pow( mt_rand() / mt_getrandmax(), 1.0 / $shape );
+	}
+
+	// Marsaglia and Tsang's method for shape >= 1
+	$d = $shape - 1.0 / 3.0;
+	$c = 1.0 / sqrt( 9.0 * $d );
+
+	while ( true ) {
+		// Generate normal variate using Box-Muller
+		$u1 = mt_rand() / mt_getrandmax();
+		$u2 = mt_rand() / mt_getrandmax();
+		$z = sqrt( -2.0 * log( $u1 ) ) * cos( 2.0 * M_PI * $u2 );
+
+		$v = 1.0 + $c * $z;
+		if ( $v <= 0 ) {
+			continue;
+		}
+
+		$v = $v * $v * $v;
+		$u = mt_rand() / mt_getrandmax();
+
+		// Squeeze test
+		if ( $u < 1.0 - 0.0331 * ( $z * $z ) * ( $z * $z ) ) {
+			return $d * $v;
+		}
+
+		// Full acceptance test
+		if ( log( $u ) < 0.5 * $z * $z + $d * ( 1.0 - $v + log( $v ) ) ) {
+			return $d * $v;
+		}
+	}
+}
+
+/**
+ * Generate a random variate from Beta(alpha, beta) distribution.
+ * Uses the ratio of two Gamma variates: X/(X+Y) where X~Gamma(alpha), Y~Gamma(beta).
+ *
+ * @param float $alpha Alpha parameter.
+ * @param float $beta Beta parameter.
+ * @return float Random Beta variate in [0, 1].
+ */
+function beta_rand( float $alpha, float $beta ): float {
+	$x = gamma_rand( $alpha );
+	$y = gamma_rand( $beta );
+	return $x / ( $x + $y );
+}
+
+/**
+ * Calculate Bayesian P2BB using Monte Carlo simulation.
+ *
+ * @param array $variants_data Variant data with hits/size/rate.
+ * @param int $samples Total Monte Carlo samples to generate.
+ * @return array P2BB probabilities for each variant.
+ */
+function calculate_bayesian_p2bb( array $variants_data, int $samples = 10000 ): array {
+	$variant_ids = array_keys( $variants_data );
+	$win_counts = array_fill_keys( $variant_ids, 0 );
+
+	// Pre-calculate Beta parameters for each variant
+	$params = [];
+	foreach ( $variants_data as $variant_id => $data ) {
+		$beta_params = calculate_beta_parameters( $data['hits'], $data['size'] );
+		$params[ $variant_id ] = $beta_params;
+	}
+
+	// Run Monte Carlo simulation
+	for ( $i = 0; $i < $samples; $i++ ) {
+		// Generate one sample from each variant's posterior
+		$sample_values = [];
+		foreach ( $variant_ids as $variant_id ) {
+			$sample_values[ $variant_id ] = beta_rand(
+				$params[ $variant_id ]['alpha'],
+				$params[ $variant_id ]['beta']
+			);
+		}
+
+		// Find the winner (highest sample value)
+		$max_value = -1;
+		$winner = null;
+		foreach ( $sample_values as $variant_id => $value ) {
+			if ( $value > $max_value ) {
+				$max_value = $value;
+				$winner = $variant_id;
+			}
+		}
+
+		if ( $winner !== null ) {
+			$win_counts[ $winner ]++;
+		}
+	}
+
+	// Convert to probabilities
+	$p2bb_results = [];
+	foreach ( $win_counts as $variant_id => $wins ) {
+		$p2bb_results[ $variant_id ] = $wins / $samples;
+	}
+
+	return $p2bb_results;
+}
+
+/**
+ * Helper to prepare variant data for Bayesian analysis.
+ *
+ * @param array $aggregations Raw aggregation data from analytics.
+ * @return array Prepared variant data with size/hits/rate.
+ */
+function prepare_variants_for_bayesian( array $aggregations ): array {
+	$variants_data = [];
+	foreach ($aggregations as $id => $agg) {
+		$variants_data[$id] = [
+			'size' => $agg['impressions'] ?? 0,
+			'hits' => $agg['conversions'] ?? 0,
+			'rate' => ($agg['impressions'] ?? 0) ? ($agg['conversions'] ?? 0) / ($agg['impressions'] ?? 0) : 0
+		];
+	}
+	return $variants_data;
+}
+
+/**
  * Process hits & impressions to find a statistically significant winner.
  *
  * @param array $aggregations Results from elasticsearch.
@@ -1107,76 +1238,63 @@ function process_post_ab_test_result( string $test_id, int $post_id ) {
 function analyse_ab_test_results( array $aggregations, string $test_id, int $post_id ) : array {
 	$variant_values = get_ab_test_variants_for_post( $test_id, $post_id );
 
-	// Track winning variant.
-	$winner = null;
-	$winning = null;
-	$max_rate = 0.0;
+	// Prepare data for Bayesian analysis
+	$variants_data = prepare_variants_for_bayesian( $aggregations );
 	$variants = [];
+	$max_rate = 0.0;
 
+	// Build variants array (keep existing structure)
 	foreach ( $aggregations as $id => $agg ) {
 		$size = $agg['impressions'] ?? 0;
 		$hits = $agg['conversions'] ?? 0;
 		$rate = $size ? $hits / $size : 0;
 
 		$variants[ $id ] = [
-			'value' => $variant_values[ $id ],
+			'value' => $variant_values[ $id ] ?? null,
 			'size' => $size,
 			'hits' => $hits,
 			'rate' => $rate,
-			'p' => null,
+			'p' => null, // Will be P2BB value
 		];
 
-		// Check if this variant is winning.
 		if ( $rate > $max_rate ) {
 			$max_rate = $rate;
-
-			// Check sample size is large enough.
-			// We use a low value of 5% as the Minimum Detectable Effect because making the change
-			// is automated and therefore cost effective.
-			if ( $size * $rate >= 5 && $size * ( 1 - $rate ) >= 5 ) {
-				$winning = absint( $id );
-			}
 		}
-
-		// Get p-value.
-		// Compare hit rate of variant against control using discrete binomial distribution.
-		// Pass the success rate for this variant to the probability mass function.
-		$control = $variants[0];
-		$binomial = new Discrete\Binomial( $size, $control['rate'] );
-		$variants[ $id ]['p'] = $binomial->pmf( $hits );
-
 	}
 
-	// Find if a variant is winning, ie. reject null hypothesis.
-	if ( $winning !== null ) {
-		$winning_variant = $variants[ $winning ];
-		// Require 99% certainty.
-		if ( ! is_null( $winning_variant['p'] ) && $winning_variant['p'] < 0.01 ) {
-			$winner = absint( $winning );
+	// Calculate Bayesian P2BB
+	$p2bb_results = calculate_bayesian_p2bb( $variants_data );
 
-			// Store results safely.
-			save_ab_test_results_for_post( $test_id, $post_id, [
-				'winner' => absint( $winner ),
-				'variants' => $variants,
-			] );
+	// Update variants with P2BB values
+	foreach ( $variants as $id => $variant ) {
+		$variants[ $id ]['p'] = $p2bb_results[ $id ] ?? 0;
+	}
 
-			// End the test.
-			end_ab_test_for_post( $test_id, $post_id );
+	// Winner determination (replace existing logic)
+	$winner = null;
+	$winning = null;
+	$p2bb_threshold = 0.95; // 95% confidence
+	$min_sample_size = 300;  // Minimum impressions
 
-			/**
-			 * Dispatch action when winner found.
-			 *
-			 * @param string $test_id
-			 * @param int $post_id
-			 */
-			do_action( 'altis.experiments.test.winner_found', $test_id, $post_id, $winning_variant['value'] );
+	foreach ( $p2bb_results as $variant_id => $p2bb ) {
+		if ( $p2bb >= $p2bb_threshold ) {
+			$variant_data = $variants_data[ $variant_id ];
+			if ( $variant_data['size'] >= $min_sample_size ) {
+				$winner = absint( $variant_id );
+				$winning = absint( $variant_id );
 
-			/**
-			 * Dispatch action when winner found for test.
-			 *
-			 * @param int $post_id
-			 */
-			do_action( "altis.experiments.test.winner_found.{$test_id}", $post_id, $winning_variant['value'] );
+				// Keep existing save/end/action logic unchanged
+				save_ab_test_results_for_post( $test_id, $post_id, [
+					'winner' => $winner,
+					'variants' => $variants,
+				] );
+
+				end_ab_test_for_post( $test_id, $post_id );
+
+				do_action( 'altis.experiments.test.winner_found', $test_id, $post_id, $variants[ $winner ]['value'] );
+				do_action( "altis.experiments.test.winner_found.{$test_id}", $post_id, $variants[ $winner ]['value'] );
+				break;
+			}
 		}
 	}
 

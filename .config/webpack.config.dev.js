@@ -1,7 +1,8 @@
 /**
  * This file defines the development build configuration
  */
-const { helpers, externals, loaders, presets } = require( '@humanmade/webpack-helpers' );
+const { helpers, loaders, presets } = require( '@humanmade/webpack-helpers' );
+const externals = require( './externals' );
 const { choosePort, filePath } = helpers;
 
 // Mutate the loader defaults.
@@ -13,13 +14,24 @@ module.exports = choosePort( 8080 ).then( port =>
 		devServer: {
 			port,
 			https: true,
+			client: {
+				overlay: {
+					runtimeErrors: ( error ) => {
+						if ( error.message === 'ResizeObserver loop completed with undelivered notifications.' ) {
+							return false;
+						}
+						return true;
+					},
+				},
+			},
 		},
 		entry: {
 			"accelerate-admin": filePath( 'src/accelerate/index.tsx' ),
+			"accelerate-settings": filePath( 'src/accelerate/settings/index.tsx' ),
 			"dashboard": filePath( 'src/dashboard/index.tsx' ),
 			"global-blocks": filePath( 'src/global-blocks/index.js' ),
 			'accelerate': filePath( 'src/accelerate.js' ),
-			'audiences/data': filePath( 'src/audiences/data/index.js' ),
+			'audiences/data': filePath( 'src/audiences/data/index.ts' ),
 			'audiences/preview': filePath( 'src/audiences/preview/index.js' ),
 			'audiences/ui': filePath( 'src/audiences/index.js' ),
 			'blocks/data': filePath( 'src/blocks/data/index.js' ),
@@ -27,9 +39,7 @@ module.exports = choosePort( 8080 ).then( port =>
 			'blocks/ab-test-preview': filePath( 'src/ab-test-preview.js' ),
 			'blocks/altis-xb-preview': filePath( 'src/preview/altis-xb-preview.js' ),
 			'blocks/broadcast': filePath( 'inc/blocks/broadcast/index.js' ),
-			'blocks/ai': filePath( 'inc/ai/admin/index.js' ),
 			'experiments': filePath( 'src/experiments.js' ),
-			'experiments/sidebar': filePath( 'src/experiments/index.js' ),
 			'titles': filePath( 'src/experiments/titles/index.js' ),
 			'featured-images': filePath( 'src/experiments/featured-images/index.js' ),
 		},
@@ -39,6 +49,11 @@ module.exports = choosePort( 8080 ).then( port =>
 			filename: '[name].[hash:8].js',
 			chunkFilename: 'chunk.[id].[chunkhash:8].js',
 		},
+		optimization: {
+			runtimeChunk: 'single',
+			nodeEnv: 'development',
+			splitChunks: false,
+		},
 		resolve: {
 			extensions: [
 				'.ts',
@@ -46,8 +61,11 @@ module.exports = choosePort( 8080 ).then( port =>
 				'.wasm',
 				'.mjs',
 				'.js',
-				'.json',
+				'.json'
 			],
+			alias: {
+				'@': filePath( 'src' ),
+			},
 		},
 	} ),
 );
