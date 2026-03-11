@@ -54,9 +54,16 @@ class Filter {
 	public $include = [];
 
 	/**
-	 * Timezone offset in minutes.
+	 * Timezone string (IANA format, e.g. 'UTC', 'America/New_York').
 	 *
-	 * @var int
+	 * @var string
 	 */
-	public $tz = 0;
+	public $tz = 'UTC';
+
+	/**
+	 * Audience query.
+	 *
+	 * @var array
+	 */
+	public $audience;
 }
