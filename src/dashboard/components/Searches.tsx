@@ -1,8 +1,10 @@
 import React from 'react';
+
 import { __ } from '@wordpress/i18n';
 
-import BreakdownBlock from './BreakdownBlock';
 import { StatsResult } from '../../utils/admin';
+
+import BreakdownBlock from './BreakdownBlock';
 
 interface Props {
 	data?: StatsResult,
