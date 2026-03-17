@@ -244,7 +244,7 @@ function handle_estimate_request( WP_REST_Request $request ) : WP_REST_Response 
  * Validate the estimate audience configuration parameter.
  *
  * @param string $param The audience configuration JSON string.
- * @return bool
+ * @return bool|WP_Error
  */
 function validate_estimate_audience( $param ) {
 	$audience = json_decode( $param, true );
