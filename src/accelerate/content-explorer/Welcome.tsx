@@ -23,5 +23,5 @@ export default function Welcome( props: Props ) {
 				({ __( 'or under the menu on the left', 'altis' ) }).
 			</p>
 		</div>
-	)
+	);
 }
