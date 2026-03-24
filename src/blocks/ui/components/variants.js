@@ -1,4 +1,3 @@
-import PropTypes from 'prop-types';
 import React from 'react';
 
 import { compactMetric, formatNumber } from '../../../utils';
@@ -88,10 +87,10 @@ Variants.defaultProps = {
 	variants: [],
 };
 
-Variants.propTypes = {
-	analytics: PropTypes.object,
-	append: PropTypes.func,
-	variants: PropTypes.array,
-};
+// Variants.propTypes = {
+// 	analytics: PropTypes.object,
+// 	append: PropTypes.func,
+// 	variants: PropTypes.array,
+// };
 
 export default Variants;
