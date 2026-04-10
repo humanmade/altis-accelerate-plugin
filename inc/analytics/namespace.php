@@ -9,6 +9,7 @@ namespace Altis\Accelerate\Analytics;
 
 use Altis\Accelerate\Utils;
 use Altis\Accelerate\Audiences;
+use function Altis\Accelerate\get_config;
 
 /**
  * Set up the plugin.
@@ -195,7 +196,7 @@ function enqueue_scripts() {
 
 	/**
 	 * If true prevents any analytics events from actually being sent
-	 * to Pinpoint. Useful in situations such as previewing content.
+	 * to the analaytics database. Useful in situations such as previewing content.
 	 *
 	 * @param bool $noop Set to true to prevent any analytics events being recorded.
 	 */
@@ -232,19 +233,10 @@ function enqueue_scripts() {
 	 */
 	$exclude_bots = (bool) apply_filters( 'altis.analytics.exclude_bots', true );
 
-	// Use polyfills.io to fix IE compat issues, only polyfilling features where not supported.
-	wp_enqueue_script(
-		'altis-accelerate-polyfill.io',
-		plugins_url( '/assets/polyfill-ie11-es6.min.js', dirname( __DIR__ ) ),
-		[],
-		'3',
-		false
-	);
-
 	Utils\register_assets(
 		'accelerate',
 		[
-			'dependencies' => [ 'altis-accelerate-polyfill.io' ],
+			'dependencies' => [],
 			'in-footer' => false,
 		],
 		true
@@ -278,9 +270,8 @@ function enqueue_scripts() {
 						'Allowed' => array_values( (array) $consent_always_allowed ),
 					],
 					'Config' => [
-						'PinpointId' => defined( 'ALTIS_ACCELERATE_PINPOINT_ID' ) ? ALTIS_ACCELERATE_PINPOINT_ID : null,
-						'PinpointRegion' => defined( 'ALTIS_ACCELERATE_PINPOINT_REGION' ) ? ALTIS_ACCELERATE_PINPOINT_REGION : null,
-						'PinpointEndpoint' => defined( 'ALTIS_ACCELERATE_PINPOINT_ENDPOINT' ) ? ALTIS_ACCELERATE_PINPOINT_ENDPOINT : 'https://eu.accelerate.altis.cloud/log',
+						'LogEndpoint' => defined( 'ALTIS_ACCELERATE_LOG_ENDPOINT' ) ? ALTIS_ACCELERATE_LOG_ENDPOINT : 'https://eu.accelerate.altis.cloud/log',
+						'AppId' => get_config()['app_id'],
 						'ExcludeBots' => $exclude_bots,
 					],
 					'Noop' => $noop,
@@ -294,9 +285,6 @@ function enqueue_scripts() {
 
 	// Load async for performance.
 	$wp_scripts->add_data( 'altis-accelerate-accelerate', 'async', true );
-
-	// Only load polyfills for older browsers.
-	$wp_scripts->add_data( 'altis-accelerate-polyfill.io', 'nomodule', true );
 
 	/**
 	 * Create our own early hook for queueing
