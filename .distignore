@@ -1,7 +1,7 @@
 # Public beta feature exclusions
 .git
 .github
-./.setup
+.setup
 .config
 .wordpress
 tests
@@ -33,3 +33,13 @@ docker-compose.server.yml
 docker-compose.wp.yml
 README.md
 accelerate.code-workspace
+
+# Development files (Issue #548)
+**/*.md
+docker-compose.yml
+docker-compose.yaml
+*.docker.yml
+*.docker.yaml
+.mcp.json
+/docs/
+/.github/workflows/
