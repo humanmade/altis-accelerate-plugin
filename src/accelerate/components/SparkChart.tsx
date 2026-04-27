@@ -1,10 +1,12 @@
-import React from 'react';
-import moment from 'moment';
 
-import { max, min } from 'd3-array';
 import { scaleBand, scaleLog } from '@visx/scale';
 import { Bar } from '@visx/shape';
+import { max, min } from 'd3-array';
+import moment from 'moment';
+import React from 'react';
+
 import { __, sprintf, _n } from '@wordpress/i18n';
+
 import { Duration } from '../../utils/admin';
 
 type Datum = {
@@ -30,6 +32,7 @@ const getY = ( d : Datum ) => d?.count || 0;
 
 export default function SparkChart( props: Props ) {
 	const breakPoints : Breakpoints = {
+		'PT30M': 30,
 		'P7D': 100,
 		'P14D': 110,
 		'P30D': 120,
@@ -39,15 +42,17 @@ export default function SparkChart( props: Props ) {
 	};
 
 	// Set up default empty histogram to allow for animations.
-	const days = moment.duration( props.period || 'P7D' ).asDays();
-
+	const days = Math.floor( moment.duration( props.period || 'P7D' ).asDays() );
 	let histogram : Datum[] = Array( days ).fill( {
 		index: 0,
 		count: 0,
 	} );
 
 	histogram.forEach( ( d, i ) => {
-		histogram[i] = { index: i, count: 0 };
+		histogram[i] = {
+			index: i,
+			count: 0,
+		};
 	} );
 
 	if ( props.histogram && props.histogram.length > 0 ) {
@@ -91,22 +96,22 @@ export default function SparkChart( props: Props ) {
 	} );
 
 	return (
-		<svg width={ trueWidth } height={ height }>
+		<svg height={ height } overflow="hidden" width={ trueWidth }>
 			{ histogram.map( ( d, i ) => {
 				const barWidth = xScale.bandwidth();
-				const barHeight = height + 1;
 				const barX = xScale( getX( d ) );
-				const barY = Math.min( ( yScale( getY( d ) as number + 0.7 ) ), height - 0.7 );
+				const barY = Math.max( 0, Math.min( yScale( getY( d ) as number + 0.7 ), height - 0.7 ) );
+				const barHeight = height - barY;
 				return (
 					<Bar
 						key={ `bar-${ i }` }
-						x={ barX }
-						y={ barY }
+						fill={ d.zeroData ? '#ECEEF1' : '#1f2937' }
+						fillOpacity={ 0.8 }
+						height={ barHeight }
 						rx={ 1 }
 						width={ barWidth }
-						height={ barHeight + 10 }
-						fill={ d.zeroData ? '#ECEEF1' : '#4667de' }
-						fillOpacity={ 0.8 }
+						x={ barX }
+						y={ barY }
 					>
 						<title>{
 							d.zeroData
