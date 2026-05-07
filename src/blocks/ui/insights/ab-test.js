@@ -47,11 +47,6 @@ const ABTest = ( {
 	};
 	aggregateData.rate = aggregateData.size > 0 ? aggregateData.hits / aggregateData.size : 0;
 
-	// Probability to be best.
-	const maxRate = ( test?.results?.variants || [] ).reduce( ( carry, variant ) => {
-		return variant.rate > carry ? variant.rate : carry;
-	}, 0 );
-
 	// Check end status of test.
 	const hasEnded = ( test?.end_time && test?.end_time <= Date.now() ) || Number.isInteger( test?.results?.winner );
 	const winningVariantId = Number.isInteger( test?.results?.winner ) ? test?.results?.winner : false;
@@ -155,9 +150,7 @@ const ABTest = ( {
 				analytics={ analytics }
 				append={ ( { variant } ) => {
 					const result = test?.results?.variants[ variant.id ] || {};
-					const pValue = result.p || 1;
-					const relativeRate = result.rate / maxRate;
-					const p2bb = relativeRate * ( 1 - pValue );
+					const p2bb = result.p || 0; // P2BB comes pre-calculated from backend
 					return (
 						<li>
 							<p className="description">{ __( 'Probability of best', 'altis' ) }</p>

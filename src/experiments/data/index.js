@@ -14,7 +14,6 @@ export const getSidebarTests = () => {
 	for ( const id in input ) {
 		const test = input[ id ];
 
-		/* eslint-disable jsdoc/require-jsdoc */
 		tests[ id ] = applyFilters( `altis.experiments.sidebar.test.${ id }`, {
 			id,
 			title: test.label,

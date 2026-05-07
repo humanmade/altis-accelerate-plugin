@@ -16,17 +16,14 @@ const {
 	Config,
 	Consent,
 	Data,
-	Noop,
 	Audiences,
 } = Altis.Analytics;
 
-if ( ! Config.PinpointId ) {
+if ( ! Config.AppId ) {
 	/* eslint-disable quotes */
 	console.warn(
-		"Altis Analytics: Missing configuration. \
-	You must define the following constants in PHP:\n \
-	define( 'ALTIS_ACCELERATE_PINPOINT_ID', '...' );\n \
-	define( 'ALTIS_ACCELERATE_PINPOINT_REGION', '...' );" );
+		"Altis Analytics: Missing configuration."
+	);
 	/* eslint-enable quotes */
 }
 
@@ -76,7 +73,9 @@ let elapsed = 0;
 let scrollDepthMax = 0;
 let scrollDepthNow = 0;
 window.addEventListener( 'scroll', () => {
-	const percent = ( window.scrollY / document.body.clientHeight ) * 100;
+	const scrollHeight = document.documentElement.scrollHeight || document.body.scrollHeight;
+	const max = Math.max( 1, scrollHeight - window.innerHeight );
+	const percent = Math.min( 100, ( window.scrollY / max ) * 100 );
 	scrollDepthMax = percent > scrollDepthMax ? percent : scrollDepthMax;
 	scrollDepthNow = percent;
 } );
@@ -154,23 +153,51 @@ const getMetrics = ( extra = {} ) => ( {
 } );
 
 /**
- * Initialise cognito services.
+ * Storage keys for analytics data.
+ */
+const STORAGE_KEYS = {
+	UserId: 'accelerate.uuid',
+	Endpoint: 'accelerate.endpoint',
+	// Legacy keys for backward compatibility migration.
+	LegacyUserId: 'aws.cognito.identity-id.undefined',
+	LegacyEndpoint: 'aws.pinpoint.endpoint',
+};
+
+/**
+ * Analytics module.
  */
 const Analytics = {
 	keys: {
-		UserId: `aws.cognito.identity-id.${ Config.CognitoId }`,
+		UserId: STORAGE_KEYS.UserId,
 	},
 	/**
 	 * Gets or creates the unique user ID.
+	 * Includes backward compatibility migration from legacy Cognito key.
 	 *
 	 * @returns {?string} The user UUID.
 	 */
 	getUserId: () => {
-		let id = localStorage.getItem( Analytics.keys.UserId );
+		// Check for existing ID in new key.
+		let id = localStorage.getItem( STORAGE_KEYS.UserId );
+
+		// Migrate from legacy key if new key doesn't exist.
+		if ( ! id ) {
+			const legacyId = localStorage.getItem( STORAGE_KEYS.LegacyUserId );
+			if ( legacyId ) {
+				// Migrate to new key.
+				id = legacyId;
+				localStorage.setItem( STORAGE_KEYS.UserId, id );
+				// Clean up legacy key.
+				localStorage.removeItem( STORAGE_KEYS.LegacyUserId );
+			}
+		}
+
+		// Create new ID if none exists.
 		if ( ! id ) {
 			id = uuid();
-			localStorage.setItem( Analytics.keys.UserId, id );
+			localStorage.setItem( STORAGE_KEYS.UserId, id );
 		}
+
 		return id;
 	},
 	audiences: [],
@@ -359,7 +386,7 @@ const Analytics = {
 		return Analytics.audiences;
 	},
 	/**
-	 * Updates the Pinpoint endpoint data.
+	 * Updates the Analytics endpoint data.
 	 *
 	 * @param {Object} endpoint The endpoint object with updates.
 	 * @returns {Promise} Update Promise.
@@ -369,12 +396,28 @@ const Analytics = {
 	},
 	/**
 	 * Retrieves the current endpoint data.
+	 * Includes backward compatibility migration from legacy Pinpoint key.
 	 *
 	 * @returns {Object} Endpoint object.
 	 */
 	getEndpoint: () => {
 		try {
-			const ParsedEndpoint = JSON.parse( localStorage.getItem( 'aws.pinpoint.endpoint' ) );
+			// Check for existing endpoint in new key.
+			let endpointData = localStorage.getItem( STORAGE_KEYS.Endpoint );
+
+			// Migrate from legacy key if new key doesn't exist.
+			if ( ! endpointData ) {
+				const legacyData = localStorage.getItem( STORAGE_KEYS.LegacyEndpoint );
+				if ( legacyData ) {
+					// Migrate to new key.
+					endpointData = legacyData;
+					localStorage.setItem( STORAGE_KEYS.Endpoint, endpointData );
+					// Clean up legacy key.
+					localStorage.removeItem( STORAGE_KEYS.LegacyEndpoint );
+				}
+			}
+
+			const ParsedEndpoint = JSON.parse( endpointData );
 			return ParsedEndpoint || {};
 		} catch ( error ) {
 			return {};
@@ -386,7 +429,7 @@ const Analytics = {
 	 * @param {Object} endpoint The endpoint object.
 	 */
 	setEndpoint: endpoint => {
-		localStorage.setItem( 'aws.pinpoint.endpoint', JSON.stringify( endpoint ) );
+		localStorage.setItem( STORAGE_KEYS.Endpoint, JSON.stringify( endpoint ) );
 	},
 	/**
 	 * Add an analytics event listener.
@@ -396,7 +439,7 @@ const Analytics = {
 	 * @returns {EventListener} The event listener handle.
 	 */
 	on: ( event, callback ) => {
-		return window.addEventListener( `altis.analytics.${event}`, event => callback( event.detail ) );
+		return window.addEventListener( `altis.analytics.${ event }`, event => callback( event.detail ) );
 	},
 	/**
 	 * Removes an event listener.
@@ -486,14 +529,14 @@ const Analytics = {
 		}
 
 		// Add persistent referer tracking for external sources.
-		if ( document.referer && document.referrer.indexOf( window.location.hostname ) === -1 ) {
+		if ( document.referrer && document.referrer.indexOf( window.location.hostname ) === -1 ) {
 			if ( ! endpoint.Attributes.initialReferer ) {
-				endpoint.Attributes.initialReferer = [ document.referer ];
+				endpoint.Attributes.initialReferer = [ document.referrer ];
 			}
 			if ( ! endpoint.Attributes.referer ) {
-				endpoint.Attributes.referer = [ document.referer ];
-			} else if ( endpoint.Attributes.referer.indexOf( document.referer ) === -1 ) {
-				endpoint.Attributes.referer.push( document.referer );
+				endpoint.Attributes.referer = [ document.referrer ];
+			} else if ( endpoint.Attributes.referer.indexOf( document.referrer ) === -1 ) {
+				endpoint.Attributes.referer.push( document.referrer );
 			}
 		}
 
@@ -534,7 +577,7 @@ const Analytics = {
 	},
 	events: [],
 	/**
-	 * Log an event to AWS Pinpoint.
+	 * Log an event to the Analytics database.
 	 *
 	 * @param {string} type The event type.
 	 * @param {Object} data The event data.
@@ -625,7 +668,7 @@ const Analytics = {
 		Analytics.timer = setTimeout( Analytics.flushEvents, 5000 );
 	},
 	/**
-	 * Send events to Pinpoint.
+	 * Send events to the analytics endpoint.
 	 *
 	 * @param {Object} endpoint Optional updated endpoint data.
 	 */
@@ -642,9 +685,11 @@ const Analytics = {
 			return;
 		}
 
-		// Snapshot events to send and clear.
+		// Snapshot events to send and clear if allowed to send.
 		const eventsToDeliver = Analytics.events;
-		Analytics.events = [];
+		if ( ! Altis.Analytics.Noop ) {
+			Analytics.events = [];
+		}
 
 		// Events are associated with an endpoint.
 		const UserId = Analytics.getUserId();
@@ -674,10 +719,9 @@ const Analytics = {
 		};
 
 		// If event delivery is enabled.
-		if ( ! Noop ) {
-			navigator.sendBeacon( Config.PinpointEndpoint, JSON.stringify( {
-				app_id: Config.PinpointId,
-				region: Config.PinpointRegion,
+		if ( ! Altis.Analytics.Noop ) {
+			navigator.sendBeacon( Config.LogEndpoint, JSON.stringify( {
+				app_id: Config.AppId,
 				events: EventsRequest,
 			} ) );
 		}
