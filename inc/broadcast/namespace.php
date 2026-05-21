@@ -25,6 +25,7 @@ function setup() : void {
 	add_action( 'init', __NAMESPACE__ . '\\register_broadcast_post_type' );
 	add_action( 'rest_api_init', __NAMESPACE__ . '\\register_rest_fields' );
 	add_filter( 'allowed_block_types_all', __NAMESPACE__ . '\\broadcast_allowed_block_types', 10, 2 );
+	add_filter( 'submenu_file', __NAMESPACE__ . '\\fix_broadcast_submenu_highlight' );
 
 	add_action( 'load-edit.php', __NAMESPACE__ . '\\load_broadcast_manager' );
 }
@@ -62,6 +63,24 @@ function register_broadcast_post_type() : void {
 			'plural' => __( 'Broadcasts', 'altis' ),
 		]
 	);
+}
+
+/**
+ * Fix the Broadcasts submenu item not being highlighted.
+ *
+ * When a CPT uses `show_in_menu => 'accelerate'`, WordPress doesn't
+ * correctly mark the submenu item as active. This filter tells WP
+ * which submenu file to highlight.
+ *
+ * @param string|null $submenu_file The current submenu file.
+ * @return string|null
+ */
+function fix_broadcast_submenu_highlight( ?string $submenu_file ) : ?string {
+	$screen = get_current_screen();
+	if ( $screen && $screen->post_type === POST_TYPE ) {
+		return 'edit.php?post_type=' . POST_TYPE;
+	}
+	return $submenu_file;
 }
 
 /**
@@ -159,9 +178,18 @@ function load_broadcast_manager() {
 
 	Admin\add_notices_wrapper();
 
+	// Enqueue block editor dependencies for BlockPreview in broadcast thumbnails.
+	wp_enqueue_script( 'wp-block-editor' );
+	wp_enqueue_script( 'wp-block-library' );
+	wp_enqueue_style( 'wp-block-editor' );
+	wp_enqueue_style( 'wp-block-library' );
+
 	Utils\register_assets( 'accelerate-admin', [
 		'dependencies' => [
 			'wp-api-fetch',
+			'wp-blocks',
+			'wp-block-editor',
+			'wp-block-library',
 			'wp-components',
 			'wp-data',
 			'wp-element',
