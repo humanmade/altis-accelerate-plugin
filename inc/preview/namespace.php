@@ -58,7 +58,9 @@ function enqueue_assets() : void {
 		],
 		true
 	);
-	wp_localize_script( $preview['script'], 'AltisExperimentsPreview', get_script_data() );
+	if ( $preview ) {
+		wp_localize_script( $preview['script'], 'AltisExperimentsPreview', get_script_data() );
+	}
 }
 
 /**
