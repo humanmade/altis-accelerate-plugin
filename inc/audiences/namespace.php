@@ -459,15 +459,26 @@ function register_scripts() {
 		]
 	);
 
+	// Get basic field definitions (name, label, type) without ClickHouse queries.
+	$fields = array_map( function ( $field ) {
+		return [
+			'name'  => $field['name'],
+			'label' => $field['label'],
+			'type'  => $field['type'],
+		];
+	}, get_fields() );
+
 	wp_add_inline_script(
 		'altis-accelerate-audiences/ui',
 		sprintf(
 			'window.Altis = window.Altis || {};' .
 			'window.Altis.Analytics = window.Altis.Analytics || {};' .
 			'window.Altis.Analytics.BuildURL = %s;' .
-			'window.Altis.Analytics.Audiences = %s;',
+			'window.Altis.Analytics.Audiences = %s;' .
+			'window.Altis.Analytics.Audiences.Fields = %s;',
 			wp_json_encode( plugins_url( 'build', dirname( __FILE__, 2 ) ) ),
-			wp_json_encode( (object) [] )
+			wp_json_encode( (object) [] ),
+			wp_json_encode( $fields )
 		),
 		'before'
 	);
@@ -870,6 +881,10 @@ function build_audience_query( array $audience, bool $with_join = false ) : arra
 		}
 	}
 
+	if ( empty( $group_queries ) ) {
+		return [ '1 = 1', [] ];
+	}
+
 	$groups_include = $include_map[ $audience['include'] ];
 	$groups_query = sprintf( ' (%s) ', implode( $groups_include, $group_queries ) );
 
@@ -889,7 +904,7 @@ function query_audiences( $args = null ) {
 	 *
 	 * @param int $limit The number of audiences to fetch for use client side.
 	 */
-	$limit = apply_filters( 'altis.analytics.audiences.limit', 20 );
+	$limit = apply_filters( 'altis.analytics.audiences.limit', 100 );
 
 	// Prevent negative values, -1 in this case means an unbounded query.
 	$limit = absint( $limit );
