@@ -1,7 +1,7 @@
 import React from 'react';
 
-import Block from './Block';
 import BreakdownList, { Props as InheritedProps } from './BreakdownList';
+import { Card } from './Card';
 
 import './BreakdownBlock.css';
 
@@ -11,12 +11,13 @@ interface Props extends InheritedProps {
 
 export default function BreakdownBlock( props: Props ) {
 	return (
-		<Block
-			className={ `BreakdownBlock ${ props.className || '' }` }
+		<Card
+			className={ props.className || '' }
 		>
 			<BreakdownList
 				{ ...props }
 			/>
-		</Block>
+		</Card>
 	);
 }
+

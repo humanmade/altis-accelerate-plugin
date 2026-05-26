@@ -7,8 +7,10 @@
 
 namespace Altis\Accelerate\Dashboard;
 
+use Altis\Accelerate;
 use Altis\Accelerate\Admin;
 use Altis\Accelerate\API;
+use Altis\Accelerate\Experiments\Experiment;
 use Altis\Accelerate\Utils;
 use WP_Post_Type;
 
@@ -45,6 +47,82 @@ function add_widgets_submenu() : void {
 		'',
 		1
 	);
+
+	$hook = add_submenu_page(
+		'accelerate',
+		_x( 'Analytics', 'page title', 'altis' ),
+		_x( 'Analytics', 'menu title', 'altis' ),
+		'read',
+		'altis-analytics',
+		__NAMESPACE__ . '\\render_analytics_page',
+		1000
+	);
+
+	add_action( 'load-' . $hook, function () {
+		wp_enqueue_style(
+			'altis-accelerate-tailwind',
+			plugins_url( 'build/tailwind.css', Accelerate\PLUGIN_FILE ),
+			[],
+			filemtime( dirname( Accelerate\PLUGIN_FILE ) . '/build/tailwind.css' )
+		);
+		Utils\register_assets( 'dashboard', [
+			'dependencies' => [
+				'lodash',
+				'altis-accelerate-accelerate-admin',
+				'altis-accelerate-audiences/data',
+				'wp-api-fetch',
+				'wp-components',
+				'wp-core-data',
+				'wp-data',
+				'wp-element',
+				'wp-i18n',
+				'wp-url',
+				'wp-html-entities',
+			],
+		], true );
+	} );
+
+	// Internal styleguide page — design reference for primitives in
+	// `src/components/ui/` and compounds in `src/components/`. Hidden
+	// from the menu (removed via remove_submenu_page below) but
+	// routable via direct URL:
+	// /wp-admin/admin.php?page=accelerate-styleguide.
+	// Registered under `accelerate` so the parent menu stays
+	// highlighted/expanded — null-parent would collapse the sidebar.
+	// manage_options is intentional — nothing here is data-bearing.
+	$styleguide_hook = add_submenu_page(
+		'accelerate',
+		_x( 'Accelerate Styleguide', 'page title', 'altis' ),
+		_x( 'Styleguide', 'menu title', 'altis' ),
+		'manage_options',
+		'accelerate-styleguide',
+		__NAMESPACE__ . '\\render_styleguide_page'
+	);
+
+	// Hide the styleguide menu item from the rendered sidebar without
+	// unregistering it. remove_submenu_page() / unset() both break the
+	// capability check WP runs against $submenu, blocking direct-URL
+	// access. CSS-only hiding keeps the page routable + keeps the
+	// Accelerate parent menu expanded when on it.
+	add_action( 'admin_head', function () {
+		echo '<style>#adminmenu a[href$="page=accelerate-styleguide"]{display:none!important;}</style>';
+	} );
+
+	add_action( 'load-' . $styleguide_hook, function () {
+		wp_enqueue_style(
+			'altis-accelerate-tailwind',
+			plugins_url( 'build/tailwind.css', Accelerate\PLUGIN_FILE ),
+			[],
+			filemtime( dirname( Accelerate\PLUGIN_FILE ) . '/build/tailwind.css' )
+		);
+		Utils\register_assets( 'styleguide', [
+			'dependencies' => [
+				'wp-element',
+				'wp-i18n',
+			],
+		], true );
+	} );
+
 }
 
 /**
@@ -69,9 +147,18 @@ function load_dashboard() {
 		return;
 	}
 
+	// Enqueue block editor dependencies for BlockPreview thumbnails.
+	wp_enqueue_script( 'wp-block-editor' );
+	wp_enqueue_script( 'wp-block-library' );
+	wp_enqueue_style( 'wp-block-editor' );
+	wp_enqueue_style( 'wp-block-library' );
+
 	Utils\register_assets( 'accelerate-admin', [
 		'dependencies' => [
 			'wp-api-fetch',
+			'wp-blocks',
+			'wp-block-editor',
+			'wp-block-library',
 			'wp-components',
 			'wp-data',
 			'wp-element',
@@ -84,7 +171,7 @@ function load_dashboard() {
 	add_filter( 'screen_options_show_screen', '__return_false' );
 
 	// Set admin page title.
-	$title = __( 'Accelerate Dashboard', 'altis' );
+	$title = __( 'Content Explorer', 'altis' );
 	$user = wp_get_current_user();
 
 	$post_types = get_post_types( [
@@ -108,6 +195,23 @@ function load_dashboard() {
 	// Don't show links if feature unavailable.
 	$insights_enabled = Utils\is_feature_enabled( 'insights' );
 
+	// Backfill onboarding timestamps for sites that pre-date the checklist.
+	$connected_at = get_option( 'accelerate_site_connected_at', false );
+	if ( ! $connected_at && ! empty( Accelerate\get_accelerate_dashboard_access_token() ) ) {
+		$connected_at = time();
+		update_option( 'accelerate_site_connected_at', $connected_at );
+	}
+
+	$first_test = get_option( 'accelerate_first_abtest_created', false );
+	if ( ! $first_test ) {
+		$query = Experiment::query( [], [ 'per_page' => 1 ] );
+		$results = $query->get_results();
+		if ( ! is_wp_error( $results ) && $results->get_total_available() > 0 ) {
+			$first_test = time();
+			update_option( 'accelerate_first_abtest_created', $first_test );
+		}
+	}
+
 	wp_localize_script( 'altis-accelerate-accelerate-admin', 'AltisAccelerateDashboardData', [
 		'api_namespace' => API\API_NAMESPACE,
 		'version' => Utils\get_plugin_version(),
@@ -121,6 +225,12 @@ function load_dashboard() {
 		'screen' => 'accelerate',
 		'title' => __( 'Content Explorer', 'altis' ),
 		'location' => isset( $_GET['page'] ) ? sanitize_key( $_GET['page'] ) : 'dashboard',
+		'onboarding' => [
+			'connected_at' => $connected_at,
+			'first_test_created' => $first_test,
+			'authorize_url' => Accelerate\get_accelerate_dashboard_authorize_url(),
+		],
+		'outbound_tracking_enabled' => Utils\is_feature_enabled( 'outbound_tracking' ),
 	] );
 
 	Admin\render_page();
@@ -244,4 +354,16 @@ function block_thumbnail_template_override() : void {
 	echo '</div>';
 	get_footer();
 	exit;
+}
+
+function render_analytics_page() {
+	echo '<div id="accelerate-analytics-root">';
+	if ( wp_get_environment_type() === 'local' ) {
+		echo "<p>Ensure you're running the Webpack server. You may also need to open the script URL directly to accept the SSL certificate.</p>";
+	}
+	echo '</div>';
+}
+
+function render_styleguide_page() {
+	echo '<div id="accelerate-styleguide-root"></div>';
 }
