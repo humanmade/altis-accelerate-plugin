@@ -1,15 +1,13 @@
 import React from 'react';
 
-const {
-	Button,
-	TextareaControl,
-} = wp.components;
+import { Button } from '@/components/ui/button';
+
 const { __ } = wp.i18n;
 
 function Suggest( props ) {
 	const {
 		prompt,
-		onChange
+		onChange,
 	} = props;
 
 	const { Icon, useAiSummary } = window.AltisAi;
@@ -25,12 +23,13 @@ function Suggest( props ) {
 
 	return (
 		<Button
-			icon={ Icon }
-			isBusy={ loading }
-			isSecondary
+			disabled={ loading }
+			size="sm"
 			type="button"
+			variant="outline"
 			onClick={ onClick }
 		>
+			{ Icon && <Icon /> }
 			Write it for me
 		</Button>
 	);
@@ -45,6 +44,7 @@ function Suggest( props ) {
 const TextInput = props => {
 	const {
 		allValues,
+		compact,
 		isEditable,
 		suggestionPrompt,
 		onChange,
@@ -53,34 +53,49 @@ const TextInput = props => {
 		index,
 	} = props;
 
+	const inputClassName = '!w-full !rounded-md !border !border-border !bg-background !px-3 !py-2 !text-sm placeholder:text-muted-foreground focus:!outline-none focus:!ring-1 focus:!ring-ring';
+
+	const sharedProps = {
+		autoFocus: ( allValues || [] ).length - 1 === index,
+		placeholder: __( 'Type a variant…', 'altis' ),
+		readOnly: ! isEditable,
+		value,
+		onChange: event => onChange( event.target.value ),
+		onFocus: event => {
+			const length = event.target.value.length * 2;
+			event.target.setSelectionRange( length, length );
+		},
+		onKeyUp: event => {
+			if (
+				isEditable &&
+				value === '' &&
+				event.target.value === '' &&
+				(
+					( event.key && event.key === 'Backspace' ) ||
+					( event.which && event.which === 8 )
+				)
+			) {
+				onRemove();
+			}
+		},
+	};
+
 	return (
 		<>
-			<TextareaControl
-				autoFocus={ ( allValues || [] ).length - 1 === index }
-				label={ null }
-				placeholder={ __( 'Enter another value here.', 'altis' ) }
-				readOnly={ ! isEditable }
-				rows={ 3 }
-				value={ value }
-				onChange={ onChange }
-				onFocus={ event => {
-					const length = event.target.value.length * 2;
-					event.target.setSelectionRange( length, length );
-				} }
-				onKeyUp={ event => {
-					if (
-						value === '' &&
-						event.target.value === '' &&
-						(
-							( event.key && event.key === 'Backspace' ) ||
-							( event.which && event.which === 8 )
-						)
-					) {
-						onRemove();
-					}
-				} }
-			/>
-			{ ( value === '' && suggestionPrompt && window.AltisAi ) && (
+			{ compact ? (
+				<input
+					{ ...sharedProps }
+					className={ inputClassName }
+					type="text"
+				/>
+			) : (
+				<textarea
+					{ ...sharedProps }
+					className={ `${ inputClassName } !resize-y` }
+					rows={ 3 }
+				/>
+			) }
+			{ ( isEditable && value === '' && suggestionPrompt && window.AltisAi ) && (
 				<Suggest
 					prompt={ suggestionPrompt }
 					onChange={ onChange }
