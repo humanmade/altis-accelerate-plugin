@@ -9,6 +9,7 @@ namespace Altis\Accelerate\Analytics;
 
 use Altis\Accelerate\Utils;
 use Altis\Accelerate\Audiences;
+use function Altis\Accelerate\get_config;
 
 /**
  * Set up the plugin.
@@ -22,6 +23,14 @@ function setup() {
 	add_action( 'wp_head', __NAMESPACE__ . '\\enqueue_scripts', 0 );
 	// Check whether we are previewing a page.
 	add_filter( 'altis.analytics.noop', __NAMESPACE__ . '\\check_preview' );
+	// Outbound link click tracking is opt-in via the Accelerate settings
+	// page (toggle backed by `accelerate_outbound_tracking_enabled`).
+	// Sites can also flip it programmatically:
+	//     add_filter( 'altis.analytics.feature.outbound_tracking', '__return_true' );
+	// Priority 1 so user filters at default priority (10) still win.
+	add_filter( 'altis.analytics.feature.outbound_tracking', function ( $enabled ) {
+		return (bool) get_option( 'accelerate_outbound_tracking_enabled', false );
+	}, 1 );
 }
 
 /**
@@ -195,7 +204,7 @@ function enqueue_scripts() {
 
 	/**
 	 * If true prevents any analytics events from actually being sent
-	 * to Pinpoint. Useful in situations such as previewing content.
+	 * to the analaytics database. Useful in situations such as previewing content.
 	 *
 	 * @param bool $noop Set to true to prevent any analytics events being recorded.
 	 */
@@ -232,19 +241,10 @@ function enqueue_scripts() {
 	 */
 	$exclude_bots = (bool) apply_filters( 'altis.analytics.exclude_bots', true );
 
-	// Use polyfills.io to fix IE compat issues, only polyfilling features where not supported.
-	wp_enqueue_script(
-		'altis-accelerate-polyfill.io',
-		plugins_url( '/assets/polyfill-ie11-es6.min.js', dirname( __DIR__ ) ),
-		[],
-		'3',
-		false
-	);
-
 	Utils\register_assets(
 		'accelerate',
 		[
-			'dependencies' => [ 'altis-accelerate-polyfill.io' ],
+			'dependencies' => [],
 			'in-footer' => false,
 		],
 		true
@@ -278,11 +278,11 @@ function enqueue_scripts() {
 						'Allowed' => array_values( (array) $consent_always_allowed ),
 					],
 					'Config' => [
-						'PinpointId' => defined( 'ALTIS_ACCELERATE_PINPOINT_ID' ) ? ALTIS_ACCELERATE_PINPOINT_ID : null,
-						'PinpointRegion' => defined( 'ALTIS_ACCELERATE_PINPOINT_REGION' ) ? ALTIS_ACCELERATE_PINPOINT_REGION : null,
-						'PinpointEndpoint' => defined( 'ALTIS_ACCELERATE_PINPOINT_ENDPOINT' ) ? ALTIS_ACCELERATE_PINPOINT_ENDPOINT : 'https://eu.accelerate.altis.cloud/log',
+						'LogEndpoint' => defined( 'ALTIS_ACCELERATE_LOG_ENDPOINT' ) ? ALTIS_ACCELERATE_LOG_ENDPOINT : 'https://eu.accelerate.altis.cloud/log',
+						'AppId' => get_config()['app_id'],
 						'ExcludeBots' => $exclude_bots,
 					],
+					'OutboundTracking' => Utils\is_feature_enabled( 'outbound_tracking' ),
 					'Noop' => $noop,
 					'Data' => (object) get_client_side_data(),
 					'Audiences' => Audiences\get_audience_config(),
@@ -294,9 +294,6 @@ function enqueue_scripts() {
 
 	// Load async for performance.
 	$wp_scripts->add_data( 'altis-accelerate-accelerate', 'async', true );
-
-	// Only load polyfills for older browsers.
-	$wp_scripts->add_data( 'altis-accelerate-polyfill.io', 'nomodule', true );
 
 	/**
 	 * Create our own early hook for queueing
