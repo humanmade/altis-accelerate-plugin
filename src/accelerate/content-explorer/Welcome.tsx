@@ -16,12 +16,12 @@ export default function Welcome( props: Props ) {
 			<p>
 				{ __( 'This is the Accelerate dashboard', 'altis' ) }
 				{ '  — ' }
-				<a href='?widgets=true' onClick={ () => trackEvent( 'Content Explorer', 'Widgets Page' ) }>
+				<a href='?widgets=true' onClick={ () => trackEvent( 'content_explorer_widgets_page_clicked' ) }>
 					{ __( 'your standard WordPress dashboard & widgets are still available here', 'altis' ) }
 				</a>
 				{ ' ' }
 				({ __( 'or under the menu on the left', 'altis' ) }).
 			</p>
 		</div>
-	)
+	);
 }

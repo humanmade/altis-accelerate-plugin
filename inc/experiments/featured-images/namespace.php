@@ -41,10 +41,12 @@ function init() {
 			'winner_callback' => function ( int $post_id, string $value ) {
 				update_post_meta( $post_id, '_thumbnail_id', $value );
 			},
-			'post_types' => [
-				'post',
-				'page',
-			],
+			'post_types' => array_values( array_filter(
+				get_post_types( [ 'public' => true ] ),
+				function ( $type ) {
+					return post_type_supports( $type, 'thumbnail' );
+				}
+			) ),
 			// Exclude all events from the target post page.
 			'query_filter' => "post_id != {post_id:String}",
 			'query_filter_params' => function ( $post_id ) : array {
@@ -79,9 +81,9 @@ function init() {
  *                                        an array of width and height values in pixels (in that order).
  * @param string       $attr              Query string of attributes.
  *
- * @return string
+ * @return string|null
  */
-function filter_post_thumbnail_html_ab_test_values( string $html, int $post_id, int $post_thumbnail_id, $size, $attr ) : string {
+function filter_post_thumbnail_html_ab_test_values( string $html, int $post_id, int $post_thumbnail_id, $size, $attr ) {
 	return Experiments\output_ab_test_html_for_post( 'featured_images', $post_id, $html, [
 		'size' => $size,
 		'attr' => $attr,
