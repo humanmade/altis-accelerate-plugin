@@ -1,7 +1,8 @@
 import React from 'react';
 
-import BreakdownBlock from './BreakdownBlock';
 import { Filter, StatsResult } from '../../utils/admin';
+
+import BreakdownBlock from './BreakdownBlock';
 
 interface Props {
 	data?: StatsResult,
@@ -14,7 +15,7 @@ export default function TopUrls( props: Props ) {
 		return null;
 	}
 
-	const stats = Object.keys( data.stats.by_url ).map( key => ( {
+	const stats = Object.keys( data.stats.by_url || {} ).map( key => ( {
 		title: key,
 		value: data.stats.by_url[ key ],
 		id: key,
