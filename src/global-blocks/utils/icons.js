@@ -25,3 +25,17 @@ export const DeleteVariantIcon = (
 		<path d="M6 18L18 6M6 6l12 12" strokeLinecap="round" strokeLinejoin="round" />
 	</svg>
 );
+
+// Accelerate icon for AB test and personalized blocks (replaces sync pattern icon)
+// Uses fill with evenodd to create outlined triangle with mathematically uniform stroke width
+// Outer triangle: (184.158, 23.95), (29.1875, 186.5), (235.34, 186.5)
+// Inner triangle calculated with 15-unit perpendicular offset for uniform line thickness
+export const AccelerateBlockIcon = (
+	<svg viewBox="0 0 253 199" xmlns="http://www.w3.org/2000/svg">
+		<path
+			d="M235.34 186.5 H29.1875 L184.158 23.95 Z M214.9 171.5 H64.2 L177.5 52.7 Z"
+			fill="currentColor"
+			fillRule="evenodd"
+		/>
+	</svg>
+);
