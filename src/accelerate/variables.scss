@@ -1,40 +1,44 @@
 /*
 * COLOURS
-* - Similar to font weights, lower numbers are brighter/lighter, and high is dark.
-* - 400 will be the normal colour, whilst others are a shade of it.
-* - Values are in HSL in order to maintain hue consistency across shades.
-* - Use-cases are attached as inline comments.
+* - All project SCSS variables use the $acc-* prefix.
+* - Key tokens: $acc-brand (purple), $acc-charcoal (primary actions),
+*   $acc-slate-* (blue-tinted grays — NOT neutral), $acc-gray-* (neutral grays).
 */
 
-$c-white: #fff;
+// Brand (Accelerate purple — used for links, toggles, brand accents)
+$acc-brand: #9332FF;                    // was $c-altis-400
+$acc-brand-hover: hsl(268, 70%, 68%);   // was $c-altis-300
+$acc-brand-light: hsl(268, 70%, 95%);   // was $c-altis-50
+$acc-brand-lighter: hsl(268, 70%, 97%); // was $c-altis-25
 
-$c-altis-25: hsl(227, 70%, 97%); 
-$c-altis-50: hsl(227, 70%, 95%); // Thumbnail BG + Ghost Bars
-$c-altis-300: hsl(227, 70%, 62%); // Primary Hover
-$c-altis-400: hsl(227, 70%, 57%); // Primary / CTA's
+// Charcoal (primary actions — aligned with Tailwind --color-primary)
+$acc-charcoal: #1d2327;                 // NEW (was hardcoded / $c-space-400)
+$acc-charcoal-hover: #2c3338;           // NEW (was hardcoded)
 
-$c-space-10: hsl(218, 58%, 98%);
-$c-space-25: hsl(218, 58%, 97%);
-$c-space-50: hsl(218, 58%, 95%);
-$c-space-75: hsl(218, 58%, 93%);
-$c-space-100: hsl(218, 58%, 80%);
-$c-space-200: hsl(218, 58%, 70%);
-$c-space-300: hsl(218, 58%, 30%);
-$c-space-400: hsl(218, 58%, 19%);
+// Slate (blue-tinted grays for editor UI — intentionally HSL 218°)
+$acc-slate-10: hsl(218, 58%, 98%);      // was $c-space-10
+$acc-slate-25: hsl(218, 58%, 97%);      // was $c-space-25
+$acc-slate-50: hsl(218, 58%, 95%);      // was $c-space-50
+$acc-slate-75: hsl(218, 58%, 93%);      // was $c-space-75
+$acc-slate-200: hsl(218, 58%, 70%);     // was $c-space-200
+$acc-slate-300: hsl(218, 58%, 30%);     // was $c-space-300 — DARK NAVY, not neutral!
 
-$c-slate-400: hsl(257, 70%, 62%);
+// Gray (neutral — 0° hue, 0% saturation)
+$acc-gray-50: hsl(0, 0%, 97%);          // was $c-grey-50
+$acc-gray-100: hsl(0, 0%, 95%);         // was $c-grey-100
+$acc-gray-150: hsl(0, 0%, 90%);         // was $c-grey-150
+$acc-gray-200: hsl(0, 0%, 80%);         // was $c-grey-200
+$acc-gray-400: hsl(0, 0%, 50%);         // was $c-grey-400
+$acc-gray-600: hsl(0, 0%, 30%);         // was $c-grey-600
 
-$c-grey-50: hsl(0, 0%, 97%);
-$c-grey-100: hsl(0, 0%, 95%);
-$c-grey-150: hsl(0, 0%, 90%);
-$c-grey-200: hsl(0, 0%, 80%);
-$c-grey-400: hsl(0, 0%, 50%);
-$c-grey-600: hsl(0, 0%, 30%);
+// Semantic
+$acc-positive: hsl(150, 60%, 50%);      // was $c-positive-400
+$acc-positive-light: hsl(150, 60%, 95%);// was $c-positive-100
+$acc-negative: hsl(347, 60%, 60%);      // was $c-negative-400
+$acc-negative-light: hsl(347, 60%, 95%);// was $c-negative-100
 
-$c-positive-100: hsl(150, 60%, 95%); // positive score or otherwise, triadic compliment of c-altis
-$c-positive-400: hsl(150, 60%, 50%); // positive score or otherwise, triadic compliment of c-altis
-$c-negative-100: hsl(347, 60%, 95%); // negative score or otherwise, triadic compliment of c-altis
-$c-negative-400: hsl(347, 60%, 60%); // negative score or otherwise, triadic compliment of c-altis
+// White
+$acc-white: #fff;                       // was $c-white
 
 /**
  * WordPress Gutenberg Colors
@@ -76,13 +80,7 @@ $sh-black-05: rgba(0, 0, 0, 0.05);
 */
 
 $sidebar-padding: 5%;
-$br-sm: 5px;
-$br: 10px;
-$br-xl: 15px;
 
 /*
 * ANIMATIONS
 */
-
-$a-button-on: all 1000ms ease-out;
-$a-button-off: all 1000ms ease-in;

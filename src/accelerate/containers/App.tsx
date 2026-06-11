@@ -1,8 +1,8 @@
 import React from 'react';
 
-import Dashboard from '../content-explorer/Dashboard';
-import BroadcastManager from '../broadcast-manager';
 import { InitialData } from '../../utils/admin';
+import BroadcastManager from '../broadcast-manager';
+import Dashboard from '../content-explorer/Dashboard';
 
 interface State {
 	user: InitialData['user'],
@@ -27,9 +27,10 @@ export default class App extends React.Component<Props, State> {
 
 	render() {
 		return (
-			<main className="altis-ui App">
+			<main className="accelerate-ui App">
 				{ this.props.config.screen === 'accelerate' && (
 					<Dashboard
+						onboarding={ this.props.config.onboarding }
 						postTypes={ this.props.config.post_types }
 						showWelcome={ this.props.config.location === 'dashboard' }
 						user={ this.state.user }
