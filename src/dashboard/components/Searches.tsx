@@ -1,8 +1,10 @@
 import React from 'react';
+
 import { __ } from '@wordpress/i18n';
 
-import BreakdownBlock from './BreakdownBlock';
 import { StatsResult } from '../../utils/admin';
+
+import BreakdownBlock from './BreakdownBlock';
 
 interface Props {
 	data?: StatsResult,
@@ -14,7 +16,7 @@ export default function Searches( props: Props ) {
 		return null;
 	}
 
-	const stats = Object.keys( data.stats.by_search_term ).map( key => ( {
+	const stats = Object.keys( data.stats.by_search_term || {} ).map( key => ( {
 		title: key,
 		value: data.stats.by_search_term[ key ],
 	} ) );
