@@ -54,9 +54,9 @@ class Filter {
 	public $include = [];
 
 	/**
-	 * Timezone offset in minutes.
+	 * Audience query.
 	 *
-	 * @var int
+	 * @var array
 	 */
-	public $tz = 0;
+	public $audience;
 }
