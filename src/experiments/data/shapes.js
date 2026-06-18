@@ -1,7 +1,6 @@
-/* eslint-disable jsdoc/require-jsdoc */
-
 export const DEFAULT_TEST = {
 	end_time: Date.now() + ( 30 * 24 * 60 * 60 * 1000 ),
+	ended: false,
 	paused: true,
 	results: {
 		aggs: [],
