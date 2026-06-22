@@ -15,6 +15,9 @@ const watcher = new MutationObserver( mutations => {
 
 const MemoisedSSR = React.memo( ( { content } ) => (
 	<ServerSideRender
+		attributes={ { content } }
+		block="altis/shim"
+		httpMethod="POST"
 		LoadingResponsePlaceholder={ () => (
 			<div className="altis-variant-validation__loading">
 				<Spinner />
@@ -22,9 +25,6 @@ const MemoisedSSR = React.memo( ( { content } ) => (
 				{ __( 'Validating...', 'altis' ) }
 			</div>
 		) }
-		attributes={ { content } }
-		block="altis/shim"
-		httpMethod="POST"
 	/>
 ) );
 
