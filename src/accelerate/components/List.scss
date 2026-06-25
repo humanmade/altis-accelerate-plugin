@@ -18,7 +18,7 @@
 		&::after {
 			content: "";
 			height: 2px;
-			background-color: $c-grey-100;
+			background-color: $acc-gray-100;
 			position: absolute;
 			bottom: -2px;
 			left: -50vw;
@@ -44,77 +44,20 @@
 			flex: 2;
 
 			&__period {
-				min-width: 120px;
-				flex: 0 1 160px;
-
-				button {
-					&.is-primary {
-						&::after {
-							content: "D";
-							padding-left: 1px;
-						}
-					}
-				}
+				// Widened to fit the 7-chip set (Realtime, Today, Yesterday,
+				// 7, 14, 30, 90) — was 210px which clipped the new chips.
+				flex: 0 0 auto;
+				margin-right: 2rem;
 			}
 
 			&__custom {
 				justify-content: flex-start;
 				gap: 1rem;
-
-				> div {
-					display: flex;
-					gap: 1rem;
-					margin-bottom: -1rem;
-				}
-
-				.components-button {
-					display: flex;
-					background: none;
-					border: 0;
-					border-radius: 0;
-					box-shadow: none;
-					cursor: pointer;
-					padding: 7px 10px 1rem;
-					height: 50px;
-					font-weight: 500;
-					border-bottom: 2px solid transparent;
-					color: $c-altis-400;
-
-					&:hover:not(:disabled):not([aria-disabled=true]),
-					&:active:not(:disabled):not([aria-disabled=true]),
-					&:focus:not(:disabled):not([aria-disabled=true]) {
-						box-shadow: none!important;
-						background: none!important;
-						color: $c-altis-400;
-						border: 0;
-						border-bottom: 2px solid transparent;
-					}
-
-					&:last-child {
-						margin-right: 0;
-					}
-
-					&.is-primary:not(:disabled):not([aria-disabled=true]) {
-						color: $c-altis-400;
-						border-bottom: 2px solid $c-altis-400;
-						background: none;
-					}
-				}
 			}
 		}
 
 		.table-add-new {
 			position: relative;
-
-			.components-menu-group > [role="group"] {
-				display: flex;
-				flex-flow: column wrap;
-
-				button:hover {
-					color: $c-altis-400;
-					cursor: pointer;
-				}
-			}
 		}
 
 	}
@@ -125,7 +68,7 @@
 		font-size: 0.9rem;
 		padding: 10px 16px 7px;
 		margin: 0 20px 0 0;
-		background: $c-white;
+		background: $acc-white;
 		border-radius: 10px;
 		border: 0;
 		box-shadow: 0 5px 10px $sh-black-05;
@@ -134,7 +77,7 @@
 
 		&::after {
 			content: "";
-			border-bottom: 1px solid $c-grey-150;
+			border-bottom: 1px solid $acc-gray-150;
 			position: absolute;
 			top: 0;
 			left: -50vw;
@@ -157,12 +100,12 @@
 
 		thead {
 			position: relative;
-			background-color: $c-grey-100;
+			background-color: $acc-gray-100;
 
 			&::before {
 				content: "";
-				border-top: 1px solid $c-grey-150;
-				border-bottom: 1px solid $c-grey-150;
+				border-top: 1px solid $acc-gray-150;
+				border-bottom: 1px solid $acc-gray-150;
 				position: absolute;
 				top: 0;
 				left: -50vw;
@@ -172,7 +115,7 @@
 
 			&::after {
 				content: "";
-				background-color: $c-grey-100;
+				background-color: $acc-gray-100;
 				position: absolute;
 				top: 0;
 				min-height: calc(1.2rem + 21px);
@@ -189,7 +132,7 @@
 
 		tr {
 			position: relative;
-			background: $c-white;
+			background: $acc-white;
 
 			&.record-item--nested,
 			&.record-item--nested-empty,
@@ -226,13 +169,13 @@
 			padding: 25px 20px 17px 20px;
 			border: none;
 			vertical-align: top;
-			border-bottom: 1px solid $c-grey-100;
+			border-bottom: 1px solid $acc-gray-100;
 		}
 
 		th {
-			background: $c-grey-100;
+			background: $acc-gray-100;
 			font-size: 0.7rem;
-			color: $c-grey-400;
+			color: $acc-gray-400;
 			font-weight: 400;
 			padding-top: 10px;
 			padding-bottom: 10px;
@@ -245,7 +188,7 @@
 				svg {
 					position: absolute;
 					top: 11px;
-					color: $c-grey-400;
+					color: $acc-gray-400;
 				}
 
 				span {
@@ -259,12 +202,20 @@
 		.record-header th {
 			color: #bbb;
 			font-weight: 400;
-			border-bottom: 1px solid $c-grey-100;
+			border-bottom: 1px solid $acc-gray-100;
 		}
 
 		.record-expand {
 			width: 80px;
 			padding-left: 0;
+
+			.components-button {
+				color: $gray-700;
+
+				&:hover {
+					color: $gray-900;
+				}
+			}
 		}
 
 		.record-loading {
@@ -291,7 +242,7 @@
 			line-height: 1;
 
 			// & > * {
-			// 	outline: 1px dotted $c-altis-300;
+			// 	outline: 1px dotted $acc-brand-hover;
 			// }
 		}
 
@@ -301,7 +252,7 @@
 			line-height: 1;
 
 			// & > * {
-			// 	outline: 1px dotted $c-altis-300;
+			// 	outline: 1px dotted $acc-brand-hover;
 			// }
 		}
 
@@ -312,7 +263,7 @@
 		}
 
 		.record-cell-text-sec {
-			color: $c-grey-400;
+			color: $acc-gray-400;
 			font-size: 0.65rem;
 			text-transform: uppercase;
 			letter-spacing: 0.01em;
@@ -338,31 +289,62 @@
 		.record-thumbnail {
 			padding-top: 17px;
 			padding-left: 0;
+			vertical-align: middle;
 
 			.record-thumbnail-wrap {
 				width: 105px;
 				height: 47px;
+				display: flex;
+				align-items: center;
+				justify-content: flex-start;
 			}
 
 			.record-thumbnail-group-wrap--multiple {
 				position: relative;
 				margin-top: -7px;
 				margin-left: 5px;
-				svg,
-				img {
+
+				// Stacked preview styles for BlockPreview and img elements
+				// Position from bottom-left so the visible "peek" edges are consistent
+				// regardless of content height/rendering differences
+				.stacked-preview--back {
 					position: absolute;
-					top: 0;
-					left: 0;
+					bottom: -10px;
+					left: -10px;
+					z-index: 0;
 					border-radius: 2px;
 				}
-				img {
-					background-color: $c-grey-100;
+
+				.stacked-preview--front {
+					position: relative;
+					z-index: 1;
+					border-radius: 2px;
 				}
-				svg:nth-of-type(1),
-				img:nth-of-type(1) {
-					position: absolute;
-					top: 10px;
-					left: -10px;
+
+				// Featured image tests: natural aspect ratio, back top-left / front bottom-right
+				&.record-thumbnail-group-wrap--images {
+					width: 100%;
+					margin: 0;
+					display: flex;
+					justify-content: flex-end;
+
+					img {
+						width: auto;
+						height: auto;
+						max-height: 47px;
+						max-width: 105px;
+						object-fit: contain;
+					}
+
+					.stacked-preview--back {
+						bottom: auto;
+						top: 0;
+						left: 0;
+					}
+
+					.stacked-preview--front {
+						margin-top: 8px;
+					}
 				}
 			}
 
@@ -378,7 +360,7 @@
 				display: block;
 				font-size: 9px;
 				min-width: 20px;
-				box-shadow: inset 1px 1px 0 $c-grey-50, 2px 2px 3px $c-grey-100;
+				box-shadow: inset 1px 1px 0 $acc-gray-50, 2px 2px 3px $acc-gray-100;
 				text-align: center;
 			}
 
@@ -389,15 +371,41 @@
 				object-position: left top;
 			}
 
+			img.record-thumbnail--image {
+				height: auto;
+				object-fit: initial;
+			}
+
 			img, svg {
 				box-shadow: 0 4px 7px 0 rgba( 21, 42, 79, 0.2 );
 			}
 
+
 			&__empty {
 				width: 100%;
 				height: 100%;
-				background-color: $c-grey-100;
+				background-color: $acc-gray-100;
 				border-radius: 2px;
+			}
+
+			&__title-preview {
+				width: 100%;
+				height: 100%;
+				background-color: $acc-gray-100;
+				border-radius: 2px;
+				display: flex;
+				align-items: center;
+				padding-left: 12%;
+				overflow: hidden;
+				white-space: nowrap;
+				box-shadow: 0 4px 7px 0 rgba(21, 42, 79, 0.2);
+			}
+
+			&__title-text {
+				font-size: 13px;
+				font-weight: 600;
+				color: #1d2327;
+				line-height: 1.2;
 			}
 
 		}
@@ -424,7 +432,7 @@
 					&::before {
 						content: "/";
 						font-weight: 400;
-						color: $c-grey-200;
+						color: $acc-gray-200;
 						padding: 5px;
 					}
 
@@ -464,7 +472,7 @@
 			strong {
 				display: block;
 				font-size: 0.825rem;
-				color: $c-space-400;
+				color: $acc-charcoal;
 			}
 
 			svg rect {
@@ -479,11 +487,12 @@
 		.table-header-lift,
 		.record-lift {
 			width: 140px;
+			white-space: nowrap;
 		}
 		.record-lift {
 			&__label {
 				font-size: 0.65rem;
-				color: $c-grey-400;
+				color: $acc-gray-400;
 				text-transform: uppercase;
 				letter-spacing: 0.01em;
 			}
@@ -502,20 +511,48 @@
 		.record-meta {
 			padding-right: 0;
 
+			.record-cell-row {
+				align-items: center;
+			}
+
 			&__author {
+				flex-shrink: 0;
+
 				&-avatar {
 					margin-right: 16px;
 					width: 30px;
 					height: 30px;
 					border-radius: 6px;
-					background: $c-grey-100;
+					background: $acc-gray-100;
 				}
 			}
 
 			&__links {
+				white-space: nowrap;
 
-				a, button {
+				a, button, .components-button {
 					margin-right: 10px;
+					color: $gray-700;
+					transition: opacity 0.15s ease;
+
+					&:hover {
+						opacity: 0.85;
+					}
+				}
+
+				.components-button.is-link {
+					color: $gray-700;
+					background: transparent;
+					text-decoration: none;
+
+					&:hover,
+					&:focus,
+					&:active {
+						color: $gray-700;
+						background: transparent;
+						box-shadow: none;
+						opacity: 0.85;
+					}
 				}
 			}
 
@@ -525,51 +562,15 @@
 }
 
 .table-footer {
-	.pagination {
-		padding: 20px 0;
-		display: flex;
-		justify-content: center;
-		flex-wrap: wrap;
+	padding: 20px 0;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	gap: 16px;
+
+	.current-page {
+		color: $acc-gray-200;
 		font-size: 0.9rem;
-		color: $c-altis-400;
-		font-weight: 500;
-		text-align: center;
-		align-items: baseline;
-
-		.rpb-item {
-			padding: 2px 10px;
-			margin: 0 2px;
-			border: 0;
-			border-radius: 4px;
-			background: none;
-
-			&.rpb-item--active {
-				background: fade-out( $c-altis-400, 0.9 );
-			}
-
-			&:hover {
-				background: fade-out( $c-altis-400, 0.95 );
-			}
-
-			&.rpb-item--disabled {
-				color: $c-grey-200;
-			}
-		}
-
-		.rpb-root {
-			ul {
-				margin: 0;
-			}
-
-			li {
-				display: inline-block;
-			}
-		}
-
-		.current-page {
-			color: $c-grey-200;
-			margin-left: 5px;
-		}
 	}
 }
 
@@ -577,17 +578,17 @@
 	position: relative;
 	font-size: 16px;
 	padding: 10px $sidebar-padding 40px;
-	background: #152a4e;
-	color: $c-white;
+	background: $acc-charcoal;
+	color: $acc-white;
 
 	.components-button {
 		margin-left: 1em;
-		color: $c-grey-100;
+		color: $acc-gray-100;
 
 		&:hover,
 		&:active,
 		&:focus {
-			color: $c-white !important; /* stylelint-disable-line declaration-no-important */
+			color: $acc-white !important; /* stylelint-disable-line declaration-no-important */
 		}
 	}
 }
@@ -604,11 +605,11 @@
 	display: block;
 	height: 2em;
 	fill: transparent;
-	stroke: $c-space-400;
+	stroke: $acc-charcoal;
 	stroke-width: 3px;
 
 	&.Loader--light {
-		stroke: $c-white;
+		stroke: $acc-white;
 	}
 
 	&.Loader--giant {

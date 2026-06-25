@@ -13,18 +13,22 @@ const Duration = props => {
 	const [ duration, setDuration ] = useState( time );
 
 	useEffect( () => {
+		setDuration( time );
+	}, [ time ] );
+
+	useEffect( () => {
 		if ( ! interval ) {
 			return;
 		}
 
 		const timer = setInterval( () => {
-			setDuration( duration - interval );
+			setDuration( prev => prev - interval );
 		}, interval );
 
 		return function cleanup() {
 			clearInterval( timer );
 		};
-	} );
+	}, [ interval ] );
 
 	if ( duration <= 0 ) {
 		return null;
