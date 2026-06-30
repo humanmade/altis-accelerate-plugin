@@ -1,5 +1,4 @@
-drop table if exists analytics;
-create table analytics (
+create table if not exists analytics (
   request_id UUID DEFAULT generateUUIDv4(),
   app_id String,
   blog_id String materialized accurateCastOrDefault(attributes['blogId'], 'String', '1'),
@@ -39,6 +38,10 @@ create table analytics (
   audience String materialized attributes['audience'],
   search String materialized attributes['search'],
   metrics Map(LowCardinality(String), Float64),
+  -- Engaged-time delta flushed on _session.stop events. Materialized so the
+  -- engaged queries read an 8-byte float instead of decompressing the whole
+  -- metrics map per row (~150 bytes).
+  engaged Float64 materialized metrics['engaged'],
   endpoint_id UUID,
   endpoint_creation_date Datetime64(3, 'UTC'),
   endpoint_effective_date Datetime64(3, 'UTC'),
