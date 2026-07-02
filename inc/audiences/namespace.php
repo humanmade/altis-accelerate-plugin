@@ -257,6 +257,17 @@ function register_default_event_data_maps() {
 		'column' => 'endpoint_views',
 		'description' => __( 'Total page views across all sessions.', 'altis' ),
 	] );
+
+	// Engaged time. Visitor-cumulative (like sessions / pageViews above): the
+	// client folds each flushed engaged delta into endpoint.Metrics.engaged,
+	// so this field has cross-page memory and is evaluable at page load —
+	// per-event deltas would be meaningless for targeting. Stored in
+	// milliseconds; the bare column keeps client-side audience matching and
+	// the server query in the same unit.
+	register_field( 'endpoint.Metrics.engaged', __( 'Engaged time (ms)', 'altis' ), [
+		'column' => 'endpoint_metrics[\'engaged\']',
+		'description' => __( 'Total active engaged time across all of a visitor\'s sessions, in milliseconds.', 'altis' ),
+	] );
 }
 
 /**
@@ -459,15 +470,26 @@ function register_scripts() {
 		]
 	);
 
+	// Get basic field definitions (name, label, type) without ClickHouse queries.
+	$fields = array_map( function ( $field ) {
+		return [
+			'name'  => $field['name'],
+			'label' => $field['label'],
+			'type'  => $field['type'],
+		];
+	}, get_fields() );
+
 	wp_add_inline_script(
 		'altis-accelerate-audiences/ui',
 		sprintf(
 			'window.Altis = window.Altis || {};' .
 			'window.Altis.Analytics = window.Altis.Analytics || {};' .
 			'window.Altis.Analytics.BuildURL = %s;' .
-			'window.Altis.Analytics.Audiences = %s;',
+			'window.Altis.Analytics.Audiences = %s;' .
+			'window.Altis.Analytics.Audiences.Fields = %s;',
 			wp_json_encode( plugins_url( 'build', dirname( __FILE__, 2 ) ) ),
-			wp_json_encode( (object) [] )
+			wp_json_encode( (object) [] ),
+			wp_json_encode( $fields )
 		),
 		'before'
 	);
@@ -513,6 +535,8 @@ function get_estimate( array $audience ) : ?array {
 			WHERE
 				blog_id = {blog_id:String}
 				AND event_type = 'pageView'
+				-- Day-bucket prune: lets the toStartOfDay(event_timestamp) sort-key column prune to the window's days (a raw event_timestamp predicate alone can't). Safe superset filter.
+				AND toStartOfDay(event_timestamp) >= toStartOfDay(toDateTime64(intDiv({since:UInt64},1000),3))
 				AND event_timestamp >= toDateTime64(intDiv({since:UInt64},1000),3)
 				AND {$audience_where}";
 
@@ -572,6 +596,7 @@ function get_unique_endpoint_count( int $since = null, bool $force_update = fals
 		"SELECT uniqCombined64(endpoint_id) as uniques FROM analytics
 			WHERE
 				event_type = 'pageView' AND
+				toStartOfDay(event_timestamp) >= toStartOfDay(toDateTime64(intDiv({since:UInt64},1000),3)) AND
 				event_timestamp >= toDateTime64(intDiv({since:UInt64},1000),3) AND
 				blog_id = {blog_id:String}";
 
@@ -654,7 +679,8 @@ function get_field_data() : ?array {
 			// Select basic stats about the metric.
 			$fields = sprintf( 'count(event_type) as `count`, min(%1$s) as min, max(%1$s) as max, avg(%1$s) as avg, sum(%1$s) as sum', $column );
 			$query = "SELECT {$fields} FROM analytics
-				WHERE event_timestamp >= toDateTime64(intDiv({start:UInt64},1000),3)
+				WHERE toStartOfDay(event_timestamp) >= toStartOfDay(toDateTime64(intDiv({start:UInt64},1000),3))
+					AND event_timestamp >= toDateTime64(intDiv({start:UInt64},1000),3)
 					AND blog_id = {blog_id:String}
 					AND event_type = 'pageView'";
 		}
@@ -671,7 +697,8 @@ function get_field_data() : ?array {
 			$fields = sprintf( '%1$s as val, count(event_type) as views, uniqCombined64(endpoint_id) as uniques', $column );
 			$query = "SELECT {$fields} FROM analytics
 				{$join}
-				WHERE event_timestamp >= toDateTime64(intDiv({start:UInt64},1000),3)
+				WHERE toStartOfDay(event_timestamp) >= toStartOfDay(toDateTime64(intDiv({start:UInt64},1000),3))
+					AND event_timestamp >= toDateTime64(intDiv({start:UInt64},1000),3)
 					AND blog_id = {blog_id:String}
 					AND event_type = 'pageView'
 					GROUP BY {$column}
@@ -870,6 +897,10 @@ function build_audience_query( array $audience, bool $with_join = false ) : arra
 		}
 	}
 
+	if ( empty( $group_queries ) ) {
+		return [ '1 = 1', [] ];
+	}
+
 	$groups_include = $include_map[ $audience['include'] ];
 	$groups_query = sprintf( ' (%s) ', implode( $groups_include, $group_queries ) );
 
@@ -889,7 +920,7 @@ function query_audiences( $args = null ) {
 	 *
 	 * @param int $limit The number of audiences to fetch for use client side.
 	 */
-	$limit = apply_filters( 'altis.analytics.audiences.limit', 20 );
+	$limit = apply_filters( 'altis.analytics.audiences.limit', 100 );
 
 	// Prevent negative values, -1 in this case means an unbounded query.
 	$limit = absint( $limit );
