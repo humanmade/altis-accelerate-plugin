@@ -7,8 +7,10 @@
 
 namespace Altis\Accelerate\Dashboard;
 
+use Altis\Accelerate;
 use Altis\Accelerate\Admin;
 use Altis\Accelerate\API;
+use Altis\Accelerate\Experiments\Experiment;
 use Altis\Accelerate\Utils;
 use WP_Post_Type;
 
@@ -19,15 +21,30 @@ const STYLE_ID = 'altis-analytics-ui';
  * Set up the Dashboard Analytics page.
  */
 function setup() {
+	add_action( 'admin_menu', __NAMESPACE__ . '\\add_widgets_submenu' );
+	add_action( 'pre_get_posts', __NAMESPACE__ . '\\block_preview_check' );
+
 	// Queue up Altis Accelerate Dashboard replacement for standard dashboard.
+	if ( is_dashboard_takeover_enabled() ) {
+		add_action( 'load-index.php', __NAMESPACE__ . '\\load_dashboard' );
+	}
+}
+
+/**
+ * Whether the Accelerate dashboard replaces the standard WP dashboard.
+ *
+ * Gates only the takeover itself (the load-index.php replacement and its
+ * Widgets escape hatch) — the Analytics submenu and block previews are
+ * always available.
+ *
+ * @return bool
+ */
+function is_dashboard_takeover_enabled() : bool {
 	if ( defined( 'ALTIS_ACCELERATE_DASHBOARD' ) && ! ALTIS_ACCELERATE_DASHBOARD ) {
-		return;
+		return false;
 	}
 
-	add_action( 'load-index.php', __NAMESPACE__ . '\\load_dashboard' );
-	add_action( 'admin_menu', __NAMESPACE__ . '\\add_widgets_submenu' );
-
-	add_action( 'pre_get_posts', __NAMESPACE__ . '\\block_preview_check' );
+	return (bool) get_option( 'accelerate_dashboard_takeover_enabled', 1 );
 }
 
 /**
@@ -36,15 +53,114 @@ function setup() {
  * @return void
  */
 function add_widgets_submenu() : void {
-	add_submenu_page(
-		'index.php',
-		__( 'Dashboard Widgets' ),
-		__( 'Widgets' ),
+	// The Widgets escape hatch only makes sense while the takeover is
+	// hiding the standard dashboard.
+	if ( is_dashboard_takeover_enabled() ) {
+		add_submenu_page(
+			'index.php',
+			__( 'Dashboard Widgets' ),
+			__( 'Widgets' ),
+			'read',
+			'index.php?widgets=1',
+			'',
+			1
+		);
+	}
+
+	$hook = add_submenu_page(
+		'accelerate',
+		_x( 'Analytics', 'page title', 'altis' ),
+		_x( 'Analytics', 'menu title', 'altis' ),
 		'read',
-		'index.php?widgets=1',
-		'',
-		1
+		'altis-analytics',
+		__NAMESPACE__ . '\\render_analytics_page',
+		1000
 	);
+
+	add_action( 'load-' . $hook, function () {
+		wp_enqueue_style(
+			'altis-accelerate-tailwind',
+			plugins_url( 'build/tailwind.css', Accelerate\PLUGIN_FILE ),
+			[],
+			filemtime( dirname( Accelerate\PLUGIN_FILE ) . '/build/tailwind.css' )
+		);
+		Utils\register_assets( 'dashboard', [
+			'dependencies' => [
+				'lodash',
+				'altis-accelerate-accelerate-admin',
+				'altis-accelerate-audiences/data',
+				'wp-api-fetch',
+				'wp-components',
+				'wp-core-data',
+				'wp-data',
+				'wp-element',
+				'wp-i18n',
+				'wp-url',
+				'wp-html-entities',
+			],
+		], true );
+
+		// The Analytics submenu renders the shared AnalyticsView (the same
+		// components as the dashboard takeover) but never ran the bootstrap
+		// localisation, so shared components reading window.AltisAccelerateDashboardData
+		// silently fell back to defaults — most visibly the Outbound clicks tile
+		// showing "OFF" regardless of the real setting, plus post-type links and
+		// the home URL. Localise the fields those components need onto this page's
+		// own entry handle (registered just above). #682. The `timezone` key must
+		// stay in sync with render_accelerate_app() below, since shared components
+		// compute site-local day boundaries from it (#681).
+		wp_localize_script( 'altis-accelerate-dashboard', 'AltisAccelerateDashboardData', [
+			'home_url' => home_url(),
+			'post_types' => get_trackable_post_types(),
+			'outbound_tracking_enabled' => Utils\is_feature_enabled( 'outbound_tracking' ),
+			'timezone' => [
+				'string' => get_option( 'timezone_string' ),
+				'offset' => (float) get_option( 'gmt_offset' ),
+			],
+		] );
+	} );
+
+	// Internal styleguide page — design reference for primitives in
+	// `src/components/ui/` and compounds in `src/components/`. Hidden
+	// from the menu (removed via remove_submenu_page below) but
+	// routable via direct URL:
+	// /wp-admin/admin.php?page=accelerate-styleguide.
+	// Registered under `accelerate` so the parent menu stays
+	// highlighted/expanded — null-parent would collapse the sidebar.
+	// manage_options is intentional — nothing here is data-bearing.
+	$styleguide_hook = add_submenu_page(
+		'accelerate',
+		_x( 'Accelerate Styleguide', 'page title', 'altis' ),
+		_x( 'Styleguide', 'menu title', 'altis' ),
+		'manage_options',
+		'accelerate-styleguide',
+		__NAMESPACE__ . '\\render_styleguide_page'
+	);
+
+	// Hide the styleguide menu item from the rendered sidebar without
+	// unregistering it. remove_submenu_page() / unset() both break the
+	// capability check WP runs against $submenu, blocking direct-URL
+	// access. CSS-only hiding keeps the page routable + keeps the
+	// Accelerate parent menu expanded when on it.
+	add_action( 'admin_head', function () {
+		echo '<style>#adminmenu a[href$="page=accelerate-styleguide"]{display:none!important;}</style>';
+	} );
+
+	add_action( 'load-' . $styleguide_hook, function () {
+		wp_enqueue_style(
+			'altis-accelerate-tailwind',
+			plugins_url( 'build/tailwind.css', Accelerate\PLUGIN_FILE ),
+			[],
+			filemtime( dirname( Accelerate\PLUGIN_FILE ) . '/build/tailwind.css' )
+		);
+		Utils\register_assets( 'styleguide', [
+			'dependencies' => [
+				'wp-element',
+				'wp-i18n',
+			],
+		], true );
+	} );
+
 }
 
 /**
@@ -53,8 +169,6 @@ function add_widgets_submenu() : void {
  * @return void
  */
 function load_dashboard() {
-	global $title;
-
 	// Don't replace network admin.
 	if ( is_network_admin() ) {
 		return;
@@ -69,9 +183,76 @@ function load_dashboard() {
 		return;
 	}
 
+	render_accelerate_app( 'accelerate', __( 'Dashboard', 'altis' ) );
+}
+
+/**
+ * Render the dedicated Content Explorer page (the content data table).
+ *
+ * @return void
+ */
+function load_content_explorer() {
+	if ( ! current_user_can( 'edit_posts' ) ) {
+		return;
+	}
+
+	render_accelerate_app( 'content-explorer', __( 'Content Explorer', 'altis' ) );
+}
+
+/**
+ * Trackable post types, shaped for the dashboard bootstrap (`post_types`).
+ *
+ * Pure (no option writes) so it can be reused by any surface that needs the
+ * bootstrap data, not just the dashboard takeover.
+ *
+ * @return array<int,array{name:string,label:string,singular_label:string}>
+ */
+function get_trackable_post_types() : array {
+	$post_types = get_post_types( [
+		'show_in_menu' => true,
+		'public' => true,
+	], 'objects' );
+
+	// Trackable post types that do not have their own front end URL.
+	if ( post_type_exists( 'wp_block' ) ) {
+		$post_types = array_merge( [ get_post_type_object( 'wp_block' ) ], $post_types );
+	}
+
+	return array_values( array_map( function ( WP_Post_Type $post_type ) {
+		return [
+			'name' => $post_type->name,
+			'label' => $post_type->labels->name,
+			'singular_label' => $post_type->labels->singular_name,
+		];
+	}, $post_types ) );
+}
+
+/**
+ * Enqueue assets, localize config and render the Accelerate admin React app.
+ *
+ * Shared by the Dashboard (including the index.php takeover) and the dedicated
+ * Content Explorer page so both surfaces load identical assets and state — the
+ * `$screen` value selects which surface the React app renders.
+ *
+ * @param string $screen     React screen id ('accelerate' | 'content-explorer').
+ * @param string $page_title Admin page title shown in the Accelerate header.
+ * @return void
+ */
+function render_accelerate_app( string $screen, string $page_title ) {
+	global $title;
+
+	// Enqueue block editor dependencies for BlockPreview thumbnails.
+	wp_enqueue_script( 'wp-block-editor' );
+	wp_enqueue_script( 'wp-block-library' );
+	wp_enqueue_style( 'wp-block-editor' );
+	wp_enqueue_style( 'wp-block-library' );
+
 	Utils\register_assets( 'accelerate-admin', [
 		'dependencies' => [
 			'wp-api-fetch',
+			'wp-blocks',
+			'wp-block-editor',
+			'wp-block-library',
 			'wp-components',
 			'wp-data',
 			'wp-element',
@@ -84,43 +265,56 @@ function load_dashboard() {
 	add_filter( 'screen_options_show_screen', '__return_false' );
 
 	// Set admin page title.
-	$title = __( 'Accelerate Dashboard', 'altis' );
+	$title = $page_title;
 	$user = wp_get_current_user();
-
-	$post_types = get_post_types( [
-		'show_in_menu' => true,
-		'public' => true,
-	], 'objects' );
-
-	// Trackable post types that do not have their own front end URL.
-	if ( post_type_exists( 'wp_block' ) ) {
-		$post_types = array_merge( [ get_post_type_object( 'wp_block' ) ], $post_types );
-	}
-
-	$post_types = array_map( function ( WP_Post_Type $post_type ) {
-		return [
-			'name' => $post_type->name,
-			'label' => $post_type->labels->name,
-			'singular_label' => $post_type->labels->singular_name,
-		];
-	}, $post_types );
 
 	// Don't show links if feature unavailable.
 	$insights_enabled = Utils\is_feature_enabled( 'insights' );
 
+	// Backfill onboarding timestamps for sites that pre-date the checklist.
+	$connected_at = get_option( 'accelerate_site_connected_at', false );
+	if ( ! $connected_at && ! empty( Accelerate\get_accelerate_dashboard_access_token() ) ) {
+		$connected_at = time();
+		update_option( 'accelerate_site_connected_at', $connected_at );
+	}
+
+	$first_test = get_option( 'accelerate_first_abtest_created', false );
+	if ( ! $first_test ) {
+		$query = Experiment::query( [], [ 'per_page' => 1 ] );
+		$results = $query->get_results();
+		if ( ! is_wp_error( $results ) && $results->get_total_available() > 0 ) {
+			$first_test = time();
+			update_option( 'accelerate_first_abtest_created', $first_test );
+		}
+	}
+
 	wp_localize_script( 'altis-accelerate-accelerate-admin', 'AltisAccelerateDashboardData', [
 		'api_namespace' => API\API_NAMESPACE,
 		'version' => Utils\get_plugin_version(),
+		'home_url' => home_url(),
 		'user' => [
 			'id' => get_current_user_id(),
 			'name' => $user->get( 'display_name' ),
 			'canViewAnalytics' => $insights_enabled && current_user_can( 'manage_options' ),
 			'canViewInsights' => $insights_enabled && current_user_can( 'edit_audiences' ),
 		],
-		'post_types' => array_values( $post_types ),
-		'screen' => 'accelerate',
-		'title' => __( 'Content Explorer', 'altis' ),
+		'post_types' => get_trackable_post_types(),
+		'screen' => $screen,
+		'title' => $page_title,
 		'location' => isset( $_GET['page'] ) ? sanitize_key( $_GET['page'] ) : 'dashboard',
+		'onboarding' => [
+			'connected_at' => $connected_at,
+			'first_test_created' => $first_test,
+			'authorize_url' => Accelerate\get_accelerate_dashboard_authorize_url(),
+		],
+		'outbound_tracking_enabled' => Utils\is_feature_enabled( 'outbound_tracking' ),
+		// Site timezone for rendering analytics in site-local time (not the
+		// viewer's browser tz). `string` is the IANA name when set; otherwise
+		// empty and `offset` (hours) carries a manual UTC offset. See #681.
+		'timezone' => [
+			'string' => get_option( 'timezone_string' ),
+			'offset' => (float) get_option( 'gmt_offset' ),
+		],
 	] );
 
 	Admin\render_page();
@@ -244,4 +438,16 @@ function block_thumbnail_template_override() : void {
 	echo '</div>';
 	get_footer();
 	exit;
+}
+
+function render_analytics_page() {
+	echo '<div id="accelerate-analytics-root">';
+	if ( wp_get_environment_type() === 'local' ) {
+		echo "<p>Ensure you're running the Webpack server. You may also need to open the script URL directly to accept the SSL certificate.</p>";
+	}
+	echo '</div>';
+}
+
+function render_styleguide_page() {
+	echo '<div id="accelerate-styleguide-root"></div>';
 }
