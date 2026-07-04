@@ -17,25 +17,25 @@ input[type=email]:focus, input[type=month]:focus, input[type=number]:focus,
 input[type=search]:focus, input[type=tel]:focus, input[type=text]:focus,
 input[type=time]:focus, input[type=url]:focus, input[type=week]:focus,
 input[type=radio]:focus, select:focus, textarea:focus {
-	border: 1px solid $c-grey-200;
+	border: 1px solid $acc-gray-200;
 	box-shadow: none;
 }
 
 a,
 .button-link {
-	color: $c-altis-400;
+	color: $acc-brand;
 }
 a:hover,
 a:focus,
 .button-link:hover,
 .button-link:focus {
-	color: $c-space-400;
+	color: $acc-charcoal;
 }
 
 .components-button,
 .page-title-action {
 	border-color: transparent;
-	color: $c-altis-400;
+	color: $acc-charcoal;
 	border-radius: 10px;
 	border-width: 1px;
 	background: transparent;
@@ -43,6 +43,7 @@ a:focus,
 	box-sizing: border-box;
 	box-shadow: none;
 	display: inline-block;
+	transition: all 0.2s ease;
 
 	&.dashicons-before::before {
 		margin-right: 5px;
@@ -60,9 +61,9 @@ a:focus,
 .components-button:hover:not(:disabled):not([aria-disabled="true"]),
 .components-button:focus:not(:disabled):not([aria-disabled="true"]),
 .components-button:active:not(:disabled):not([aria-disabled="true"]) {
-	color: $c-altis-300;
-	background: none;
-	box-shadow: inset 0 0 0 1px $c-altis-300;
+	color: $acc-charcoal;
+	background: rgba(29, 35, 39, 0.08);
+	box-shadow: inset 0 0 0 1px rgba(29, 35, 39, 0.25);
 }
 
 .button.button-primary,
@@ -71,8 +72,8 @@ a:focus,
 	padding: 7px 30px 7px 27px;
 	height: 36px;
 	line-height: 20px;
-	color: $c-white;
-	background-color: $c-altis-400;
+	color: $acc-white;
+	background-color: $acc-charcoal;
 	font-weight: 700;
 }
 .button.button-primary:hover:not(:disabled):not([aria-disabled="true"]),
@@ -81,8 +82,8 @@ a:focus,
 .components-button.is-primary:hover:not(:disabled):not([aria-disabled="true"]),
 .components-button.is-primary:focus:not(:disabled):not([aria-disabled="true"]),
 .components-button.is-primary:active:not(:disabled):not([aria-disabled="true"]) {
-	background-color: $c-altis-300;
-	color: $c-white;
+	background-color: $acc-charcoal-hover;
+	color: $acc-white;
 	box-shadow: none;
 }
 
@@ -94,9 +95,9 @@ a:focus,
 .components-button[aria-disabled="true"]:hover,
 .components-button[aria-disabled="true"]:focus,
 .components-button[aria-disabled="true"]:active {
-	background: $c-grey-200;
+	background: $acc-gray-200;
 	box-shadow: none;
-	border-color: $c-grey-200;
+	border-color: transparent;
 	cursor: not-allowed;
 }
 
@@ -109,7 +110,7 @@ a:focus,
 .components-button.has-icon[aria-disabled="true"]:focus,
 .components-button.has-icon[aria-disabled="true"]:active {
 	background: none;
-	color: $c-grey-150;
+	color: $acc-gray-150;
 	box-shadow: none;
 	border-color: none;
 }
@@ -120,10 +121,10 @@ a:focus,
 	padding: 7px 30px 7px 27px;
 	height: 36px;
 	line-height: 20px;
-	border-color: $c-altis-400;
-	color: $c-altis-400;
+	border-color: $acc-charcoal;
+	color: $acc-charcoal;
 	border-radius: 10px;
-	box-shadow: inset 0 0 0 1px $c-altis-400;
+	box-shadow: inset 0 0 0 1px $acc-charcoal;
 	background: transparent;
 	display: inline-block;
 	font-weight: 700;
@@ -134,15 +135,15 @@ a:focus,
 .page-title-action:hover:not(:disabled):not([aria-disabled="true"]),
 .page-title-action:focus:not(:disabled):not([aria-disabled="true"]),
 .page-title-action:active:not(:disabled):not([aria-disabled="true"]) {
-	border-color: $c-altis-300;
-	color: $c-altis-300;
-	box-shadow: inset 0 0 0 1px $c-altis-300;
+	border-color: $acc-charcoal-hover;
+	color: $acc-charcoal-hover;
+	box-shadow: inset 0 0 0 1px $acc-charcoal-hover;
 	background: transparent;
 }
 
 .components-button.is-tertiary {
 	border-color: transparent;
-	color: $c-altis-400;
+	color: $acc-charcoal;
 	border-radius: 10px;
 	border-width: 1px;
 	background: transparent;
@@ -150,24 +151,24 @@ a:focus,
 .components-button.is-tertiary:hover:not(:disabled):not([aria-disabled="true"]),
 .components-button.is-tertiary:focus:not(:disabled):not([aria-disabled="true"]),
 .components-button.is-tertiary:active:not(:disabled):not([aria-disabled="true"]) {
-	color: $c-altis-300;
-	box-shadow: inset 0 0 0 1px $c-altis-300;
+	color: $acc-charcoal-hover;
+	box-shadow: inset 0 0 0 1px $acc-charcoal-hover;
 }
 
 .components-button.is-destructive {
-	color: $c-negative-400;
-	border-color: $c-negative-400;
+	color: $acc-negative;
+	border-color: $acc-negative;
 }
 
 .components-button.is-destructive:hover:not(:disabled):not([aria-disabled="true"]) {
-	color: $c-negative-400;
-	box-shadow: inset 0 0 0 1px $c-negative-400;
+	color: $acc-negative;
+	box-shadow: inset 0 0 0 1px $acc-negative;
 }
 
 .components-button.is-destructive:focus:not(:disabled):not([aria-disabled="true"]),
 .components-button.is-destructive:active:not(:disabled):not([aria-disabled="true"]) {
-	color: $c-negative-400;
-	box-shadow: inset 0 0 0 1px $c-negative-400;
+	color: $acc-negative;
+	box-shadow: inset 0 0 0 1px $acc-negative;
 }
 
 .components-button.is-link {
@@ -175,25 +176,25 @@ a:focus,
 	padding: 0;
 	background: none;
 	text-decoration: none;
-	color: $c-altis-400;
+	color: $acc-brand;
 	box-shadow: none;
 }
 .components-button.is-link:hover:not(:disabled):not([aria-disabled="true"]),
 .components-button.is-link:focus:not(:disabled):not([aria-disabled="true"]),
 .components-button.is-link:active:not(:disabled):not([aria-disabled="true"]) {
 	text-decoration: none;
-	color: $c-space-400;
+	color: $acc-charcoal;
 	box-shadow: none !important;
 	border: 0;
 	text-decoration: none;
 }
 
 .components-form-toggle .components-form-toggle__input:focus+.components-form-toggle__track {
-	box-shadow: 0 0 0 2px $c-white, 0 0 0 4px $c-altis-400;
+	box-shadow: 0 0 0 2px $acc-white, 0 0 0 4px $acc-brand;
 }
 
 .components-form-toggle.is-checked .components-form-toggle__track {
-	background-color: $c-altis-400;
+	background-color: $acc-brand;
 }
 
 .radio-group .components-button-group {
@@ -207,18 +208,18 @@ a:focus,
 	cursor: pointer;
 	font-weight: 500;
 	padding: 7px 10px;
-	color: $c-altis-400;
-	border-color: $c-altis-400;
-	box-shadow: inset 0 0 0 1px $c-altis-400;
-	background: $c-white;
+	color: $acc-charcoal;
+	border-color: $acc-charcoal;
+	box-shadow: inset 0 0 0 1px $acc-charcoal;
+	background: $acc-white;
 	border-radius: 0;
 	border: 0;
 
 	&:hover,
 	&:focus {
-		color: $c-altis-400;
-		border-color: $c-altis-400;
-		box-shadow: inset 0 0 0 1px $c-altis-400;
+		color: $acc-charcoal;
+		border-color: $acc-charcoal;
+		box-shadow: inset 0 0 0 1px $acc-charcoal;
 	}
 
 	&:first-child {
@@ -234,9 +235,9 @@ a:focus,
 	&.is-secondary:hover,
 	&.is-secondary:active,
 	&.is-secondary:focus {
-		color: $c-altis-400;
-		border-color: $c-altis-400;
-		box-shadow: inset 0 0 0 1px $c-altis-400;
+		color: $acc-charcoal;
+		border-color: $acc-charcoal;
+		box-shadow: inset 0 0 0 1px $acc-charcoal;
 	}
 
 	&.is-primary,
@@ -245,14 +246,14 @@ a:focus,
 	&.is-primary:focus {
 		border: 0;
 		outline: none;
-		background: $c-altis-400;
-		border-color: $c-altis-400;
-		color: $c-white;
+		background: $acc-charcoal;
+		border-color: $acc-charcoal;
+		color: $acc-white;
 		box-shadow: none;
 	}
 
 	&.is-primary:focus:not(:disabled):not([aria-disabled="true"]) {
-		box-shadow: inset 0 0 0 1px $c-altis-400;
+		box-shadow: inset 0 0 0 1px $acc-charcoal;
 	}
 }
 
@@ -285,15 +286,15 @@ a:focus,
 }
 .wp-list-table thead,
 .wp-list-table tfoot {
-	border: 1px solid $c-grey-150;
+	border: 1px solid $acc-gray-150;
 	border-left: 0;
 	border-right: 0;
-	background: $c-grey-100;
+	background: $acc-gray-100;
 
 	th, td {
 		border: 0;
 		font-size: 0.7rem;
-		color: $c-grey-400;
+		color: $acc-gray-400;
 		font-weight: 400;
 		text-transform: uppercase;
 		letter-spacing: 0.03rem;
@@ -305,7 +306,7 @@ a:focus,
 }
 
 .wp-list-table tbody tr {
-	background-color: $c-white;
+	background-color: $acc-white;
 }
 
 .wp-list-table tbody tr:first-child td,
@@ -317,7 +318,7 @@ a:focus,
 }
 .wp-list-table tbody td,
 .wp-list-table tbody th {
-	border: 10px solid $c-white;
+	border: 10px solid $acc-white;
 	border-width: 10px 0;
 }
 .wp-list-table th:first-child,
