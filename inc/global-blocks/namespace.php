@@ -3,9 +3,12 @@
 namespace Altis\Accelerate\GlobalBlocks;
 
 use Altis\Accelerate\Blocks;
+use Altis\Accelerate\Dashboard;
 use Altis\Accelerate\Experiments;
+use Altis\Accelerate\Integrations;
 use Altis\Accelerate\Utils;
 use Altis\Accelerate\GlobalBlocks\Connections;
+use WP_Admin_Bar;
 use WP_Post_Type;
 use WP_Block;
 use WP_Post;
@@ -17,8 +20,6 @@ const RELATIONSHIPS_PER_PAGE = 10;
  * Altis\ReusableBlocks Bootstrap.
  */
 function bootstrap() {
-
-	Categories\bootstrap();
 	Connections\bootstrap();
 	REST_API\bootstrap();
 	Variant\bootstrap();
@@ -33,20 +34,18 @@ function bootstrap() {
 	add_filter( 'wp_insert_post_data', __NAMESPACE__ . '\\insert_reusable_block_post_data', 10, 2 );
 
 	// Add to allowed blocks. Running a late to ensure that any block whitelist is defined.
-	add_filter( 'allowed_block_types_all', __NAMESPACE__ . '\\filter_allowed_block_types', 20 );
 	add_filter( 'register_post_type_args', __NAMESPACE__ . '\\show_wp_block_in_menu', 50, 2 );
 
-	add_filter( 'block_categories_all', __NAMESPACE__ . '\\rename_block_category' );
-	add_action( 'registered_post_type_wp_block', __NAMESPACE__ . '\\update_reusable_block_registration', 10, 2 );
-	add_action( 'enqueue_block_editor_assets', __NAMESPACE__ . '\\override_translation_strings', 11 );
+	//add_action( 'registered_post_type_wp_block', __NAMESPACE__ . '\\update_reusable_block_registration', 10, 2 );
 	add_filter( 'block_type_metadata', __NAMESPACE__ . '\\override_block_type_metadata' );
 
 	// Track reusable blocks.
 	add_filter( 'render_block_core/block', __NAMESPACE__ . '\\render_block', 10, 3 );
 	add_filter( 'render_block_altis/static-global', __NAMESPACE__ . '\\render_block', 10, 3 );
 
-	// Process block variants on post save.
-	add_action( 'save_post_wp_block', __NAMESPACE__ . '\\save_variants', 10, 2 );
+	// Process block variants on post save. Uses rest_after_insert so that
+	// REST field callbacks (_xb_type etc.) have already run.
+	add_action( 'rest_after_insert_wp_block', __NAMESPACE__ . '\\save_variants' );
 
 	// Register A/B tests with experiments framework.
 	add_action( 'init', __NAMESPACE__ . '\\register_test' );
@@ -94,6 +93,8 @@ function enqueue_block_editor_assets() {
 			'postType' => get_post_type(),
 		],
 		'relationshipsPerPage' => RELATIONSHIPS_PER_PAGE,
+		'previewStyles' => Dashboard\get_preview_editor_styles(),
+		'acf' => Integrations\ACF\get_status(),
 	];
 
 	wp_localize_script( 'altis-accelerate-global-blocks', 'altisReusableBlocksSettings', $settings );
@@ -102,20 +103,6 @@ function enqueue_block_editor_assets() {
 	if ( ! empty( $assets['style'] ) ) {
 		$wp_styles->registered['wp-reusable-blocks']->deps[] = $assets['style'];
 	}
-}
-
-/**
- * Filter the allowed block types. If an array is provided, add `altis/global-block` to it, otherwise return the bool value that was passed in.
- *
- * @param bool|array $allowed_block_types Array of allowed block types or bool if it has not been filtered yet.
- * @return bool|array
- */
-function filter_allowed_block_types( $allowed_block_types ) {
-	if ( is_array( $allowed_block_types ) ) {
-		$allowed_block_types[] = 'altis/block-picker';
-	}
-
-	return $allowed_block_types;
 }
 
 /**
@@ -162,11 +149,13 @@ function show_wp_block_in_menu( array $args, string $post_type ) : array {
 		return $args;
 	}
 
-	$args['show_in_menu'] = 'accelerate';
-	$args['menu_position'] = 24;
-	$args['menu_icon'] = plugins_url( '../assets/gb_icon.svg', __DIR__ );
-	$args['labels']['all_items'] = _x( 'Global Blocks', 'post type menu label for all_items', 'altis' );
-	$args['labels']['name'] = _x( 'Global Blocks', 'post type menu label for name', 'altis' );
+	// Show Synced Patterns as a normal standalone admin menu item in its
+	// default WordPress position — not hoisted into the Accelerate menu and
+	// without Accelerate's custom icon. The "Synced Patterns" relabel matches
+	// WordPress core's own label and stays.
+	$args['show_in_menu'] = true;
+	$args['labels']['all_items'] = _x( 'Synced Patterns', 'post type menu label for all_items', 'altis' );
+	$args['labels']['name'] = _x( 'Synced Patterns', 'post type menu label for name', 'altis' );
 
 	return $args;
 }
@@ -256,33 +245,15 @@ function admin_menu() {
  *
  * @param WP_Admin_Bar $wp_admin_bar
  */
-function add_block_admin_bar_menu_items( \WP_Admin_Bar $wp_admin_bar ) {
+function add_block_admin_bar_menu_items( WP_Admin_Bar $wp_admin_bar ) {
 	$wp_admin_bar->add_menu(
 		[
 			'parent' => 'new-content',
 			'id'     => 'new-wp_block',
-			'title'  => __( 'Global Block', 'altis' ),
+			'title'  => __( 'Synced Pattern', 'altis' ),
 			'href'   => admin_url( 'post-new.php?post_type=wp_block' ),
 		]
 	);
-}
-
-/**
- * Rename the Reusable blocks block category.
- *
- * @param array $block_categories
- *
- * @return array
- */
-function rename_block_category( array $block_categories ) : array {
-	$block_categories = array_map( function( array $block_category ) : array {
-		if ( $block_category['slug'] === 'reusable' ) {
-			$block_category['title'] = __( 'Global Blocks', 'altis' );
-		}
-		return $block_category;
-	}, $block_categories );
-
-	return $block_categories;
 }
 
 /**
@@ -297,61 +268,32 @@ function update_reusable_block_registration( string $post_type, WP_Post_Type $po
 	global $wp_post_types;
 
 	$post_type_object->labels = (object) array_merge( (array) $post_type_object->labels, [
-		'name'                     => _x( 'Global Blocks', 'post type general name', 'altis' ),
-		'singular_name'            => _x( 'Global Block', 'post type singular name', 'altis' ),
-		'add_new'                  => _x( 'Add New', 'Global Block', 'altis' ),
-		'add_new_item'             => __( 'Add new Global Block', 'altis' ),
-		'new_item'                 => __( 'New Global Block', 'altis' ),
-		'edit_item'                => __( 'Edit Global Block', 'altis' ),
-		'view_item'                => __( 'View Global Block', 'altis' ),
-		'view_items'               => __( 'View Global Blocks', 'altis' ),
-		'all_items'                => __( 'Global Blocks', 'altis' ),
-		'search_items'             => __( 'Search Global Blocks', 'altis' ),
-		'not_found'                => __( 'No global blocks found.', 'altis' ),
-		'not_found_in_trash'       => __( 'No global blocks found in Trash.', 'altis' ),
-		'filter_items_list'        => __( 'Filter global blocks list', 'altis' ),
-		'items_list_navigation'    => __( 'Global Blocks list navigation', 'altis' ),
-		'items_list'               => __( 'Global Blocks list', 'altis' ),
-		'item_published'           => __( 'Global Block published.', 'altis' ),
-		'item_published_privately' => __( 'Global Block published privately.', 'altis' ),
-		'item_reverted_to_draft'   => __( 'Global Block reverted to draft.', 'altis' ),
-		'item_scheduled'           => __( 'Global Block scheduled.', 'altis' ),
-		'item_updated'             => __( 'Global Block updated.', 'altis' ),
-		'menu_name'                => __( 'Global Blocks', 'altis' ),
-		'name_admin_bar'           => __( 'Global Block', 'altis' ),
+		'name'                     => _x( 'Synced Patterns', 'post type general name', 'altis' ),
+		'singular_name'            => _x( 'Synced Pattern', 'post type singular name', 'altis' ),
+		'add_new'                  => _x( 'Add New', 'Synced Pattern', 'altis' ),
+		'add_new_item'             => __( 'Add new Synced Pattern', 'altis' ),
+		'new_item'                 => __( 'New Synced Pattern', 'altis' ),
+		'edit_item'                => __( 'Edit Synced Pattern', 'altis' ),
+		'view_item'                => __( 'View Synced Pattern', 'altis' ),
+		'view_items'               => __( 'View Synced Patterns', 'altis' ),
+		'all_items'                => __( 'Synced Patterns', 'altis' ),
+		'search_items'             => __( 'Search Synced Patterns', 'altis' ),
+		'not_found'                => __( 'No Synced Patterns found.', 'altis' ),
+		'not_found_in_trash'       => __( 'No Synced Patterns found in Trash.', 'altis' ),
+		'filter_items_list'        => __( 'Filter Synced Patterns list', 'altis' ),
+		'items_list_navigation'    => __( 'Synced Patterns list navigation', 'altis' ),
+		'items_list'               => __( 'Synced Patterns list', 'altis' ),
+		'item_published'           => __( 'Synced Pattern published.', 'altis' ),
+		'item_published_privately' => __( 'Synced Pattern published privately.', 'altis' ),
+		'item_reverted_to_draft'   => __( 'Synced Pattern reverted to draft.', 'altis' ),
+		'item_scheduled'           => __( 'Synced Pattern scheduled.', 'altis' ),
+		'item_updated'             => __( 'Synced Pattern updated.', 'altis' ),
+		'menu_name'                => __( 'Synced Patterns', 'altis' ),
+		'name_admin_bar'           => __( 'Synced Pattern', 'altis' ),
 	] );
 
 	// phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
 	$wp_post_types[ $post_type ] = $post_type_object;
-}
-
-/**
- * Further rename some strings to reference Global Blocks branding, by hijacking translation strings.
- *
- * @return void
- */
-function override_translation_strings() {
-	$strings = [
-		'Reusable' => [ __( 'Global', 'altis' ) ],
-		'Manage Reusable blocks' => [ __( 'Manage Global Blocks', 'altis' ) ],
-		'Reusable Block' => [ __( 'Global Block', 'altis' ) ],
-		'Reusable blocks' => [ __( 'Global Blocks', 'altis' ) ],
-		'Invalid Reusable block JSON file' => [ __( 'Invalid Global Block JSON file', 'altis' ) ],
-		'Reusable block imported successfully!' => [ __( 'Global Block imported successfully!', 'altis' ) ],
-		'Untitled Reusable block' => [ __( 'Untitled Global Block', 'altis' ) ],
-		'Reusable block created.' => [ __( 'Global Block created.', 'altis' ) ],
-		'Add to Reusable blocks' => [ __( 'Add to Global Blocks', 'altis' ) ],
-		'Create Reusable block' => [ __( 'Create Global Block', 'altis' ) ],
-	];
-
-	wp_add_inline_script(
-		'wp-block-editor',
-		sprintf(
-			'wp.i18n.setLocaleData( %s );',
-			wp_json_encode( $strings )
-		),
-		'before'
-	);
 }
 
 /**
@@ -366,14 +308,7 @@ function override_block_type_metadata( array $metadata ) : array {
 		return $metadata;
 	}
 
-	$metadata['title'] = __( 'Global Block', 'altis' );
 	$metadata['vary_on'] = 'test_variant_id';
-
-	// Block support.
-	$metadata['supports'] = $metadata['supports'] ?? [];
-	$metadata['supports'] = [
-		'align' => true,
-	];
 
 	// Add custom attributes.
 	$metadata['attributes']['goal'] = [
@@ -444,6 +379,13 @@ function render_block( $block_content, $parsed_block, WP_Block $block ) : string
 		return $block_content;
 	}
 
+	// Prevent duplicate processing. WordPress 6.9 changed how synced patterns
+	// are resolved server-side, which can cause this filter to run multiple times.
+	// If the content already contains our custom element wrapper, skip processing.
+	if ( preg_match( '/<(global-block|ab-test-block|personalization-block)\s/', $block_content ) ) {
+		return $block_content;
+	}
+
 	// Get block type.
 	$block_type = get_post_meta( $block_post->ID, '_xb_type', true ) ?: 'standard';
 	$block_tags = [
@@ -453,14 +395,21 @@ function render_block( $block_content, $parsed_block, WP_Block $block ) : string
 	];
 	$block_tag = $block_tags[ $block_type ];
 
+	// Short circuit the output for feeds.
+	if ( is_feed() ) {
+		$altis_block_preview = $block_post->ID;
+		$altis_block_preview_variant = 0;
+	}
+
+	$inner_blocks = parse_blocks( $block_post->post_content );
+
 	// Handle block previews.
 	if ( (int) $altis_block_preview === (int) $block_post->ID ) {
 		if ( $block_type === 'standard' ) {
 			return $block_content;
 		}
 		if ( ! is_null( $altis_block_preview_variant ) ) {
-			$variants = parse_blocks( $block_post->post_content );
-			$variants = array_filter( $variants, function ( $variant ) {
+			$variants = array_filter( $inner_blocks, function ( $variant ) {
 				return $variant['blockName'] === 'altis/variant';
 			} );
 			$variants = array_values( $variants );
@@ -484,9 +433,30 @@ function render_block( $block_content, $parsed_block, WP_Block $block ) : string
 	}
 
 	// Add any extra attributes needed for the block.
+	// We use implicit is-layout-constrained to mimic behavior of not
+	// having a wrapper, so alignment controls behave the same.
 	$extra_attributes = [
 		'class' => 'wp-core-block altis-global-block',
 	];
+
+	// Find the align class on the first inner block and apply it to the wrapper.
+	switch ( $block_type ) {
+		case 'standard':
+			$align = $inner_blocks[0]['attrs']['align'] ?? null;
+			break;
+		case 'abtest':
+		case 'personalization':
+			$align = $inner_blocks[0]['innerBlocks'][0]['attrs']['align'] ?? null;
+			break;
+		default:
+			$align = null;
+
+	}
+
+	// Block alignment support.
+	if ( $align ) {
+		$extra_attributes['class'] .= sprintf( ' align%s', $align );
+	}
 
 	// A/B test block attributes.
 	if ( $block_type === 'abtest' ) {
@@ -494,16 +464,19 @@ function render_block( $block_content, $parsed_block, WP_Block $block ) : string
 			$extra_attributes['paused'] = '';
 		}
 		$results = Experiments\get_ab_test_results_for_post( 'block', $block_post->ID );
-		if ( $results['winner'] ?? false ) {
-			$extra_attributes['winner'] = '';
+		if ( isset( $results['winner'] ) && $results['winner'] !== null ) {
+			$extra_attributes['winner'] = (string) $results['winner'];
 		}
 		$percentage = Experiments\get_ab_test_traffic_percentage_for_post( 'block', $block_post->ID );
 		$extra_attributes['traffic-percentage'] = $percentage;
-	}
 
-	// Block alignment support.
-	if ( isset( $block->attributes['align'] ) ) {
-		$extra_attributes['class'] .= sprintf( ' align%s', $block->attributes['align'] );
+		// Emit per-variant weights when bandit cron has written them so the
+		// frontend can pick them up. Empty meta falls back to per-template
+		// `data-weight` values.
+		$variant_weights = Experiments\get_ab_test_variant_traffic_percentage_for_post( 'block', $block_post->ID );
+		if ( ! empty( $variant_weights ) ) {
+			$extra_attributes['variant-weights'] = wp_json_encode( array_values( $variant_weights ) );
+		}
 	}
 
 	/**
@@ -525,19 +498,25 @@ function render_block( $block_content, $parsed_block, WP_Block $block ) : string
 	 */
 	$block_event_metrics = apply_filters( 'altis.analytics.block_event_metrics', [], $block_post );
 
+	// Get the goal from block post meta if set.
+	$block_goal = get_post_meta( $block_post->ID, '_goal', true );
+	if ( empty( $block_goal ) ) {
+		$block_goal = $block->attributes['goal'] ?? 'engagement';
+	}
+
 	return sprintf(
 		'%1$s<%2$s block-id="%3$d" goal="%4$s" attributes="%5$s" metrics="%6$s"%7$s>%8$s</%2$s>',
 		$variants,
 		$block_tag,
 		absint( $block_post->ID ),
-		esc_attr( $block->attributes['goal'] ?? 'engagement' ),
+		esc_attr( $block_goal ),
 		esc_attr( wp_json_encode( (object) $block_event_attributes ) ),
 		esc_attr( wp_json_encode( (object) $block_event_metrics ) ),
 		array_reduce( array_keys( $extra_attributes ), function ( $carry, $attr ) use ( $extra_attributes ) {
 			return $carry . sprintf(
 				' %s%s',
 				sanitize_key( $attr ),
-				! empty( $extra_attributes[ $attr ] ) ? '="' . esc_attr( $extra_attributes[ $attr ] ) . '"' : ''
+				$extra_attributes[ $attr ] !== '' ? '="' . esc_attr( $extra_attributes[ $attr ] ) . '"' : ''
 			);
 		}, '' ),
 		$block_content
@@ -547,11 +526,35 @@ function render_block( $block_content, $parsed_block, WP_Block $block ) : string
 /**
  * Process the XB attrs further when the XB is created.
  *
- * @param integer $post_id ID of XB post that has just been updated or created.
- * @param WP_Post $xb The block data array.
+ * Hooked to rest_after_insert_wp_block so that REST field callbacks
+ * (_xb_type etc.) have already been applied to post meta.
+ *
+ * @param WP_Post $post The block post object.
  * @return void
  */
-function save_variants( int $post_id, WP_Post $post ) {
+function save_variants( WP_Post $post ) {
+	$post_id = $post->ID;
+	$xb_type = get_post_meta( $post_id, '_xb_type', true ) ?: 'standard';
+
+	// If block was downgraded to standard, end any active experiment and bail.
+	// We update meta directly instead of using end_ab_test_for_post() because
+	// its helpers trigger sync_experiment_to_table() without a type, which
+	// auto-detects TYPE_ABTEST (since _xb_type is now 'standard') and would
+	// create a spurious experiment when the original was a personalization.
+	if ( $xb_type === 'standard' ) {
+		$active = Experiments\Experiment::get_active_for_post( $post_id, 'block' );
+		if ( $active ) {
+			update_post_meta( $post_id, '_altis_ab_test_block_paused', 'true' );
+			update_post_meta( $post_id, '_altis_ab_test_block_ended', 'true' );
+			update_post_meta( $post_id, '_altis_ab_test_block_end_time', Utils\milliseconds() );
+			Experiments\sync_experiment_to_table( 'block', $post_id, $active->get_type() );
+
+			/** This action is documented in inc/experiments/namespace.php */
+			do_action( 'altis.experiments.test.ended', 'block', $post_id );
+		}
+		return;
+	}
+
 	$variants = parse_blocks( $post->post_content );
 	$variants = array_filter( $variants, function ( $variant ) {
 		return $variant['blockName'] === 'altis/variant';
@@ -573,7 +576,7 @@ function save_variants( int $post_id, WP_Post $post ) {
 	Experiments\update_ab_test_end_time_for_post( 'block', $post_id, $end_time );
 
 	// Set traffic percentage.
-	Experiments\update_ab_test_traffic_percentage_for_post( 'block', $post_id, $xb['attrs']['percentage'] ?? 100 );
+	Experiments\update_ab_test_traffic_percentage_for_post( 'block', $post_id, 100 );
 
 	// Set variant traffic percentages.
 	$percents = array_map( function ( $variant ) use ( $variants ) {
@@ -581,9 +584,104 @@ function save_variants( int $post_id, WP_Post $post ) {
 	}, $variants );
 	Experiments\update_ab_test_variant_traffic_percentage_for_post( 'block', $post_id, $percents );
 
-	// Start the test!
-	Experiments\update_is_ab_test_paused_for_post( 'block', $post_id, false );
-	Experiments\update_is_ab_test_started_for_post( 'block', $post_id, true );
+	// Always ensure the test is marked started and not ended — this block
+	// is an active experiment type (abtest or personalization).
+	update_post_meta( $post_id, '_altis_ab_test_block_ended', 'false' );
+	update_post_meta( $post_id, '_altis_ab_test_block_started', true );
+
+	// Only set initial unpaused state when starting a brand new experiment.
+	// Otherwise preserve the user-controlled pause state.
+	if ( ! Experiments\Experiment::get_active_for_post( $post_id, 'block' ) ) {
+		update_post_meta( $post_id, '_altis_ab_test_block_paused', 'false' );
+	}
+
+	// Single sync to experiments table with the correct type.
+	$experiment_type = $xb_type === 'personalization'
+		? Experiments\Experiment::TYPE_PERSONALIZATION
+		: Experiments\Experiment::TYPE_ABTEST;
+	Experiments\sync_experiment_to_table( 'block', $post_id, $experiment_type );
+}
+
+/**
+ * Apply a winning variant to a block, collapsing the experiment to the winner.
+ *
+ * Rewrites the block's post_content to just the winning variant's inner blocks
+ * (no altis/variant wrappers) and records the winner on the stored results so
+ * the front end serves the winning content. Safe to call more than once: if the
+ * block no longer carries variant wrappers the content rewrite is skipped, but
+ * the winner is still recorded on results.
+ *
+ * @param int $block_id      wp_block post ID.
+ * @param int $variant_index Zero-based index of the winning variant.
+ * @return bool True when a winner was applied, false when the index is invalid.
+ */
+function apply_winner( int $block_id, int $variant_index ) : bool {
+	$post = get_post( $block_id );
+	if ( ! $post || $post->post_type !== BLOCK_POST_TYPE ) {
+		return false;
+	}
+
+	// Record the winner on the live results meta so the front end (and the
+	// editor) reflect it even if the content rewrite below is skipped.
+	$results = Experiments\get_ab_test_results_for_post( 'block', $block_id ) ?: [];
+	$results['winner'] = $variant_index;
+	Experiments\update_ab_test_results_for_post( 'block', $block_id, $results );
+
+	// Locate the winning variant block in the current content.
+	$blocks = parse_blocks( $post->post_content );
+	$variants = array_values( array_filter( $blocks, function ( $block ) {
+		return $block['blockName'] === 'altis/variant';
+	} ) );
+
+	// No variant wrappers left (already collapsed) — winner is recorded, done.
+	if ( empty( $variants ) ) {
+		return true;
+	}
+
+	if ( $variant_index < 0 || ! isset( $variants[ $variant_index ] ) ) {
+		return false;
+	}
+
+	$winner_inner = $variants[ $variant_index ]['innerBlocks'] ?? [];
+	$new_content = serialize_blocks( $winner_inner );
+
+	// Collapse the block to the winning content. Mark it standard and end the
+	// experiment so the cron stops processing it and no fresh row is minted.
+	// wp_update_post() unslashes, so slash to keep block-comment attrs intact.
+	wp_update_post( [
+		'ID'           => $block_id,
+		'post_content' => wp_slash( $new_content ),
+	] );
+
+	update_post_meta( $block_id, '_xb_type', 'standard' );
+	delete_post_meta( $block_id, '_xb_abtest' );
+	delete_post_meta( $block_id, '_xb_personalization' );
+
+	update_post_meta( $block_id, '_altis_ab_test_block_ended', 'true' );
+	update_post_meta( $block_id, '_altis_ab_test_block_paused', 'true' );
+
+	// Complete the active experiment row in place. We deliberately do NOT call
+	// sync_experiment_to_table() here: at this point the block has been ended
+	// but the variants meta still describes the (now-finished) experiment, and
+	// a sync that finds no active row would mint a fresh completed "ghost" row.
+	// Updating the existing row directly avoids that race entirely.
+	$active = Experiments\Experiment::get_active_for_post( $block_id, 'block' );
+	if ( $active ) {
+		$results = Experiments\get_ab_test_results_for_post( 'block', $block_id );
+		if ( ! empty( $results ) ) {
+			$active->set_results( $results );
+		}
+		$active->set_status( Experiments\Experiment::STATUS_COMPLETED );
+		$active->set_end_time( Utils\milliseconds() );
+		$active->save();
+	}
+
+	// Clear the variants meta last. The block no longer carries an experiment,
+	// so this is the signal the ghost-row guard in sync_experiment_to_table
+	// uses to refuse minting a fresh row on any later stray sync.
+	delete_post_meta( $block_id, '_altis_ab_test_block_variants' );
+
+	return true;
 }
 
 /**
