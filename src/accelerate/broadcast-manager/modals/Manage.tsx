@@ -1,14 +1,26 @@
-import React from "react";
-import { Button, Modal } from '@wordpress/components';
-import { useState } from '@wordpress/element';
-import { __ } from '@wordpress/i18n';
+import { Pencil, Trash2 } from 'lucide-react';
+import React from 'react';
+
 import { useDispatch } from '@wordpress/data';
+import { useState } from '@wordpress/element';
 import { decodeEntities } from '@wordpress/html-entities';
-import styled from 'styled-components';
+import { __ } from '@wordpress/i18n';
 
 import { Post } from '../../../utils/admin';
-import Upsert from './Upsert';
+
 import Edit from './Edit';
+import Upsert from './Upsert';
+
+import { Button } from '@/components/ui/button';
+import {
+	Dialog,
+	DialogContent,
+	DialogHeader,
+	DialogTitle,
+} from '@/components/ui/dialog';
+import { SectionTitle } from '@/components/ui/typography';
+
+import './Manage.scss';
 
 type Props = {
 	listId: string,
@@ -16,25 +28,6 @@ type Props = {
 	onClose(): void,
 	onSuccess( post: Post ): void,
 };
-
-const StyledModal = styled(Modal)`
-	border-radius: 20px;
-	.accelerate-modal__header {
-		padding: 10px 0;
-		display: flex;
-		margin-bottom: 20px;
-		align-items: center;
-
-		h1 {
-			margin: 0 30px 0 0;
-			flex: 1;
-		}
-		button {
-			flex: 0;
-			margin-left: 5px;
-		}
-	}
-`;
 
 /**
  * Create a Broadcast modal component.
@@ -67,51 +60,60 @@ export default function ManageModal( props: Props ) {
 	};
 
 	return (
-		<StyledModal
-			className="altis-ui"
-			style={ { maxWidth: '600px', borderRadius: '20px' } }
-			title={ item === 'new' ? __( 'Create Broadcast', 'altis' ) : __( 'Edit Broadcast', 'altis' ) }
-			onRequestClose={ onClose }
-		>
-			{ item === 'new' || isEditing ? (
-				<Upsert
-					item={ item !== 'new' ? item : null }
-					listId={ listId }
-					onCancel={ () => {
-						setIsEditing( false );
-						item === 'new' && onClose();
-					} }
-					onSuccess={ post => {
-						setIsEditing( false );
-						onSuccess( post );
-					} }
-				/>
-			) : (
-				<div className="accelerate-modal__header">
-					<h1>
-						{ decodeEntities( item?.title || '' ) }
-					</h1>
-					<Button
-						icon="edit"
-						onClick={ () => setIsEditing( true ) }
-					>
-						<span className="screen-reader-text">{ __( 'Edit title', 'altis' ) }</span>
-					</Button>
-					<Button
-						icon="trash"
-						isDestructive
-						onClick={ onDelete }
-					>
-						<span className="screen-reader-text">{ __( 'Delete Broadcast', 'altis' ) }</span>
-					</Button>
+		<Dialog open onOpenChange={ open => ! open && onClose() }>
+			<DialogContent className="sm:max-w-[600px] accelerate-ui accelerate-broadcast-modal">
+				<DialogHeader>
+					<DialogTitle>
+						{ item === 'new' ? __( 'Create Broadcast', 'altis' ) : __( 'Edit Broadcast', 'altis' ) }
+					</DialogTitle>
+				</DialogHeader>
+				<div className="accelerate-broadcast-modal__inner">
+					{ item === 'new' || isEditing ? (
+						<Upsert
+							item={ item !== 'new' ? item : null }
+							listId={ listId }
+							onCancel={ () => {
+								setIsEditing( false );
+								item === 'new' && onClose();
+							} }
+							onSuccess={ post => {
+								setIsEditing( false );
+								onSuccess( post );
+							} }
+						/>
+					) : (
+						<div className="accelerate-modal__header flex items-center gap-2">
+							<SectionTitle className="flex-1 !m-0">
+								{ decodeEntities( item?.title || '' ) }
+							</SectionTitle>
+							<Button
+								size="icon"
+								title={ __( 'Edit title', 'altis' ) }
+								variant="ghost"
+								onClick={ () => setIsEditing( true ) }
+							>
+								<Pencil className="h-4 w-4" />
+							</Button>
+							<Button
+								className="text-destructive hover:text-destructive hover:bg-destructive/10"
+								size="icon"
+								title={ __( 'Delete Broadcast', 'altis' ) }
+								variant="ghost"
+								onClick={ onDelete }
+							>
+								<Trash2 className="h-4 w-4" />
+							</Button>
+						</div>
+					) }
+					{ item !== 'new' && item?.id ? (
+						<Edit
+							key={ `edit-${ item.id }-${ item.blocks?.length || 0 }` }
+							item={ item }
+							listId={ listId }
+						/>
+					) : null }
 				</div>
-			) }
-			{ item !== 'new' && item?.id ? (
-				<Edit
-					item={ item }
-					listId={ listId }
-				/>
-			) : null }
-		</StyledModal>
+			</DialogContent>
+		</Dialog>
 	);
 }
