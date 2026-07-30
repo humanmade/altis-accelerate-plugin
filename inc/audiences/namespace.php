@@ -257,6 +257,17 @@ function register_default_event_data_maps() {
 		'column' => 'endpoint_views',
 		'description' => __( 'Total page views across all sessions.', 'altis' ),
 	] );
+
+	// Engaged time. Visitor-cumulative (like sessions / pageViews above): the
+	// client folds each flushed engaged delta into endpoint.Metrics.engaged,
+	// so this field has cross-page memory and is evaluable at page load —
+	// per-event deltas would be meaningless for targeting. Stored in
+	// milliseconds; the bare column keeps client-side audience matching and
+	// the server query in the same unit.
+	register_field( 'endpoint.Metrics.engaged', __( 'Engaged time (ms)', 'altis' ), [
+		'column' => 'endpoint_metrics[\'engaged\']',
+		'description' => __( 'Total active engaged time across all of a visitor\'s sessions, in milliseconds.', 'altis' ),
+	] );
 }
 
 /**
@@ -459,15 +470,26 @@ function register_scripts() {
 		]
 	);
 
+	// Get basic field definitions (name, label, type) without ClickHouse queries.
+	$fields = array_map( function ( $field ) {
+		return [
+			'name'  => $field['name'],
+			'label' => $field['label'],
+			'type'  => $field['type'],
+		];
+	}, get_fields() );
+
 	wp_add_inline_script(
 		'altis-accelerate-audiences/ui',
 		sprintf(
 			'window.Altis = window.Altis || {};' .
 			'window.Altis.Analytics = window.Altis.Analytics || {};' .
 			'window.Altis.Analytics.BuildURL = %s;' .
-			'window.Altis.Analytics.Audiences = %s;',
+			'window.Altis.Analytics.Audiences = %s;' .
+			'window.Altis.Analytics.Audiences.Fields = %s;',
 			wp_json_encode( plugins_url( 'build', dirname( __FILE__, 2 ) ) ),
-			wp_json_encode( (object) [] )
+			wp_json_encode( (object) [] ),
+			wp_json_encode( $fields )
 		),
 		'before'
 	);
@@ -507,16 +529,19 @@ function get_estimate( array $audience ) : ?array {
 		]
 	);
 
+	$bot_where = Utils\bot_exclusion_clause();
 	$query =
 		"SELECT uniqCombined64(endpoint_id) as uniques, histogram(42)(toUnixTimestamp64Milli(event_timestamp)) as `histogram`
 			FROM analytics
 			WHERE
 				blog_id = {blog_id:String}
-				AND event_type = 'pageView'
+				AND event_type = 'pageView'{$bot_where}
+				-- Day-bucket prune: lets the toStartOfDay(event_timestamp) sort-key column prune to the window's days (a raw event_timestamp predicate alone can't). Safe superset filter.
+				AND toStartOfDay(event_timestamp) >= toStartOfDay(toDateTime64(intDiv({since:UInt64},1000),3))
 				AND event_timestamp >= toDateTime64(intDiv({since:UInt64},1000),3)
 				AND {$audience_where}";
 
-	$key = Utils\get_cache_key( 'estimate', $audience );
+	$key = Utils\get_cache_key( 'estimate', $audience, $bot_where );
 	$cache = wp_cache_get( $key, 'altis-audiences' );
 	if ( $cache ) {
 		return $cache;
@@ -568,14 +593,16 @@ function get_unique_endpoint_count( int $since = null, bool $force_update = fals
 		'since' => $since,
 	];
 
+	$bot_where = Utils\bot_exclusion_clause();
 	$query =
 		"SELECT uniqCombined64(endpoint_id) as uniques FROM analytics
 			WHERE
-				event_type = 'pageView' AND
+				event_type = 'pageView'{$bot_where} AND
+				toStartOfDay(event_timestamp) >= toStartOfDay(toDateTime64(intDiv({since:UInt64},1000),3)) AND
 				event_timestamp >= toDateTime64(intDiv({since:UInt64},1000),3) AND
 				blog_id = {blog_id:String}";
 
-	$key = sprintf( 'total-uniques-%d', $since );
+	$key = sprintf( 'total-uniques-%d%s', $since, $bot_where );
 	$cache = wp_cache_get( $key, 'altis-audiences' );
 	if ( $cache && ! $force_update ) {
 		return $cache;
@@ -628,115 +655,152 @@ function get_unique_endpoint_count( int $since = null, bool $force_update = fals
  * @return array|null
  */
 function get_field_data() : ?array {
-	$maps = get_fields();
+	$fields = [];
+	foreach ( get_fields() as $map ) {
+		$field = get_single_field_data( $map['name'] );
+		if ( $field !== null ) {
+			$fields[] = $field;
+		}
+	}
+	return $fields;
+}
 
-	$key = Utils\get_cache_key( 'fields', wp_list_pluck( $maps, 'name' ) );
+/**
+ * Get the basic field definitions without any ClickHouse value data.
+ *
+ * Returns name/label/type/options (with the internal `column` and the value
+ * `options` generator stripped) for every registered field. This runs no
+ * ClickHouse queries, so it resolves instantly — it powers the audience rule
+ * editor's field + operator dropdowns, while the value suggestions for each
+ * field are fetched separately, on demand, via get_single_field_data().
+ *
+ * @return array The list of field definitions.
+ */
+function get_field_list() : array {
+	$fields = [];
+	foreach ( get_fields() as $field ) {
+		// Cleanup data not needed for (or safe to expose to) the front end.
+		unset( $field['options']['options'], $field['options']['column'] );
+		$fields[] = $field;
+	}
+	return $fields;
+}
+
+/**
+ * Get the value distribution (string) or stats (number) for a single field.
+ *
+ * Runs one ClickHouse aggregation for the given field over the last week of
+ * page views and returns its definition enriched with `data` or `stats`.
+ * Cached per-field so the rule editor can load value suggestions one field at
+ * a time, on demand, instead of paying for all fields up front. Fields with no
+ * backing column return their basic definition with no value data.
+ *
+ * @param string $name The registered field name.
+ * @return array|null The enriched field definition, or null if the field is unknown.
+ */
+function get_single_field_data( string $name ) : ?array {
+	static $maps = null;
+	if ( $maps === null ) {
+		$maps = [];
+		foreach ( get_fields() as $map ) {
+			$maps[ $map['name'] ] = $map;
+		}
+	}
+
+	if ( ! isset( $maps[ $name ] ) ) {
+		return null;
+	}
+
+	$bot_where = Utils\bot_exclusion_clause();
+	$key = Utils\get_cache_key( 'field-data', $name, $bot_where );
 	$cache = wp_cache_get( $key, 'altis-audiences' );
-	if ( $cache ) {
+	if ( $cache !== false ) {
 		return $cache;
 	}
 
-	$results = [];
-	$query_params = [
-		'blog_id' => get_current_blog_id(),
-		'start' => Utils\date_in_milliseconds( '-1 week', DAY_IN_SECONDS ),
-	];
+	$field = $maps[ $name ];
+	$column = $field['options']['column'] ?? null;
+	$type = Utils\get_field_type( $name );
 
-	foreach ( $maps as $map ) {
-		if ( ! isset( $map['options']['column'] ) ) {
-			continue;
-		}
+	// Only fields backed by a column have queryable value data.
+	if ( $column ) {
+		$query_params = [
+			'blog_id' => get_current_blog_id(),
+			'start' => Utils\date_in_milliseconds( '-1 week', DAY_IN_SECONDS ),
+		];
 
-		$column = $map['options']['column'];
-
-		// For numeric fields get a simple stats aggregation.
-		if ( Utils\get_field_type( $map['name'] ) === 'number' ) {
+		if ( $type === 'number' ) {
 			// Select basic stats about the metric.
-			$fields = sprintf( 'count(event_type) as `count`, min(%1$s) as min, max(%1$s) as max, avg(%1$s) as avg, sum(%1$s) as sum', $column );
-			$query = "SELECT {$fields} FROM analytics
-				WHERE event_timestamp >= toDateTime64(intDiv({start:UInt64},1000),3)
+			$select = sprintf( 'count(event_type) as `count`, min(%1$s) as min, max(%1$s) as max, avg(%1$s) as avg, sum(%1$s) as sum', $column );
+			$query = "SELECT {$select} FROM analytics
+				WHERE toStartOfDay(event_timestamp) >= toStartOfDay(toDateTime64(intDiv({start:UInt64},1000),3))
+					AND event_timestamp >= toDateTime64(intDiv({start:UInt64},1000),3)
 					AND blog_id = {blog_id:String}
-					AND event_type = 'pageView'";
-		}
-
-		// Default to topK aggregation for top 20 different values available for each field.
-		if ( Utils\get_field_type( $map['name'] ) === 'string' ) {
+					AND event_type = 'pageView'{$bot_where}";
+		} else {
+			// Default to topK aggregation for top 20 different values available for the field.
 			$join = '';
 			// Handle array type sub fields with ARRAY JOIN to generate additional rows.
-			if ( strpos( $column, '_attributes' ) !== false || ( $map['options']['array'] ?? false ) === true ) {
+			if ( strpos( $column, '_attributes' ) !== false || ( $field['options']['array'] ?? false ) === true ) {
 				$join = "LEFT ARRAY JOIN {$column} as sub_fields";
 				$column = 'sub_fields';
 			}
 
-			$fields = sprintf( '%1$s as val, count(event_type) as views, uniqCombined64(endpoint_id) as uniques', $column );
-			$query = "SELECT {$fields} FROM analytics
+			$select = sprintf( '%1$s as val, count(event_type) as views, uniqCombined64(endpoint_id) as uniques', $column );
+			$query = "SELECT {$select} FROM analytics
 				{$join}
-				WHERE event_timestamp >= toDateTime64(intDiv({start:UInt64},1000),3)
+				WHERE toStartOfDay(event_timestamp) >= toStartOfDay(toDateTime64(intDiv({start:UInt64},1000),3))
+					AND event_timestamp >= toDateTime64(intDiv({start:UInt64},1000),3)
 					AND blog_id = {blog_id:String}
-					AND event_type = 'pageView'
+					AND event_type = 'pageView'{$bot_where}
 					GROUP BY {$column}
 					HAVING notEmpty(val)
 					ORDER BY uniques DESC
 					LIMIT 20";
 		}
 
-		$results[ $map['name'] ] = Utils\query( $query, $query_params );
-	}
+		$result = Utils\query( $query, $query_params );
 
-	$results = array_filter( $results, function ( $result ) {
-		return ! is_wp_error( $result );
-	} );
-
-	// Get the total uniques to get percentage distribution.
-	$total = get_unique_endpoint_count();
-
-	// Normalise aggregations to useful just the useful data.
-	$fields = [];
-	foreach ( $maps as $field ) {
-		$field_name = $field['name'];
-		if ( isset( $results[ $field_name ] ) ) {
-			// Process string field result.
-			if ( Utils\get_field_type( $field_name ) === 'string' ) {
+		if ( ! is_wp_error( $result ) ) {
+			if ( $type === 'string' ) {
+				// Get the total uniques to get percentage distribution.
+				$total = get_unique_endpoint_count();
 				$options = $field['options']['options'] ?? null;
 				if ( is_callable( $options ) ) {
 					$options = call_user_func( $options );
 				}
 				if ( is_array( $options ) ) {
-					$buckets = array_combine( array_column( $results[ $field_name ], 'val' ), $results[ $field_name ] );
-					$field_data = array_map( function ( $value, $label ) use ( $buckets, $total ) {
+					$buckets = array_combine( array_column( $result, 'val' ), $result );
+					$field['data'] = array_map( function ( $value, $label ) use ( $buckets, $total ) {
 						return [
 							'value' => $value,
 							'label' => $label,
 							'count' => $buckets[ $value ]->views ?? 0,
-							'percent' => isset( $buckets[ $value ]->uniques ) ? intval( ( $buckets[ $value ]->uniques / $total ) * 100 ) : 0,
+							'percent' => isset( $buckets[ $value ]->uniques ) && $total ? intval( ( $buckets[ $value ]->uniques / $total ) * 100 ) : 0,
 						];
 					}, array_keys( $options ), $options );
-					unset( $field['options']['options'] );
 				} else {
-					$field_data = array_map( function ( $bucket ) use ( $total ) {
+					$field['data'] = array_map( function ( $bucket ) use ( $total ) {
 						return [
 							'value' => $bucket->val,
 							'count' => $bucket->views,
-							'percent' => isset( $bucket->uniques ) ? intval( ( $bucket->uniques / $total ) * 100 ) : 0,
+							'percent' => isset( $bucket->uniques ) && $total ? intval( ( $bucket->uniques / $total ) * 100 ) : 0,
 						];
-					}, $results[ $field_name ] );
+					}, $result );
 				}
-				$field['data'] = $field_data;
 			} else {
 				// Get single row for stat field.
-				$field['stats'] = (array) reset( $results[ $field_name ] );
+				$field['stats'] = (array) reset( $result );
 			}
 		}
-
-		// Cleanup data not needed for front end.
-		unset( $field['options']['column'] );
-		$fields[] = $field;
 	}
 
-	// Cache the data.
-	wp_cache_set( $key, $fields, 'altis-audiences', HOUR_IN_SECONDS );
+	// Cleanup data not needed for (or safe to expose to) the front end.
+	unset( $field['options']['options'], $field['options']['column'] );
 
-	return $fields;
+	wp_cache_set( $key, $field, 'altis-audiences', HOUR_IN_SECONDS );
+
+	return $field;
 }
 
 /**
@@ -870,6 +934,10 @@ function build_audience_query( array $audience, bool $with_join = false ) : arra
 		}
 	}
 
+	if ( empty( $group_queries ) ) {
+		return [ '1 = 1', [] ];
+	}
+
 	$groups_include = $include_map[ $audience['include'] ];
 	$groups_query = sprintf( ' (%s) ', implode( $groups_include, $group_queries ) );
 
@@ -889,7 +957,7 @@ function query_audiences( $args = null ) {
 	 *
 	 * @param int $limit The number of audiences to fetch for use client side.
 	 */
-	$limit = apply_filters( 'altis.analytics.audiences.limit', 20 );
+	$limit = apply_filters( 'altis.analytics.audiences.limit', 100 );
 
 	// Prevent negative values, -1 in this case means an unbounded query.
 	$limit = absint( $limit );

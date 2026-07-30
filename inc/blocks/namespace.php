@@ -11,6 +11,7 @@ use Altis\Accelerate;
 use Altis\Accelerate\Experiments;
 use Altis\Accelerate\Utils;
 use WP_Post;
+use WP_Query;
 
 const POST_TYPE = 'wp_block';
 
@@ -71,6 +72,37 @@ function get_block_settings( string $name ) : ?array {
 }
 
 /**
+ * Fetch a post object by block client ID.
+ *
+ * @param string $client_id The block client ID.
+ * @return WP_Post|null
+ */
+function get_block_post( string $client_id ) : ?WP_Post {
+	static $block_posts = [];
+
+	if ( isset( $block_posts[ $client_id ] ) ) {
+		return $block_posts[ $client_id ];
+	}
+
+	$query = new WP_Query( [
+		'post_type' => POST_TYPE,
+		'name' => $client_id,
+		'posts_per_page' => 1,
+		'no_found_rows' => true,
+	] );
+
+	if ( empty( $query->posts ) ) {
+		$block_posts[ $client_id ] = null;
+		return null;
+	}
+
+	// Cache the lookup.
+	$block_posts[ $client_id ] = $query->posts[0];
+
+	return $block_posts[ $client_id ];
+}
+
+/**
  * Get the XB type, excluding the altis/ namespace prefix.
  *
  * Falls back to 'personalization' for backlwards compatibility.
@@ -92,7 +124,7 @@ function get_block_type( $post ) : string {
  */
 function get_block_type_label( string $block_name ) : string {
 	$types = [
-		'standard' => __( 'Global Block', 'altis' ),
+		'standard' => __( 'Synced Pattern', 'altis' ),
 		'abtest' => __( 'A/B Test', 'altis' ),
 		'personalization' => __( 'Personalized Content', 'altis' ),
 	];
@@ -155,7 +187,7 @@ function register_scripts() {
  *     - int $args['days'] The number of days to get data for.
  *     - int $args['offset'] The offset for number of days prior to start query from.
  *     - string $args['vary_on'] The field to distinguish variants on.
- * @return array|\WP_Error
+ * @return array{ start?: int, end?: int, loads?: int, views?: int, conversions?: int, unique?: array{ loads?: int, views?: int, conversions?: int }, variants?: array }|\WP_Error
  */
 function get_views( $block_id, $args = [] ) {
 	if ( ! empty( $args ) && is_numeric( $args ) ) {
@@ -196,14 +228,21 @@ function get_views( $block_id, $args = [] ) {
 
 	// Set date range.
 	if ( $args['start'] ) {
+		// Day-bucket prune: lets the toStartOfDay(event_timestamp) sort-key column prune to the window's days (a raw event_timestamp predicate alone can't). Safe superset filter.
+		$query_where .= " AND toStartOfDay(event_timestamp) >= toStartOfDay(toDateTime64({start:UInt64},3))";
 		$query_where .= " AND event_timestamp >= toDateTime64({start:UInt64},3)";
 		$query_params['start'] = strtotime( $args['start'] );
 	}
 	if ( $args['end'] ) {
+		$query_where .= " AND toStartOfDay(event_timestamp) <= toStartOfDay(toDateTime64({end:UInt64},3))";
 		$query_where .= " AND event_timestamp <= toDateTime64({end:UInt64},3)";
 		$query_params['end'] = strtotime( $args['end'] );
 	}
 
+	$bot_where = Utils\bot_exclusion_clause();
+	$query_where .= $bot_where;
+
+	$table = defined( 'ACCELERATE_ANALYTICS_CLICKHOUSE_TABLE' ) ? ACCELERATE_ANALYTICS_CLICKHOUSE_TABLE : 'analytics';
 	$query =
 		"SELECT
 			{$vary_on} as variant,
@@ -214,7 +253,7 @@ function get_views( $block_id, $args = [] ) {
 			uniqCombined64If(endpoint_id, event_type = 'blockView') as unique_views,
 			uniqCombined64If(endpoint_id, event_type = 'conversion') as unique_conversions,
 			groupUniqArray(post_id) as post_ids
-		FROM analytics
+		FROM {$table}
 		WHERE
 			blog_id = {blog_id:String}
 			AND event_type IN ('blockLoad', 'blockView', 'conversion')
@@ -223,7 +262,7 @@ function get_views( $block_id, $args = [] ) {
 		GROUP BY variant WITH ROLLUP
 		ORDER BY variant ASC";
 
-	$key = Utils\get_cache_key( 'block_views', $block_id, $args );
+	$key = Utils\get_cache_key( 'block_views', $block_id, $args, $bot_where );
 	$cache = wp_cache_get( $key, 'altis-xbs' );
 	if ( $cache ) {
 		return $cache;
