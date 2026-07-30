@@ -1,3 +1,5 @@
+import { ReactComponentLike } from 'prop-types';
+
 declare interface Window {
 	AltisAccelerateDashboardData: {
 		post_types: {
@@ -6,6 +8,7 @@ declare interface Window {
 			singular_label: string,
 		}[],
 		version: string,
+		home_url?: string,
 		screen: string,
 		location?: string,
 		tracking: {
@@ -18,6 +21,85 @@ declare interface Window {
 		id?: number,
 		welcomed: boolean,
 		title?: string,
+		onboarding: {
+			connected_at: number | false,
+			first_test_created: number | false,
+			authorize_url: string,
+		},
+		outbound_tracking_enabled: boolean,
+		timezone?: {
+			string: string,
+			offset: number,
+		},
 	};
-	analytics: any;
+	posthog: any;
+	Altis: {
+		Analytics: {
+			Experiments: {
+				Goals: {
+					label: string,
+					name: string,
+				}[],
+				PostABTests: Record<string, {
+					label: string,
+					singular_label: string,
+					suggestion_prompt?: string,
+				}>,
+			},
+			components: ReactComponentLike[],
+			OutboundTracking?: boolean,
+			Config?: {
+				LogEndpoint?: string,
+				AppId?: string,
+				ExcludeBots?: boolean,
+			},
+			Integrations?: {
+				HubSpot?: {
+					Signals: {
+						forms: boolean,
+						email: boolean,
+						chat: boolean,
+					},
+					FormDirectory: Record<string, string>,
+					EmailDirectory: Record<string, string>,
+				},
+			},
+		},
+	};
+}
+
+interface BlockAnalytics {
+	loads: number,
+	views: number,
+	conversions: number,
+	unique: {
+		loads: number,
+		views: number,
+		conversions: number,
+	},
+	variants?: {
+		id: number,
+		loads: number,
+		views: number,
+		conversions: number,
+		unique: {
+			loads: number,
+			views: number,
+			conversions: number,
+		},
+	}[],
+}
+
+interface ABTest {
+	start_time: number, // JS timestamp.
+	end_time: number, // JS timestamp.
+	started: boolean,
+	paused: boolean,
+	results: {
+		winner: number | null,
+		variants: {
+			p: number,
+			rate: number,
+		}[],
+	},
 }

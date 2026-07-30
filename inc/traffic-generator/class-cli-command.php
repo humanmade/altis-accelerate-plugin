@@ -1,0 +1,552 @@
+<?php
+
+namespace Altis\Accelerate\Traffic_Generator;
+
+use WP_CLI;
+use function Altis\Accelerate\get_config;
+
+class CLI_Command {
+	/**
+	 * Generates traffic for testing purposes.
+	 *
+	 * ## OPTIONS
+	 *
+	 * [--from=<date>]
+	 * : Start date for traffic generation (strtotime).
+	 *
+	 * [--to=<date>]
+	 * : End date for traffic generation (strtotime).
+	 *
+	 * [--posts=<ids>]
+	 * : Comma-separated list of post IDs to generate traffic for.
+	 *
+	 * [--post_types=<types>]
+	 * : Comma-separated list of post types to generate traffic for.
+	 *
+	 * [--user=<id>]
+	 * : User ID to generate traffic
+	 *
+	 * [--batch-size=<number>]
+	 * : Number of events to send in each batch (default: 100).
+	 *
+	 * [--per-user=<number>]
+	 * : Number of events per user before creating a new user (default: 10).
+	 *
+	 * [--event-type=<type>]
+	 * : Type of event to generate (default: pageView).
+	 *
+	 * [--browsers=<browsers>]
+	 * : Comma-separated list of browser names to randomize across (default: Firefox).
+	 *
+	 * [--countries=<countries>]
+	 * : Comma-separated list of country codes to randomize across (default: US).
+	 *
+	 * [--referers=<referers>]
+	 * : Comma-separated list of referer URLs to randomize across (default: empty).
+	 *
+	 * [--attributes=<attributes>]
+	 * : String of 'key=value,key=value' pairs to add as attributes to each event.
+	 *
+	 * [--hubspot=<percent>]
+	 * : Percentage of page views that also produce a HubSpot signal event
+	 * (formSubmission / emailArrival / chatInteraction) with the matching
+	 * endpoint attributes, mirroring the HubSpot integration's client
+	 * contract (default: 0).
+	 *
+	 * --count=<number>
+	 * : Number of requests to simulate.
+	 *
+	 */
+	function posts( $args, $assoc_args ) {
+		// Parse arguments
+		$count = absint( $assoc_args['count'] ?? 100 );
+		$from = $assoc_args['from'] ?? 'yesterday';
+		$to = $assoc_args['to'] ?? 'now';
+		$posts = isset( $assoc_args['posts'] ) ? array_map( 'absint', explode( ',', $assoc_args['posts'] ) ) : [];
+		$user_id = isset( $assoc_args['user'] ) ? absint( $assoc_args['user'] ) : null;
+		$batch_size = absint( $assoc_args['batch-size'] ?? 100 );
+		$per_user = absint( $assoc_args['per-user'] ?? 10 );
+		$post_types = isset( $assoc_args['post_types'] ) ? explode( ',', $assoc_args['post_types'] ) : [ 'post' ];
+		$event_type = $assoc_args['event-type'] ?? 'pageView';
+		$browsers = isset( $assoc_args['browsers'] ) ? explode( ',', $assoc_args['browsers'] ) : [ 'Firefox' ];
+		$countries = isset( $assoc_args['countries'] ) ? explode( ',', $assoc_args['countries'] ) : [ 'US' ];
+		$referers = isset( $assoc_args['referers'] ) ? explode( ',', $assoc_args['referers'] ) : [ '' ];
+		$hubspot_pct = min( 100, absint( $assoc_args['hubspot'] ?? 0 ) );
+		$attributes = explode( ',', $assoc_args['attributes'] ?? '' );
+
+		$attributes = array_reduce( $attributes, function ( $carry, $item ) {
+			$parts = explode( '=', $item, 2 );
+			if ( count( $parts ) === 2 ) {
+				$carry[ trim( $parts[0] ) ] = trim( $parts[1] );
+			}
+			return $carry;
+		}, [] );
+
+		if ( empty( $assoc_args['event-type'] ) && $post_types === [ 'wp_block' ] ) {
+			$event_type = 'blockView';
+		}
+		// Parse dates
+		$start_time = strtotime( $from );
+		$end_time = strtotime( $to );
+
+		if ( ! $start_time || ! $end_time ) {
+			WP_CLI::error( 'Invalid date format for --from or --to parameters.' );
+		}
+
+		if ( $start_time >= $end_time ) {
+			WP_CLI::error( 'Start date must be before end date.' );
+		}
+
+		// Get config
+		$config = get_config();
+		if ( ! $config ) {
+			WP_CLI::error( 'Altis Accelerate is not configured. Please set up the plugin first.' );
+		}
+
+		// Get endpoint URL
+		$log_endpoint = defined( 'ALTIS_ACCELERATE_LOG_ENDPOINT' ) ? ALTIS_ACCELERATE_LOG_ENDPOINT : 'https://eu.accelerate.altis.cloud/log';
+
+		// If no posts specified, get a random selection
+		if ( empty( $posts ) ) {
+			$post_query = new \WP_Query( [
+				'post_type' => ! empty( $assoc_args['post_types'] ) ? explode( ',', $assoc_args['post_types'] ) : 'post',
+				'post_status' => 'publish',
+				'posts_per_page' => 50,
+				'orderby' => 'rand',
+				'fields' => 'ids',
+			] );
+			$posts = $post_query->posts;
+		}
+
+		if ( empty( $posts ) ) {
+			WP_CLI::error( 'No posts found to generate traffic for.' );
+		}
+
+		WP_CLI::log( sprintf( 'Generating %d traffic events between %s and %s (per-user: %d, batch size: %d, browsers: %s, countries: %s, referers: %s)...', $count, date( 'Y-m-d H:i:s', $start_time ), date( 'Y-m-d H:i:s', $end_time ), $per_user, $batch_size, implode( ', ', $browsers ), implode( ', ', $countries ), implode( ', ', $referers ) ) );
+
+		$progress = WP_CLI\Utils\make_progress_bar( 'Generating traffic', $count );
+
+		// Generate events with per-user batching
+		$events_batch = [];
+		$events_sent = 0;
+		$current_user_uuid = null;
+		$events_for_current_user = 0;
+		// Accumulated HubSpot endpoint attributes for the current user —
+		// like the real client, once a visitor submits a form their endpoint
+		// carries that signal on all subsequent events.
+		$current_user_hubspot = [];
+
+		for ( $i = 0; $i < $count; $i++ ) {
+			// Generate a random timestamp between start and end
+			$timestamp = rand( $start_time, $end_time );
+
+			// Pick a random post
+			$post_id = $posts[ array_rand( $posts ) ];
+			$post = get_post( $post_id );
+
+			if ( ! $post ) {
+				continue;
+			}
+
+			// Check if we need a new user (first event or reached per-user limit)
+			if ( $current_user_uuid === null || $events_for_current_user >= $per_user ) {
+				// Send current batch if it exists
+				if ( ! empty( $events_batch ) ) {
+					$this->send_events_batch( $log_endpoint, $config['app_id'], $events_batch );
+					$events_sent += count( $events_batch );
+					$events_batch = [];
+				}
+
+				// Create new user
+				$current_user_uuid = wp_generate_uuid4();
+				$events_for_current_user = 0;
+				$current_user_hubspot = [];
+			}
+
+			// Generate post-specific attributes
+			$post_attributes = [
+				'url' => get_permalink( $post ),
+				'title' => $post->post_title,
+				'postId' => (string) $post->ID,
+				'postType' => $post->post_type,
+				'pageType' => 'single',
+			];
+
+			$post_attributes = array_merge( $post_attributes, $attributes );
+
+			if ( $post->post_type === 'wp_block' ) {
+				$post_attributes['blockId'] = (string) $post->ID;
+			}
+
+			// Pick a random browser
+			$selected_browser = $browsers[ array_rand( $browsers ) ];
+
+			// Pick a random country
+			$selected_country = $countries[ array_rand( $countries ) ];
+
+			// Pick a random referer
+			$selected_referer = $referers[ array_rand( $referers ) ];
+
+			// Add referer to post attributes
+			$post_attributes['referer'] = $selected_referer;
+
+			// Generate event data with the current user UUID
+			$event_data = $this->generate_event_data( $timestamp, $post_attributes, $user_id, $current_user_uuid, $event_type, $selected_browser, $selected_country );
+
+			// Endpoint state carries previously accumulated HubSpot signals.
+			if ( ! empty( $current_user_hubspot ) ) {
+				$event_data['endpoint']['Attributes'] = array_merge( $event_data['endpoint']['Attributes'], $current_user_hubspot );
+			}
+
+			$events_batch[] = $event_data;
+			$events_for_current_user++;
+
+			// Some visits also produce a HubSpot signal. Flush the pending
+			// batch first: a batch shares one endpoint snapshot (the first
+			// event's), so rows before the signal must keep the prior state
+			// — the same progression real beacons produce. Runs before the
+			// engaged stop pairing so the stop event (appended below) carries
+			// the post-signal endpoint state.
+			if ( $hubspot_pct > 0 && rand( 1, 100 ) <= $hubspot_pct ) {
+				if ( count( $events_batch ) > 1 ) {
+					array_pop( $events_batch );
+					$this->send_events_batch( $log_endpoint, $config['app_id'], $events_batch );
+					$events_sent += count( $events_batch );
+				}
+
+				$signal = $this->generate_hubspot_signal( $event_data, $current_user_hubspot );
+				// Both the page view and the signal carry the updated state.
+				$event_data['endpoint']['Attributes'] = array_merge( $event_data['endpoint']['Attributes'], $current_user_hubspot );
+				$events_batch = [ $event_data, $signal ];
+				$events_for_current_user++;
+			}
+
+			// Pair each engaged page view with a _session.stop event flushing
+			// the engaged delta, mirroring the real client — engaged only
+			// rides stop events, never pageView rows.
+			if ( ! empty( $event_data['engaged_ms'] ) ) {
+				$stop_ts = min( $timestamp + (int) ceil( $event_data['engaged_ms'] / 1000 ), time() );
+				$stop = $event_data;
+				$stop['event_id'] = wp_generate_uuid4();
+				$stop['event']['EventType'] = '_session.stop';
+				$stop['event']['Timestamp'] = gmdate( 'Y-m-d\TH:i:s.v\Z', $stop_ts );
+				$stop['event']['Attributes']['date'] = gmdate( 'Y-m-d\TH:i:s.v\Z', $stop_ts );
+				$stop['event']['Metrics']['engaged'] = $event_data['engaged_ms'];
+				$stop['event']['Session']['Duration'] = (int) $event_data['engaged_ms'];
+				$stop['event']['Session']['StopTimestamp'] = gmdate( 'Y-m-d\TH:i:s.v\Z', $stop_ts );
+				$events_batch[] = $stop;
+			}
+
+			$progress->tick();
+
+			// Send batch when it reaches the batch size or when we've processed all events
+			if ( count( $events_batch ) >= $batch_size || $i === $count - 1 ) {
+				$this->send_events_batch( $log_endpoint, $config['app_id'], $events_batch );
+				$events_sent += count( $events_batch );
+				$events_batch = [];
+
+				// Reset user if we sent due to batch size (not end of events)
+				if ( $i !== $count - 1 ) {
+					$current_user_uuid = null;
+					$events_for_current_user = 0;
+				}
+			}
+		}
+
+		$progress->finish();
+		WP_CLI::success( sprintf( 'Generated %d traffic events successfully in batches.', $events_sent ) );
+	}
+
+	/**
+	 * Fake HubSpot form directory (GUID => name) for generated signals.
+	 */
+	const HUBSPOT_FORMS = [
+		'7c3a1f2e-9b4d-4e8a-a1c5-3f6d8e2b9a01' => 'Contact Us',
+		'2e8b5d9a-1c4f-4b7e-9a3d-6e1f8c2a5b02' => 'RFI — Professional Education',
+		'9a4d7e1b-5f2c-4a8e-b6d3-1c9e4f7a2d03' => 'Newsletter Signup',
+		'5f1c8a3e-7d9b-4c2a-8e6f-4b3d1a9c7e04' => 'Demo Request',
+	];
+
+	/**
+	 * Fake HubSpot marketing email directory (send ID => name).
+	 */
+	const HUBSPOT_EMAILS = [
+		'101001' => 'Welcome Series #1',
+		'101002' => 'Certificate Nurture #3',
+		'101003' => 'Monthly Digest',
+		'101004' => 'Re-engagement Campaign',
+	];
+
+	/**
+	 * Build a HubSpot signal event from a generated page view.
+	 *
+	 * Mirrors the client contract in src/integrations/hubspot/: the event
+	 * keeps the page view's page context and session, carries the signal
+	 * attributes, and the matching endpoint attribute lists accumulate (with
+	 * dedupe) in $hubspot_attrs, which the caller applies to the endpoint.
+	 *
+	 * @param array $event_data The page view event data to derive from.
+	 * @param array $hubspot_attrs Accumulated endpoint attributes, modified in place.
+	 * @return array Signal event data for the batch.
+	 */
+	private function generate_hubspot_signal( array $event_data, array &$hubspot_attrs ) : array {
+		$append = function ( string $attribute, string $value ) use ( &$hubspot_attrs ) {
+			$hubspot_attrs[ $attribute ] = $hubspot_attrs[ $attribute ] ?? [];
+			if ( ! in_array( $value, $hubspot_attrs[ $attribute ], true ) ) {
+				$hubspot_attrs[ $attribute ][] = $value;
+			}
+		};
+
+		$roll = rand( 1, 100 );
+		if ( $roll <= 45 ) {
+			$form_id = array_rand( self::HUBSPOT_FORMS );
+			$form_name = self::HUBSPOT_FORMS[ $form_id ];
+			$event_type = 'formSubmission';
+			$signal_attributes = [
+				'formId' => $form_id,
+				'formName' => $form_name,
+				'formProvider' => 'hubspot',
+			];
+			$append( 'hubspot_forms_submitted', $form_name );
+			$append( 'hubspot_forms_submitted_ids', $form_id );
+			// Forms are submitted after some time on the page.
+			$delay = rand( 20, 180 );
+		} elseif ( $roll <= 80 ) {
+			$email_id = (string) array_rand( self::HUBSPOT_EMAILS );
+			$email_name = self::HUBSPOT_EMAILS[ $email_id ];
+			$event_type = 'emailArrival';
+			$signal_attributes = [
+				'emailId' => $email_id,
+				'emailName' => $email_name,
+				'emailProvider' => 'hubspot',
+			];
+			$append( 'hubspot_emails_arrived', $email_name );
+			$append( 'hubspot_emails_arrived_ids', $email_id );
+			// Email arrival coincides with the landing page view.
+			$delay = 0;
+		} else {
+			$event_type = 'chatInteraction';
+			$signal_attributes = [
+				'interactionType' => 'started',
+				'chatProvider' => 'hubspot',
+			];
+			$append( 'hubspot_chat_engaged', 'started' );
+			$delay = rand( 10, 120 );
+		}
+
+		$signal = $event_data;
+		$signal['event_id'] = wp_generate_uuid4();
+		$signal['event']['EventType'] = $event_type;
+		$signal['event']['Attributes'] = array_merge( $signal['event']['Attributes'], $signal_attributes );
+		$signal['endpoint']['Attributes'] = array_merge( $signal['endpoint']['Attributes'], $hubspot_attrs );
+
+		if ( $delay > 0 ) {
+			$signal_ts = min( strtotime( $signal['event']['Timestamp'] ) + $delay, time() );
+			$signal['event']['Timestamp'] = gmdate( 'Y-m-d\TH:i:s.v\Z', $signal_ts );
+			$signal['event']['Attributes']['date'] = $signal['event']['Timestamp'];
+		}
+
+		return $signal;
+	}
+
+	/**
+	 * Generate event data for analytics.
+	 *
+	 * @param int $timestamp The event timestamp.
+	 * @param array $dynamic_attributes Additional attributes to merge into the event.
+	 * @param int|null $user_id Optional user ID.
+	 * @param string|null $user_uuid Optional user UUID to use instead of generating one.
+	 * @param string $event_type Event type (default: pageView).
+	 * @param string $browser Browser name (default: Firefox).
+	 * @param string $country Country code (default: US).
+	 * @return array
+	 */
+	private function generate_event_data( int $timestamp, array $dynamic_attributes = [], ?int $user_id = null, ?string $user_uuid = null, string $event_type = 'pageView', string $browser = 'Firefox', string $country = 'US' ): array {
+		// Generate unique IDs
+		$event_id = wp_generate_uuid4();
+		$user_uuid = $user_uuid ?: wp_generate_uuid4();
+		$session_id = wp_generate_uuid4();
+
+		// Build endpoint data similar to get_client_side_data()
+		$endpoint = [
+			'Attributes' => [
+				'DeviceMake' => [ 'Apple' ],
+				'DeviceModel' => [ 'Macintosh' ],
+				'lastSession' => [ $session_id ],
+				'lastPageSession' => [ $session_id ],
+			],
+			'Demographic' => [
+				'AppVersion' => '',
+				'Locale' => 'en_us',
+				'Make' => 'Gecko',
+				'Model' => $browser,
+				'ModelVersion' => $this->get_browser_version( $browser ),
+				'Platform' => 'Mac OS',
+				'PlatformVersion' => '10.15',
+			],
+			'Location' => [
+				'Country' => $country,
+			],
+			'Metrics' => [
+				'sessions' => 1.0,
+				'pageViews' => 1.0,
+			],
+		];
+
+		// Add author info (remove this since it's not in the working format)
+		// This would need to be passed in via dynamic_attributes if needed
+		// $author = get_user_by( 'id', $post->post_author );
+		// if ( $author ) {
+		// 	$endpoint['Attributes']['author'] = [ $author->user_nicename ];
+		// 	$endpoint['Attributes']['authorId'] = [ (string) $author->ID ];
+		// }
+
+		// Add user data if specified (remove this since it's not in the working format)
+		if ( $user_id ) {
+			$user = get_user_by( 'id', $user_id );
+			if ( $user ) {
+				$endpoint['User'] = [
+					'UserId' => (string) $user->ID,
+					'UserAttributes' => [
+						'Roles' => array_keys( $user->caps ),
+					],
+				];
+				$endpoint['Attributes']['loggedIn'] = [ 'true' ];
+			}
+		}
+
+		// Engaged time (ms): ~15% of reads bounce with no engagement, the rest
+		// spend 3s-4min actively on the page. The delta rides a paired
+		// _session.stop event (built by the caller), mirroring the real client
+		// — engaged never appears on pageView rows.
+		$engaged_ms = rand( 1, 100 ) <= 15 ? 0 : rand( 3000, 240000 );
+
+		// Build event structure similar to accelerate.js
+		$event = [
+			'EventType' => $event_type,
+			'Timestamp' => gmdate( 'Y-m-d\TH:i:s.v\Z', $timestamp ), // ISO 8601 format with milliseconds
+			'AppPackageName' => sanitize_key( get_bloginfo( 'name' ) ),
+			'AppTitle' => get_bloginfo( 'name' ),
+			'AppVersionCode' => '',
+			'Attributes' => array_merge( [
+				'date' => gmdate( 'Y-m-d\TH:i:s.v\Z', $timestamp ),
+				'session' => $session_id,
+				'pageSession' => $session_id,
+				'host' => parse_url( home_url(), PHP_URL_HOST ),
+				'queryString' => '',
+				'hash' => '',
+				'referer' => '',
+				'blog' => home_url(),
+				'network' => network_home_url(),
+				'blogId' => (string) get_current_blog_id(),
+				'networkId' => (string) get_current_network_id(),
+			], $dynamic_attributes ),
+			'Metrics' => [
+				'elapsed' => $engaged_ms > 0 ? $engaged_ms + rand( 1000, 60000 ) : rand( 0, 8000 ),
+				'scrollDepthMax' => $engaged_ms > 0 ? rand( 30, 100 ) : rand( 0, 30 ),
+				'scrollDepthNow' => 0,
+				'hour' => (int) date( 'G', $timestamp ),
+				'day' => (int) date( 'N', $timestamp ),
+				'month' => (int) date( 'n', $timestamp ),
+				'year' => (int) date( 'Y', $timestamp ),
+			],
+			'Session' => [
+				'Id' => $session_id,
+				'StartTimestamp' => gmdate( 'Y-m-d\TH:i:s.v\Z', $timestamp ),
+			],
+		];
+
+		// Return individual event data to be batched later
+		return [
+			'user_uuid' => $user_uuid,
+			'event_id' => $event_id,
+			'endpoint' => $endpoint,
+			'event' => $event,
+			'engaged_ms' => $engaged_ms,
+		];
+	}
+
+	/**
+	 * Get a realistic version number for a given browser.
+	 *
+	 * @param string $browser Browser name.
+	 * @return string Browser version.
+	 */
+	private function get_browser_version( string $browser ): string {
+		$versions = [
+			'Firefox' => [ '136.0', '135.0', '134.0', '133.0', '132.0' ],
+			'Chrome' => [ '131.0', '130.0', '129.0', '128.0', '127.0' ],
+			'Safari' => [ '18.1', '18.0', '17.6', '17.5', '17.4' ],
+			'Edge' => [ '131.0', '130.0', '129.0', '128.0', '127.0' ],
+			'Opera' => [ '115.0', '114.0', '113.0', '112.0', '111.0' ],
+		];
+
+		if ( isset( $versions[ $browser ] ) ) {
+			return $versions[ $browser ][ array_rand( $versions[ $browser ] ) ];
+		}
+
+		// Default version for unknown browsers
+		return '1.0';
+	}
+
+	/**
+	 * Send a batch of events to the analytics endpoint.
+	 * All events in the batch should belong to the same user.
+	 *
+	 * @param string $endpoint The analytics endpoint URL.
+	 * @param string $app_id The application ID.
+	 * @param array $events_batch Array of event data to send.
+	 * @return bool
+	 */
+	private function send_events_batch( string $endpoint, string $app_id, array $events_batch ): bool {
+		if ( empty( $events_batch ) ) {
+			return true;
+		}
+
+		// All events should belong to the same user now
+		$first_event = $events_batch[0];
+		$user_uuid = $first_event['user_uuid'];
+
+		$events = [];
+		foreach ( $events_batch as $event_data ) {
+			$event_id = $event_data['event_id'];
+			$events[ $event_id ] = $event_data['event'];
+		}
+
+		// Build the request structure for a single user
+		$batch_item = [
+			$user_uuid => [
+				'Endpoint' => $first_event['endpoint'],
+				'Events' => $events,
+			],
+		];
+
+		$body = wp_json_encode( [
+			'app_id' => $app_id,
+			'events' => [
+				'BatchItem' => $batch_item,
+			],
+		] );
+
+		$response = wp_remote_post( $endpoint, [
+			'body' => $body,
+			'headers' => [
+				'Content-Type' => 'application/json',
+			],
+			'timeout' => 30,
+		] );
+
+		if ( is_wp_error( $response ) ) {
+			WP_CLI::warning( sprintf( 'Failed to send batch: %s', $response->get_error_message() ) );
+			return false;
+		}
+
+		$response_code = wp_remote_retrieve_response_code( $response );
+		if ( $response_code < 200 || $response_code >= 300 ) {
+			WP_CLI::warning( sprintf( 'Batch send failed with response code: %d %s', $response_code, wp_remote_retrieve_body( $response ) ) );
+			return false;
+		}
+
+		return true;
+	}
+}
