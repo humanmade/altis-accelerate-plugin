@@ -7,8 +7,8 @@ namespace Altis\Accelerate\Admin\Notices;
 
 use Altis\Accelerate;
 
-const USER_GUIDE_URL = 'https://altis-dxp.notion.site/altis-dxp/Altis-Accelerate-Guide-90581042329742538523ebddb41f1d4f';
-const USER_GUIDE_BROADCAST_URL = 'https://altis-dxp.notion.site/Broadcast-Blocks-8a9f83b64a8a486a867c1bd82a8a1977';
+const USER_GUIDE_URL = 'https://www.accelerateplugin.com/docs/features/ab-testing/';
+const USER_GUIDE_BROADCAST_URL = 'https://www.accelerateplugin.com/docs/features/broadcast/';
 
 /**
  * Setup accelerate admin notices.
@@ -31,23 +31,26 @@ function get_page_notice() : void {
 	$notices = [
 		'dashboard' => [
 			'dismissable' => true,
-			'heading' => __( 'Welcome to Altis Accelerate (Beta)', 'altis' ),
+			'heading' => __( 'Welcome to Accelerate (Beta)', 'altis' ),
 			'subheading' => '',
 			'body' => '<p>'
-				. __( 'Extend your <strong>WordPress blocks</strong> with the Altis Accelerate plugin. Built by one of WordPress’s most experienced agencies, these features bring together MarTech learnings into a solution powered by its own block-level analytics.', 'altis' )
+				. __( 'You\'ve just unlocked powerful new tools for the WordPress editor. Use Accelerate to get better results from your content.', 'altis' )
+				. '</p><p>'
+				. __( 'Here\'s what you can do now:', 'altis' )
 				. '</p>'
 				. '<ul><li>'
-				. __( 'Broadcast, distribute blocks quickly to the rest of your site.', 'altis' )
+				. __( '<strong>Broadcast</strong>: Instantly push block updates across your entire site from one place.', 'altis' )
 				. '</li><li>'
-				. __('Experimentation, a/b test different block, post title and featured image variants.', 'altis' )
+				. __( '<strong>A/B Test</strong>: Experiment with blocks, titles, and images to see what converts best.', 'altis' )
 				. '</li><li>'
-				. __( 'Personalization, create different block variants for many audiences.', 'altis' )
+				. __( '<strong>Personalize</strong>: Show different content to different audiences automatically.', 'altis' )
 				. '</li></ul><p>'
 				. sprintf(
-					__( 'Please refer to the <a href="%s" target="_accelerate">User Guide</a> for more information.', 'altis' ),
+					__( 'Your next step: Read the <a href="%s" target="_accelerate">Quick Start Guide</a> to launch your first test in minutes.', 'altis' ),
 					USER_GUIDE_URL
 				),
 			'image' => plugins_url( 'assets/hiking.png', Accelerate\PLUGIN_FILE ),
+			'bg_image' => 'acc-bg.jpg',
 			'cta' => false,
 		],
 		'edit-broadcast' => [
@@ -55,30 +58,39 @@ function get_page_notice() : void {
 			'heading' => 'Introducing Broadcasts',
 			'subheading' => '',
 			'body' => '<p>'
-				. __( 'Broadcast are dynamic areas capable of holding multiple other blocks in rotation, for the purpose of internal advertising. These broadcast areas can be added via the editor (Broadcast Blocks), or via code directly into templates.', 'altis' )
+				. __( 'Instantly promote any content across your entire website. Place a Broadcast in your content, and you can centrally manage what it displays site-wide.', 'altis' )
 				. '</p><p>'
-				. __('Once you have a broadcast block in place, you can promote any new content or campaigns within seconds to your entire site — talk about scaling traffic and testing new content instantly.', 'altis' )
-				. '</p><p>'
+				. __( 'Use it to:', 'altis' )
+				. '</p>'
+				. '<ul><li>'
+				. __( '<strong>Launch Site-Wide Campaigns</strong>', 'altis' )
+				. '</li><li>'
+				. __( '<strong>Distribute New Content:</strong> Drive large traffic immediately to new content', 'altis' )
+				. '</li><li>'
+				. __( '<strong>Test Ideas Rapidly:</strong> Place blocks in Broadcast for more data faster.', 'altis' )
+				. '</li></ul><p>'
 				. sprintf(
-					__( 'Please refer to the <a href="%s" target="_accelerate">User Guide - Broadcasts</a> for more information.', 'altis' ),
+					__( 'This is how you scale content distribution. Get started in the <a href="%s" target="_accelerate">Broadcasts User Guide</a>.', 'altis' ),
 					USER_GUIDE_BROADCAST_URL
 				)
 				. '</p>',
 			'image' => plugins_url( 'assets/broadcasts.png', Accelerate\PLUGIN_FILE ),
+			'bg_image' => 'acc-bg2.jpg',
 			'cta' => false,
 		],
 		'accelerate_page_altis-accelerate-settings' => [
 			'dismissable' => false,
-			'heading' => __( 'Welcome to Altis Accelerate', 'altis' ),
+			'heading' => __( 'Welcome to Accelerate', 'altis' ),
 			'subheading' => __( 'Unlock marketing within WordPress', 'altis' ),
 			'body' => '<p>' . __( 'If you already have an account you can login via the button below. If you don\'t, creating an account takes just a few moments.', 'altis' ) . '</p>',
 			'image' => plugins_url( 'assets/hiking.png', Accelerate\PLUGIN_FILE ),
+			'bg_image' => 'acc-bg3.jpg',
 			'cta' => [
 				'label' => __( 'Create your account now', 'altis' ),
-				'link' => Accelerate\get_altis_dashboard_authorize_url(),
+				'link' => Accelerate\get_accelerate_dashboard_authorize_url(),
 			],
 			'condition' => function () {
-				return empty( Accelerate\get_altis_dashboard_access_token() );
+				return empty( Accelerate\get_accelerate_dashboard_access_token() );
 			}
 		],
 	];
@@ -102,6 +114,7 @@ function get_page_notice() : void {
 		'subheading' => '',
 		'body' => '',
 		'image' => '',
+		'bg_image' => '',
 		'cta' => false,
 		'condition' => '__return_true',
 	] );
@@ -115,8 +128,6 @@ function get_page_notice() : void {
 
 /**
  * Prints script for handling notice dismissal and persistence.
- *
- * @param string $data The data to print.
  */
 function action_admin_footer() : void {
 	printf( "
