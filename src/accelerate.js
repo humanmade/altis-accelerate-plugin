@@ -2,6 +2,9 @@ import { parseQueryString } from '@aws-sdk/querystring-parser';
 import merge from 'deepmerge';
 import UAParser from 'ua-parser-js';
 
+import { matchAudiences } from './audience-matcher.js';
+import { createEngagementTracker } from './engaged-time';
+import { getOutboundHostFromClick } from './outbound-click';
 import {
 	detectRobot,
 	getLanguage,
@@ -16,17 +19,14 @@ const {
 	Config,
 	Consent,
 	Data,
-	Noop,
 	Audiences,
 } = Altis.Analytics;
 
-if ( ! Config.PinpointId ) {
+if ( ! Config.AppId ) {
 	/* eslint-disable quotes */
 	console.warn(
-		"Altis Analytics: Missing configuration. \
-	You must define the following constants in PHP:\n \
-	define( 'ALTIS_ACCELERATE_PINPOINT_ID', '...' );\n \
-	define( 'ALTIS_ACCELERATE_PINPOINT_REGION', '...' );" );
+		"Altis Analytics: Missing configuration."
+	);
 	/* eslint-enable quotes */
 }
 
@@ -71,12 +71,24 @@ let start = Date.now();
 let elapsed = 0;
 
 /**
+ * Engaged time. Accrual engine instantiated inside startAnalytics() (so it is
+ * consent-gated). Each _session.stop event flushes the time accrued since the
+ * previous flush via takeDelta() — an additive metrics['engaged'] delta, so
+ * the server can plain-sum stop rows (the pageView count() model). The same
+ * delta increments the visitor-cumulative endpoint.Metrics.engaged used for
+ * audience targeting.
+ */
+let engagedTracker = null;
+
+/**
  * Scroll depth.
  */
 let scrollDepthMax = 0;
 let scrollDepthNow = 0;
 window.addEventListener( 'scroll', () => {
-	const percent = ( window.scrollY / document.body.clientHeight ) * 100;
+	const scrollHeight = document.documentElement.scrollHeight || document.body.scrollHeight;
+	const max = Math.max( 1, scrollHeight - window.innerHeight );
+	const percent = Math.min( 100, ( window.scrollY / max ) * 100 );
 	scrollDepthMax = percent > scrollDepthMax ? percent : scrollDepthMax;
 	scrollDepthNow = percent;
 } );
@@ -154,23 +166,51 @@ const getMetrics = ( extra = {} ) => ( {
 } );
 
 /**
- * Initialise cognito services.
+ * Storage keys for analytics data.
+ */
+const STORAGE_KEYS = {
+	UserId: 'accelerate.uuid',
+	Endpoint: 'accelerate.endpoint',
+	// Legacy keys for backward compatibility migration.
+	LegacyUserId: 'aws.cognito.identity-id.undefined',
+	LegacyEndpoint: 'aws.pinpoint.endpoint',
+};
+
+/**
+ * Analytics module.
  */
 const Analytics = {
 	keys: {
-		UserId: `aws.cognito.identity-id.${ Config.CognitoId }`,
+		UserId: STORAGE_KEYS.UserId,
 	},
 	/**
 	 * Gets or creates the unique user ID.
+	 * Includes backward compatibility migration from legacy Cognito key.
 	 *
 	 * @returns {?string} The user UUID.
 	 */
 	getUserId: () => {
-		let id = localStorage.getItem( Analytics.keys.UserId );
+		// Check for existing ID in new key.
+		let id = localStorage.getItem( STORAGE_KEYS.UserId );
+
+		// Migrate from legacy key if new key doesn't exist.
+		if ( ! id ) {
+			const legacyId = localStorage.getItem( STORAGE_KEYS.LegacyUserId );
+			if ( legacyId ) {
+				// Migrate to new key.
+				id = legacyId;
+				localStorage.setItem( STORAGE_KEYS.UserId, id );
+				// Clean up legacy key.
+				localStorage.removeItem( STORAGE_KEYS.LegacyUserId );
+			}
+		}
+
+		// Create new ID if none exists.
 		if ( ! id ) {
 			id = uuid();
-			localStorage.setItem( Analytics.keys.UserId, id );
+			localStorage.setItem( STORAGE_KEYS.UserId, id );
 		}
+
 		return id;
 	},
 	audiences: [],
@@ -195,132 +235,9 @@ const Analytics = {
 			endpoint,
 		};
 
-		// Store derived field values for quicker lookups.
-		const fieldValues = {};
-
-		// Audience ID store.
-		const audienceIds = [];
-
-		// Map audience configurations to IDs.
-		for ( const aid in Audiences ) {
-			const { id, config } = Audiences[ aid ];
-
-			// Set to true if we need match all groups.
-			// - If any rule fails we set this to false and break.
-			// Set to false if we want to match any group.
-			// - If any rule passes we set this to true and break.
-			let audienceMatched = config.include === 'all';
-
-			for ( const gid in config.groups ) {
-				const group = config.groups[ gid ];
-
-				// Set to true if we need match all rules.
-				// - If any rule fails we set this to false and break.
-				// Set to false if we want to match any rule.
-				// - If any rule passes we set this to true and break.
-				let groupMatched = group.include === 'all';
-
-				for ( const rid in group.rules ) {
-					const { field, operator, value } = group.rules[ rid ];
-
-					// Ignore rules with empty field names.
-					if ( field === '' ) {
-						continue;
-					}
-
-					// Track whether the rule matches.
-					let ruleMatch = false;
-
-					// Find the field value via dot notation.
-					let currentValues = fieldValues[ field ] ||
-						field.split( '.' ).reduce( ( carry, prop ) => {
-							return carry[ prop ] ?? null;
-						}, fieldData );
-
-					// Compat for non array values like endpoint.Demographic properties.
-					if ( ! Array.isArray( currentValues ) ) {
-						currentValues = [ currentValues ];
-					}
-
-					fieldValues[ field ] = currentValues;
-
-					// Compare values.
-					for ( const vid in currentValues ) {
-						const currentValue = currentValues[ vid ];
-
-						if ( operator === '=' ) {
-							ruleMatch = currentValue === value;
-						}
-						if ( operator === '!=' ) {
-							ruleMatch = currentValue !== value;
-						}
-
-						// Null values in the endpoint not supported from this point.
-						if ( currentValue === null ) {
-							break;
-						}
-
-						if ( operator === '*=' ) {
-							ruleMatch = currentValue.indexOf( value ) > -1;
-						}
-						if ( operator === '!*' ) {
-							ruleMatch = currentValue.indexOf( value ) === -1;
-						}
-						if ( operator === '^=' ) {
-							ruleMatch = currentValue.indexOf( value ) === 0;
-						}
-
-						// Don't compare numeric values against `null`.
-						if ( value === null ) {
-							break;
-						}
-
-						if ( operator === 'gte' ) {
-							ruleMatch = Number( currentValue ) >= Number( value );
-						}
-						if ( operator === 'lte' ) {
-							ruleMatch = Number( currentValue ) <= Number( value );
-						}
-						if ( operator === 'gt' ) {
-							ruleMatch = Number( currentValue ) > Number( value );
-						}
-						if ( operator === 'lt' ) {
-							ruleMatch = Number( currentValue ) < Number( value );
-						}
-
-						// Elasticsearch will match any value stored against a key so if ruleMatch
-						// is already true we don't want to reset it.
-						if ( ruleMatch ) {
-							break;
-						}
-					}
-
-					// Determine if the group matched depending on the include rule.
-					if ( group.include === 'any' && ruleMatch ) {
-						groupMatched = true;
-						break;
-					}
-					if ( group.include === 'all' && ! ruleMatch ) {
-						groupMatched = false;
-						break;
-					}
-				}
-
-				// Determine if the audience matched depending on the group include rule.
-				if ( config.include === 'any' && groupMatched ) {
-					audienceMatched = true;
-					break;
-				}
-				if ( config.include === 'all' && ! groupMatched ) {
-					audienceMatched = false;
-					break;
-				}
-			}
-
-			if ( audienceMatched ) {
-				audienceIds.push( id );
-			}
-		}
+		// Evaluate audience rules. The pure matcher lives in
+		// `src/audience-matcher.js` so it can be unit-tested.
+		const audienceIds = matchAudiences( Audiences, fieldData );
 
 		Analytics.audiences = audienceIds;
 
@@ -359,7 +276,7 @@ const Analytics = {
 		return Analytics.audiences;
 	},
 	/**
-	 * Updates the Pinpoint endpoint data.
+	 * Updates the Analytics endpoint data.
 	 *
 	 * @param {Object} endpoint The endpoint object with updates.
 	 * @returns {Promise} Update Promise.
@@ -369,12 +286,28 @@ const Analytics = {
 	},
 	/**
 	 * Retrieves the current endpoint data.
+	 * Includes backward compatibility migration from legacy Pinpoint key.
 	 *
 	 * @returns {Object} Endpoint object.
 	 */
 	getEndpoint: () => {
 		try {
-			const ParsedEndpoint = JSON.parse( localStorage.getItem( 'aws.pinpoint.endpoint' ) );
+			// Check for existing endpoint in new key.
+			let endpointData = localStorage.getItem( STORAGE_KEYS.Endpoint );
+
+			// Migrate from legacy key if new key doesn't exist.
+			if ( ! endpointData ) {
+				const legacyData = localStorage.getItem( STORAGE_KEYS.LegacyEndpoint );
+				if ( legacyData ) {
+					// Migrate to new key.
+					endpointData = legacyData;
+					localStorage.setItem( STORAGE_KEYS.Endpoint, endpointData );
+					// Clean up legacy key.
+					localStorage.removeItem( STORAGE_KEYS.LegacyEndpoint );
+				}
+			}
+
+			const ParsedEndpoint = JSON.parse( endpointData );
 			return ParsedEndpoint || {};
 		} catch ( error ) {
 			return {};
@@ -386,7 +319,7 @@ const Analytics = {
 	 * @param {Object} endpoint The endpoint object.
 	 */
 	setEndpoint: endpoint => {
-		localStorage.setItem( 'aws.pinpoint.endpoint', JSON.stringify( endpoint ) );
+		localStorage.setItem( STORAGE_KEYS.Endpoint, JSON.stringify( endpoint ) );
 	},
 	/**
 	 * Add an analytics event listener.
@@ -396,7 +329,7 @@ const Analytics = {
 	 * @returns {EventListener} The event listener handle.
 	 */
 	on: ( event, callback ) => {
-		return window.addEventListener( `altis.analytics.${event}`, event => callback( event.detail ) );
+		return window.addEventListener( `altis.analytics.${ event }`, event => callback( event.detail ) );
 	},
 	/**
 	 * Removes an event listener.
@@ -486,14 +419,14 @@ const Analytics = {
 		}
 
 		// Add persistent referer tracking for external sources.
-		if ( document.referer && document.referrer.indexOf( window.location.hostname ) === -1 ) {
+		if ( document.referrer && document.referrer.indexOf( window.location.hostname ) === -1 ) {
 			if ( ! endpoint.Attributes.initialReferer ) {
-				endpoint.Attributes.initialReferer = [ document.referer ];
+				endpoint.Attributes.initialReferer = [ document.referrer ];
 			}
 			if ( ! endpoint.Attributes.referer ) {
-				endpoint.Attributes.referer = [ document.referer ];
-			} else if ( endpoint.Attributes.referer.indexOf( document.referer ) === -1 ) {
-				endpoint.Attributes.referer.push( document.referer );
+				endpoint.Attributes.referer = [ document.referrer ];
+			} else if ( endpoint.Attributes.referer.indexOf( document.referrer ) === -1 ) {
+				endpoint.Attributes.referer.push( document.referrer );
 			}
 		}
 
@@ -534,7 +467,7 @@ const Analytics = {
 	},
 	events: [],
 	/**
-	 * Log an event to AWS Pinpoint.
+	 * Log an event to the Analytics database.
 	 *
 	 * @param {string} type The event type.
 	 * @param {Object} data The event data.
@@ -552,8 +485,8 @@ const Analytics = {
 			endpoint = {};
 		}
 
-		// No-op if we're excluding bot traffic.
-		if ( isBot && Config.ExcludeBots ) {
+		// Do not send events from known bots to the analytics tracker.
+		if ( isBot ) {
 			return;
 		}
 
@@ -570,11 +503,6 @@ const Analytics = {
 			attributes: await prepareAttributes( attributes ),
 			metrics: await prepareMetrics( metrics ),
 		};
-
-		// Track if request is coming from a bot.
-		if ( isBot ) {
-			preparedData.attributes.isBot = 'true';
-		}
 
 		const EventId = uuid();
 		const Event = {
@@ -625,7 +553,7 @@ const Analytics = {
 		Analytics.timer = setTimeout( Analytics.flushEvents, 5000 );
 	},
 	/**
-	 * Send events to Pinpoint.
+	 * Send events to the analytics endpoint.
 	 *
 	 * @param {Object} endpoint Optional updated endpoint data.
 	 */
@@ -642,9 +570,11 @@ const Analytics = {
 			return;
 		}
 
-		// Snapshot events to send and clear.
+		// Snapshot events to send and clear if allowed to send.
 		const eventsToDeliver = Analytics.events;
-		Analytics.events = [];
+		if ( ! Altis.Analytics.Noop ) {
+			Analytics.events = [];
+		}
 
 		// Events are associated with an endpoint.
 		const UserId = Analytics.getUserId();
@@ -674,10 +604,9 @@ const Analytics = {
 		};
 
 		// If event delivery is enabled.
-		if ( ! Noop ) {
-			navigator.sendBeacon( Config.PinpointEndpoint, JSON.stringify( {
-				app_id: Config.PinpointId,
-				region: Config.PinpointRegion,
+		if ( ! Altis.Analytics.Noop ) {
+			navigator.sendBeacon( Config.LogEndpoint, JSON.stringify( {
+				app_id: Config.AppId,
 				events: EventsRequest,
 			} ) );
 		}
@@ -742,8 +671,18 @@ function startAnalytics() {
 		if ( document.visibilityState !== 'visible' ) {
 			// On hide increment elapsed time.
 			elapsed += Date.now() - start;
+			// Flush engaged time accrued since the last stop as an additive
+			// delta, and fold it into the visitor's cumulative endpoint total.
+			// takeDelta() is idempotent against the tracker's own
+			// visibilitychange finalisation, so ordering doesn't matter.
+			const engagedDelta = engagedTracker ? engagedTracker.takeDelta() : 0;
 			// Fire session stop event - don't queue.
-			Analytics.record( '_session.stop', false );
+			if ( engagedDelta > 0 ) {
+				const engagedTotal = ( Number( Analytics.getEndpoint()?.Metrics?.engaged ) || 0 ) + engagedDelta;
+				Analytics.record( '_session.stop', { metrics: { engaged: engagedDelta } }, { Metrics: { engaged: engagedTotal } }, false );
+			} else {
+				Analytics.record( '_session.stop', false );
+			}
 		} else {
 			// On show reset start time.
 			start = Date.now();
@@ -770,6 +709,71 @@ function startAnalytics() {
 	} else {
 		window.addEventListener( 'DOMContentLoaded', recordPageView );
 	}
+
+	// Outbound link click tracking. Opt-in via the Accelerate Settings page
+	// or programmatically:
+	//   add_filter( 'altis.analytics.feature.outbound_tracking', '__return_true' );
+	// Filter logic lives in src/outbound-click.js so it can be unit-tested
+	// without bootstrapping the whole analytics pipeline.
+	if ( Altis.Analytics.OutboundTracking ) {
+		document.addEventListener( 'click', e => {
+			const host = getOutboundHostFromClick( e, window.location.hostname, window.location.href );
+			if ( ! host ) {
+				return;
+			}
+			Analytics.record(
+				'linkClick',
+				{ attributes: { outbound_host: host } },
+				{},
+				false
+			);
+		} );
+	}
+
+	// Engaged time tracking. Always on (consent-gated by startAnalytics).
+	// Accrued time is flushed as an additive delta on each _session.stop —
+	// no separate event type, no sampling, summable like pageView counts.
+	let lastMousemoveAt = 0;
+	engagedTracker = createEngagementTracker();
+
+	const activityEvents = [ 'mousedown', 'keydown', 'scroll', 'wheel', 'touchstart', 'touchmove' ];
+	activityEvents.forEach( evt => {
+		document.addEventListener( evt, () => engagedTracker?.onActivity(), {
+			capture: true,
+			passive: true,
+		} );
+	} );
+	document.addEventListener( 'mousemove', () => {
+		const t = Date.now();
+		if ( t - lastMousemoveAt > 1000 ) {
+			lastMousemoveAt = t;
+			engagedTracker?.onActivity();
+		}
+	}, {
+		capture: true,
+		passive: true,
+	} );
+
+	document.addEventListener( 'visibilitychange', () => {
+		engagedTracker?.onVisibilityChange( document.visibilityState );
+	} );
+	// On bfcache restore, re-arm (don't stop) so engaged time resumes like
+	// elapsed does; the next activity event reopens the window.
+	window.addEventListener( 'pageshow', e => {
+		if ( e.persisted ) {
+			engagedTracker?.onVisibilityChange( 'visible' );
+		}
+	} );
+
+	// Symmetric teardown when consent is revoked: stop accrual, clear the sweep
+	// timer, and drop the reference so no further events carry an engaged value.
+	document.addEventListener( 'wp_listen_for_consent_change', function ( e ) {
+		const detail = e.detail || {};
+		if ( engagedTracker && ( detail['statistics'] === 'deny' || detail['statistics-anonymous'] === 'deny' ) ) {
+			engagedTracker.stop();
+			engagedTracker = null;
+		}
+	} );
 }
 
 // Check Altis Consent feature is in use.

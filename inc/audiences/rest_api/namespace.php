@@ -25,11 +25,13 @@ function setup() {
  * Register audience API endpoints.
  */
 function init() {
-	// Fetch data for available fields and possible values.
+	// Fetch the list of available fields (definitions only, no ClickHouse
+	// queries). Value data for a given field is fetched on demand from the
+	// audiences/field-data route below.
 	register_rest_route( 'accelerate/v1', 'audiences/fields', [
 		[
 			'methods' => WP_REST_Server::READABLE,
-			'callback' => 'Altis\\Accelerate\\Audiences\\get_field_data',
+			'callback' => 'Altis\\Accelerate\\Audiences\\get_field_list',
 			'permission_callback' => __NAMESPACE__ . '\\check_edit_permission',
 		],
 		'schema' => function () {
@@ -79,6 +81,32 @@ function init() {
 				],
 			];
 		},
+	] );
+
+	// Fetch value data (top values / stats) for a single field, on demand.
+	register_rest_route( 'accelerate/v1', 'audiences/field-data', [
+		[
+			'methods' => WP_REST_Server::READABLE,
+			'callback' => function ( WP_REST_Request $request ) {
+				$field = Audiences\get_single_field_data( $request['field'] );
+				if ( $field === null ) {
+					return new WP_Error(
+						'rest_audience_field_not_found',
+						__( 'Unknown audience field.', 'altis' ),
+						[ 'status' => 404 ]
+					);
+				}
+				return $field;
+			},
+			'permission_callback' => __NAMESPACE__ . '\\check_edit_permission',
+			'args' => [
+				'field' => [
+					'description' => __( 'The registered field name to fetch value data for.', 'altis' ),
+					'required' => true,
+					'type' => 'string',
+				],
+			],
+		],
 	] );
 
 	// Fetch an audience size estimate.
@@ -244,7 +272,7 @@ function handle_estimate_request( WP_REST_Request $request ) : WP_REST_Response 
  * Validate the estimate audience configuration parameter.
  *
  * @param string $param The audience configuration JSON string.
- * @return bool
+ * @return bool|WP_Error
  */
 function validate_estimate_audience( $param ) {
 	$audience = json_decode( $param, true );
