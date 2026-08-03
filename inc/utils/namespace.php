@@ -20,8 +20,8 @@ function get_asset_manifest() : ?array {
 	static $manifest;
 
 	// Local dev.
-	if ( empty( $manifest ) && is_readable( dirname( __DIR__, 2 ) . '/build/asset-manifest.json' ) ) {
-		$manifest = [ 'file' => dirname( __DIR__, 2 ) . '/build/asset-manifest.json' ];
+	if ( empty( $manifest ) && is_readable( dirname( __DIR__, 2 ) . '/build/development-asset-manifest.json' ) ) {
+		$manifest = [ 'file' => dirname( __DIR__, 2 ) . '/build/development-asset-manifest.json' ];
 	}
 	// Production.
 	if ( empty( $manifest ) && is_readable( dirname( __DIR__, 2 ) . '/build/production-asset-manifest.json' ) ) {
@@ -128,6 +128,26 @@ function register_assets( string $entrypoint, array $options = [], bool $enqueue
 		);
 	}
 
+	// Do we have a runtime chunk? Does it need loading?
+	// Asset Loader >= 0.8 (register_manifest_asset) registers the webpack
+	// runtime chunk itself, so only handle it manually on older versions —
+	// otherwise runtime.js gets registered twice and loaded twice on the page.
+	$runtime_chunk = $manifest['data']['runtime.js'] ?? false;
+	$runtime_handle = 'altis-accelerate-webpack-runtime';
+	if ( $runtime_chunk && ! function_exists( 'Asset_Loader\\register_manifest_asset' ) ) {
+		if ( ! wp_script_is( $runtime_handle, 'registered' ) ) {
+			$runtime_handle = Asset_Loader\register_asset(
+				$manifest['file'],
+				'runtime.js',
+				[
+					'handle' => $runtime_handle,
+				]
+			)['script'];
+		}
+		$options['dependencies'] = $options['dependencies'] ?? [];
+		$options['dependencies'][] = $runtime_handle;
+	}
+
 	$asset_handles = Asset_Loader\register_asset(
 		$manifest['file'],
 		"{$entrypoint}.js",
@@ -141,7 +161,6 @@ function register_assets( string $entrypoint, array $options = [], bool $enqueue
 	if ( $enqueue ) {
 		if ( $handles['script'] ) {
 			wp_enqueue_script( $handles['script'] );
-			wp_enqueue_style( 'wp-components' );
 		}
 		if ( $handles['style'] ) {
 			wp_enqueue_style( $handles['style'] );
@@ -816,27 +835,50 @@ function query( string $query, array $params = [], string $return = 'array', ?st
 		$config['port']
 	);
 
+	// JSONEachRow streams data rows only and has no slot for a WITH TOTALS
+	// block, so the 'totals' return mode needs the full JSON format, which
+	// carries `data` and `totals` as separate top-level keys.
+	$format = $return === 'totals' ? 'JSON' : 'JSONEachRow';
+
+	// Single query deadline, enforced on both sides: ClickHouse kills the query
+	// server-side shortly before the HTTP client would give up, returning a
+	// TIMEOUT_EXCEEDED error that surfaces as a WP_Error. Without the
+	// server-side limit (the production profile sets none), cURL's abort leaves
+	// the query running to completion on the server, since a client disconnect
+	// isn't propagated as a cancellation.
+	$timeout = 20;
+
+	$clickhouse_url = add_query_arg( [
+		'database' => $config['db'],
+		'default_format' => $format,
+		'enable_http_compression' => 1,
+		'max_execution_time' => $timeout - 2,
+	], $clickhouse_url );
+
 	// Build request args.
 	$request_args = [
 		'body' => $query,
-		'timeout' => 20,
+		'timeout' => $timeout,
 		'headers' => [
-			'X-Clickhouse-User' => $config['user'],
-			'X-Clickhouse-Key' => $config['pass'],
-			'X-Clickhouse-Database' => $config['db'],
-			'X-Clickhouse-Format' => 'JSONEachRow',
-			'X-Clickhouse-Timezone' => 'UTC',
+			'Authorization' => 'Basic ' . base64_encode( $config['user'] . ':' . $config['pass'] ),
 			'Accept-Encoding' => 'gzip',
 		],
 	];
 
+	if ( defined( 'IS_WP_PLAYGROUND' ) ) {
+		$request_args['headers']['x-cors-proxy-allowed-request-headers'] = 'Authorization';
+	}
+
 	// Append $query as the URL `query` parameter if $body is present and overwite request arg.
 	if ( ! empty( $body ) ) {
-		$clickhouse_url = sprintf( '%s?query=%s',
-			$clickhouse_url,
-			urlencode( $query )
-		);
-
+		$clickhouse_url = add_query_arg( 'query', $query, $clickhouse_url );
+		// Body form is INSERT … FORMAT JSONEachRow (PHPUnit helpers only today).
+		// Local docker-compose.override can mount an async_insert profile with
+		// wait_for_async_insert=0 for the flux demo tracker; without a sync
+		// override the next SELECT races the buffer and sees 0 rows. Request-
+		// level async_insert=0 forces visibility immediately. The tracker hits
+		// ClickHouse directly and is unaffected.
+		$clickhouse_url = add_query_arg( 'async_insert', '0', $clickhouse_url );
 		$request_args['body'] = $body;
 	}
 
@@ -852,24 +894,24 @@ function query( string $query, array $params = [], string $return = 'array', ?st
 		$clickhouse_url = add_query_arg( $prepared, $clickhouse_url );
 	}
 
-	// Enable compression.
-	$clickhouse_url = add_query_arg( [
-		'enable_http_compression' => 1,
-	], $clickhouse_url );
-
 	/**
 	 * Filter the args used to control the request type.
 	 */
 	$request_args = apply_filters( 'altis.analytics.clickhouse.request_args', $request_args, $query, $params, $body );
 
+	static $query_index = 0;
+	$t0 = microtime( true );
 	$response = wp_remote_post(
 		$clickhouse_url,
 		$request_args
 	);
+	$elapsed_ms = round( ( microtime( true ) - $t0 ) * 1000 );
 
 	if ( ! headers_sent() && defined( 'ALTIS_ACCELERATE_CLICKHOUSE_DEBUG' ) && ALTIS_ACCELERATE_CLICKHOUSE_DEBUG ) {
-		header( sprintf( 'X-Clickhouse-Query-Params: %s', wp_json_encode( $prepared ) ), false );
-		header( sprintf( 'X-Clickhouse-Query-SQL: %s', wp_json_encode( preg_replace( '/\s+/', ' ', $request_args['body'] ?? 'empty' ) ) ), false );
+		$sql = preg_replace( '/\s+/', ' ', $request_args['body'] ?? 'empty' );
+		header( sprintf( 'X-CH-Query-%d-Ms: %d', $query_index, $elapsed_ms ), false );
+		header( sprintf( 'X-CH-Query-%d-SQL: %s', $query_index, wp_json_encode( $sql ) ), false );
+		$query_index++;
 	}
 
 	if ( is_wp_error( $response ) ) {
@@ -885,6 +927,20 @@ function query( string $query, array $params = [], string $return = 'array', ?st
 	$result = wp_remote_retrieve_body( $response );
 	if ( $return === 'raw' ) {
 		return $result;
+	}
+
+	// Full JSON format: one object with `data` (rows) and, when the query used
+	// WITH TOTALS, a `totals` row. Return both so callers can read per-group
+	// rows and an exact window-wide aggregate from a single query.
+	if ( $return === 'totals' ) {
+		$decoded = json_decode( $result );
+		if ( ! is_object( $decoded ) ) {
+			return new WP_Error( 'clickhouse_query_error', 'Malformed ClickHouse JSON response.' );
+		}
+		return [
+			'data'   => $decoded->data ?? [],
+			'totals' => $decoded->totals ?? null,
+		];
 	}
 
 	$result = explode( "\n", $result );
