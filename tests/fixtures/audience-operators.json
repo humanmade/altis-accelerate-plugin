@@ -1,0 +1,40 @@
+{
+	"description": "Operator truth table for audience rule evaluation. Consumed by both src/__tests__/audience-matcher.test.ts (JS) and tests/phpunit/AudienceEvaluationTest.php (PHP). Each row describes how a single field-value should evaluate against a rule-value for a given operator. Add a row here, both test suites pick it up.",
+	"rows": [
+		{ "name": "= matches equal strings", "operator": "=", "field_value": "US", "rule_value": "US", "expected": true },
+		{ "name": "= rejects different strings", "operator": "=", "field_value": "US", "rule_value": "UK", "expected": false },
+		{ "name": "= is case-sensitive", "operator": "=", "field_value": "us", "rule_value": "US", "expected": false },
+
+		{ "name": "!= true when different", "operator": "!=", "field_value": "US", "rule_value": "UK", "expected": true },
+		{ "name": "!= false when equal", "operator": "!=", "field_value": "US", "rule_value": "US", "expected": false },
+
+		{ "name": "*= substring present", "operator": "*=", "field_value": "United States", "rule_value": "States", "expected": true },
+		{ "name": "*= substring absent", "operator": "*=", "field_value": "United States", "rule_value": "UK", "expected": false },
+		{ "name": "*= is case-sensitive", "operator": "*=", "field_value": "United States", "rule_value": "states", "expected": false },
+		{ "name": "*= matches the full string against itself", "operator": "*=", "field_value": "US", "rule_value": "US", "expected": true },
+
+		{ "name": "!* true when substring absent", "operator": "!*", "field_value": "United States", "rule_value": "UK", "expected": true },
+		{ "name": "!* false when substring present", "operator": "!*", "field_value": "United States", "rule_value": "States", "expected": false },
+
+		{ "name": "^= matches at start", "operator": "^=", "field_value": "United States", "rule_value": "United", "expected": true },
+		{ "name": "^= rejects when match is not at start", "operator": "^=", "field_value": "United States", "rule_value": "States", "expected": false },
+		{ "name": "^= matches full string", "operator": "^=", "field_value": "US", "rule_value": "US", "expected": true },
+		{ "name": "^= is documented as begins-with, not exact (matches longer strings)", "operator": "^=", "field_value": "testing", "rule_value": "test", "expected": true },
+
+		{ "name": "gte true when greater", "operator": "gte", "field_value": 10, "rule_value": 5, "expected": true },
+		{ "name": "gte true when equal", "operator": "gte", "field_value": 5, "rule_value": 5, "expected": true },
+		{ "name": "gte false when less", "operator": "gte", "field_value": 3, "rule_value": 5, "expected": false },
+
+		{ "name": "lte true when less", "operator": "lte", "field_value": 3, "rule_value": 5, "expected": true },
+		{ "name": "lte true when equal", "operator": "lte", "field_value": 5, "rule_value": 5, "expected": true },
+		{ "name": "lte false when greater", "operator": "lte", "field_value": 7, "rule_value": 5, "expected": false },
+
+		{ "name": "gt true when strictly greater", "operator": "gt", "field_value": 6, "rule_value": 5, "expected": true },
+		{ "name": "gt false when equal", "operator": "gt", "field_value": 5, "rule_value": 5, "expected": false },
+
+		{ "name": "lt true when strictly less", "operator": "lt", "field_value": 4, "rule_value": 5, "expected": true },
+		{ "name": "lt false when equal", "operator": "lt", "field_value": 5, "rule_value": 5, "expected": false },
+
+		{ "name": "gte coerces numeric strings (JS Number() / PHP intval)", "operator": "gte", "field_value": "10", "rule_value": "5", "expected": true }
+	]
+}
