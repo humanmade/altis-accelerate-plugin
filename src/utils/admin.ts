@@ -1,6 +1,7 @@
 // eslint-disable-next-line import/named
 import { Moment } from 'moment';
 
+import { Audience, Rule } from '../audiences/types';
 
 export interface LiftStats {
 	views: number,
@@ -27,12 +28,16 @@ export type Post = {
 		name: string,
 		avatar: string,
 	},
-	title: string,
+	title: {
+		rendered: string,
+	},
 	url: string | null,
 	editUrl: string | null,
 	views: number,
 	lift: LiftStats | null,
 	goal?: string,
+	blockType: 'standard' | 'abtest' | 'personalization',
+	rawContent?: string,
 	[ k: string ]: any,
 }
 
@@ -95,6 +100,12 @@ export type InitialData = {
 	version: string,
 	screen: string,
 	location: string,
+	onboarding: {
+		connected_at: number | false,
+		first_test_created: number | false,
+		authorize_url: string,
+	},
+	outbound_tracking_enabled: boolean,
 }
 
 export interface StatGroup {
@@ -109,6 +120,13 @@ export interface GroupedStatistics {
 		lift?: LiftStats,
 		bounce: number,
 		returning: number,
+		engaged?: {
+			total_seconds: number,
+			avg_seconds: number,
+			pageviews: number,
+			sessions: number,
+			first_seen: string | null,
+		},
 	},
 	by_browser: StatGroup,
 	by_country: StatGroup,
@@ -118,6 +136,10 @@ export interface GroupedStatistics {
 	by_user: StatGroup,
 	by_url: StatGroup,
 	by_search_term: StatGroup,
+	by_outbound_host?: StatGroup,
+	by_campaign?: StatGroup,
+	by_source_campaign?: StatGroup,
+	by_source_medium?: StatGroup,
 }
 
 export interface IntervalStat {
@@ -129,9 +151,32 @@ export interface IntervalStats {
 	[ k: string ]: IntervalStat,
 }
 
+// Stable data keys for referrer composition. Display labels are translated at
+// render time so locale changes cannot break series matching.
+export const DIRECT_SEGMENT_KEY = '__direct__';
+
+export const OTHER_SEGMENT_KEY = '__other__';
+
+/** The server caps composition keys to this palette's three slots. */
+export const SEGMENT_COLORS = [ 'var(--color-brand)', '#B57BFF', '#D4B8FF' ] as const;
+
+export interface IntervalSegmentsResult {
+	dimension: 'referer',
+	keys: string[],
+	by_interval: {
+		[ date: string ]: {
+			[ segmentKey: string ]: number,
+		},
+	},
+	/** A failed composition query is not equivalent to an empty window. */
+	status?: 'ready' | 'unavailable',
+}
+
 export interface StatsResult {
 	by_interval: IntervalStats,
 	stats: GroupedStatistics,
+	/** Present when /stats was requested with `segments=referer`. */
+	segments?: IntervalSegmentsResult,
 }
 
 export interface DiffsResult {
@@ -144,7 +189,7 @@ export interface Period {
 	tz?: string,
 }
 
-export type Duration = 'P7D' | 'P14D' | 'P30D' | 'P60D' | 'P90D' | 'P1M' | Period;
+export type Duration = 'PT30M' | 'TODAY' | 'YESTERDAY' | 'P7D' | 'P14D' | 'P30D' | 'P60D' | 'P90D' | 'P1M' | Period;
 export type SelectableDate = Period | Duration;
 
 export type PeriodObject = {
@@ -169,12 +214,23 @@ export type CustomFilters = {
 export interface Filter {
 	path?: string,
 	time?: number,
+	audience?: Audience,
+	audienceId?: number,
+	audienceName?: string,
+	// Generic event-level dimension filters: whitelisted field key => value.
+	// Clicking a breakdown row sets one of these so the view filters to that
+	// exact value (Plausible-style). Keys must match the server-side whitelist
+	// (see get_dimension_field_map() in inc/api/namespace.php).
+	dimensions?: Record<string, string>,
 }
+
+export type AggregationField = 'by_url' | 'by_country' | 'by_browser' | 'by_os' | 'by_referer' | 'by_search_term';
 
 export type QueryArgs = {
 	diff?: SelectableDate,
 	end?: string | Moment,
 	period?: SelectableDate,
+	interval?: 'P1D' | 'PT1M' | 'PT1H' | 'P7D',
 	search?: string,
 	start?: string | Moment,
 	type?: string,
@@ -182,7 +238,9 @@ export type QueryArgs = {
 	include?: number[],
 	refresh?: number,
 	ids?: number[],
-	tz?: number,
+	aggregations?: AggregationField[],
+	/** Include composition in the same authoritative /stats response. */
+	segments?: 'referer',
 };
 
 export interface State {
@@ -204,6 +262,7 @@ export interface State {
 	isLoadingStats: boolean,
 	isLoadingDiffs: boolean,
 	isUpdating: boolean,
+	statsError: string | null,
 	pagination: {
 		total: number,
 		pages: number,
@@ -245,6 +304,11 @@ export interface RefreshStatsAction extends StandardAction {
 	type: 'REFRESH_STATS',
 }
 
+export interface SetStatsErrorAction extends StandardAction {
+	type: 'SET_STATS_ERROR',
+	error: string | null,
+}
+
 export interface SetIsLoadingAction extends StandardAction {
 	type: 'SET_IS_LOADING',
 	isLoading: State['isLoading'],
@@ -277,6 +341,7 @@ export type Action = SetPostsAction | SetPostAction | SetStatsAction | SetIsLoad
 
 export interface BlockFillProps {
 	data?: StatsResult,
+	onAddRule( rule: Rule ): void,
 	onUpdateFilter( callback: ( filter: Filter ) => Filter ): void,
 }
 
@@ -287,7 +352,7 @@ export interface BlockFillProps {
  * @param {string} suffix The unit or suffix to append.
  * @returns {string} The metric compacted for display.
  */
- export const compactMetric = ( metric : number, suffix : string = '' ) => {
+export const compactMetric = ( metric : number, suffix : string = '' ) => {
 	if ( isNaN( metric ) ) {
 		return '0';
 	}
@@ -329,7 +394,7 @@ export const getLift = ( current: number, previous: number ) => ( ( current - pr
 
 export const getConversionRateLift = (
 	fallback: LiftStats['fallback'],
-	personalized: LiftStats['personalized'],
+	personalized: LiftStats['personalized']
 ) => {
 	const fallbackRate = getConversionRate( fallback.conversions, fallback.views );
 	const personalizedRate = getConversionRate( personalized.conversions, personalized.views );
@@ -337,18 +402,34 @@ export const getConversionRateLift = (
 };
 
 /**
- * Track a user action/event to Segment.
+ * Track a user action/event to PostHog.
  *
- * @param {string} module Module where the action happens.
- * @param {string} action Action name.
- * @param {Object} parameters Additional details/parameters of the action.
+ * @param {string} event Event name in snake_case.
+ * @param {Object} properties Additional details/properties of the event.
  *
  * @returns {void}
  */
-export function trackEvent( module: string, action: string, parameters: { [ k: string ]: any } = {} ) {
-	if ( window.analytics ) {
-		window.analytics.track( module, { action, ...parameters } );
+export function trackEvent( event: string, properties: { [ k: string ]: any } = {} ) {
+	if ( ! window.posthog ) {
+		return;
 	}
+
+	const payload: { [ k: string ]: any } = {
+		source: 'plugin',
+		page: window.location.pathname,
+		domain: ( window as any ).accelerateTelemetryDomain || undefined,
+		...properties,
+	};
+
+	const siteGroup = ( window as any ).accelerateTelemetrySiteGroup;
+	if ( siteGroup ) {
+		payload.$groups = {
+			...( properties.$groups || {} ),
+			site: siteGroup,
+		};
+	}
+
+	window.posthog.capture( event, payload );
 }
 
 /**
@@ -391,4 +472,18 @@ export function convertPostResponse( post: { [ k:string ] : any } ) : Post {
 	}
 
 	return modified;
+}
+
+/**
+ * Get Bayesian P2BB as percentage.
+ *
+ * @param {number} p2bb Pre-calculated P2BB value (0-1) from backend Bayesian analysis
+ * @param {number} rate Legacy parameter (ignored)
+ * @param {number} maxRate Legacy parameter (ignored)
+ * @returns {number} P2BB as percentage (0-100)
+ */
+export function getP2BB( p2bb: number, rate: number = 0, maxRate: number = 1 ): number {
+	// p2bb now comes pre-calculated from PHP Bayesian analysis
+	// Convert 0-1 probability to 0-100 percentage
+	return Math.max( 0, Math.min( 100, p2bb * 100 ) );
 }
