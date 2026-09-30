@@ -8,7 +8,6 @@
 namespace Altis\Accelerate\Utils;
 
 use Altis\Accelerate;
-use Asset_Loader;
 use WP_Error;
 
 /**
@@ -108,6 +107,11 @@ function register_assets( string $entrypoint, array $options = [], bool $enqueue
 		return;
 	}
 
+	// Asset Loader 0.8+ deprecates register_asset(), but 0.6.x is still supported.
+	$register_asset = function_exists( 'Asset_Loader\\register_manifest_asset' )
+		? 'Asset_Loader\\register_manifest_asset'
+		: 'Asset_Loader\\register_asset';
+
 	$handles = [
 		'style' => '',
 		'script' => '',
@@ -115,7 +119,7 @@ function register_assets( string $entrypoint, array $options = [], bool $enqueue
 
 	$css_path = $manifest['data']["{$entrypoint}.css"] ?? '';
 	if ( $css_path && is_readable( dirname( __DIR__, 2 ) . "/build/{$css_path}" ) ) {
-		$handles = Asset_Loader\register_asset(
+		$handles = $register_asset(
 			$manifest['file'],
 			"{$entrypoint}.css",
 			[
@@ -128,7 +132,7 @@ function register_assets( string $entrypoint, array $options = [], bool $enqueue
 		);
 	}
 
-	$asset_handles = Asset_Loader\register_asset(
+	$asset_handles = $register_asset(
 		$manifest['file'],
 		"{$entrypoint}.js",
 		array_merge( [
