@@ -19,8 +19,22 @@ node_modules/
 # Built and generated files
 /deploy/
 
+# Local AU tasks
+/tasks/
+
 # Git
 !.gitkeep
 
 # Caches
 .phpunit.result.cache
+tests/e2e/artifacts
+/artifacts/
+.clawpatch/
+.claude/*
+!.claude/skills/
+!.claude/agents/
+.clawpatch/
+
+# Local packaging (not shipped; see CLAUDE.md → Commands)
+/dist/
+/bin/make-zip.sh
