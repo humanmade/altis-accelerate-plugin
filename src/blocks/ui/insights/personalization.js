@@ -26,16 +26,16 @@ const Personalization = ( {
 		return select( 'accelerate/xbs' ).getViews( clientId, { days } );
 	}, [ clientId, days ] );
 	const lift = useSelect( select => {
-		const current = select( 'accelerate/xbs' ).getViews( clientId, { days: 7 } );
+		const current = select( 'accelerate/xbs' ).getViews( clientId, { days } );
 		const previous = select( 'accelerate/xbs' ).getViews( clientId, {
-			days: 7,
-			offset: 7,
+			days,
+			offset: days,
 		} );
 		return {
 			current,
 			previous,
 		};
-	}, [ clientId ] );
+	}, [ clientId, days ] );
 
 	// Get percentage of personalised block views.
 	let personalisedCoverage = null;

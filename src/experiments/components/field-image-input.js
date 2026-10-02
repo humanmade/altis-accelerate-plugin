@@ -1,40 +1,19 @@
-import React from 'react';
-import styled from 'styled-components';
+import React, { useCallback } from 'react';
 
-const {
-	MediaPlaceholder,
-} = wp.blockEditor;
-const {
-	withNotices,
-} = wp.components;
+import { Button } from '@/components/ui/button';
+
 const { useSelect } = wp.data;
 const { __ } = wp.i18n;
 
-const ImageSelectInputContainer = styled.div`
-	.block-editor-media-placeholder {
-		padding: 0;
-		margin: 0;
-		min-height: 0;
-		outline: none;
-		border: none;
-		box-shadow: none;
-	}
-
-	.components-placeholder .components-placeholder__fieldset {
-		flex-direction: row;
-	}
-`;
-
 /**
- * Image input components.
+ * Image input component using wp.media frame with shadcn buttons.
  *
  * @param {React.ComponentProps} props The component props.
  * @returns {React.ReactNode} Image input field component.
  */
 const ImageInput = props => {
 	const {
-		noticeUI,
-		noticeOperations,
+		compact,
 		value,
 		onChange,
 		isEditable,
@@ -46,33 +25,78 @@ const ImageInput = props => {
 		[ value ]
 	);
 
+	const openMediaLibrary = useCallback( () => {
+		const frame = wp.media( {
+			title: __( 'Select Image', 'altis' ),
+			button: { text: __( 'Use this image', 'altis' ) },
+			multiple: false,
+			library: { type: 'image' },
+		} );
+
+		frame.on( 'select', () => {
+			const attachment = frame.state().get( 'selection' ).first().toJSON();
+			onChange( attachment.id );
+		} );
+
+		frame.open();
+	}, [ onChange ] );
+
+	if ( compact ) {
+		return (
+			<div className="relative group inline-flex items-center gap-2">
+				{ media ? (
+					<>
+						<img
+							alt={ media.alt_text || __( 'Featured image', 'altis' ) }
+							className="!max-w-[280px] !max-h-[140px] !w-auto !h-auto rounded object-contain"
+							src={ media.source_url }
+						/>
+						{ isEditable && (
+							<Button
+								className="!h-6 !px-2 !text-xs opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity"
+								size="sm"
+								variant="outline"
+								onClick={ openMediaLibrary }
+							>
+								{ __( 'Replace', 'altis' ) }
+							</Button>
+						) }
+					</>
+				) : (
+					isEditable && (
+						<Button
+							size="sm"
+							variant="outline"
+							onClick={ openMediaLibrary }
+						>
+							{ __( 'Select', 'altis' ) }
+						</Button>
+					)
+				) }
+			</div>
+		);
+	}
+
 	return (
-		<ImageSelectInputContainer>
-			{ ( isEditable ) && (
-				<MediaPlaceholder
-					accept="image/*"
-					allowedTypes={ [ 'image' ] }
-					labels={ {
-						title: null,
-						instructions: __( 'Upload a media file or pick one from your media library.', 'altis' ),
-					} }
-					notices={ noticeUI }
-					value={ media || {} }
-					onError={ message => [
-						noticeOperations.removeAllNotices(),
-						noticeOperations.createErrorNotice( message ),
-					] }
-					onSelect={ attachment => onChange( attachment.id ) }
-				/>
+		<div>
+			{ isEditable && (
+				<Button
+					className="!w-full"
+					variant="outline"
+					onClick={ openMediaLibrary }
+				>
+					{ value ? __( 'Replace image', 'altis' ) : __( 'Select image', 'altis' ) }
+				</Button>
 			) }
 			{ media && (
 				<img
 					alt={ media.alt_text || __( 'Featured image', 'altis' ) }
+					className="max-w-[600px] max-h-[300px] w-auto h-auto rounded mt-2 object-contain"
 					src={ media.source_url }
 				/>
 			) }
-		</ImageSelectInputContainer>
+		</div>
 	);
 };
 
-export default withNotices( ImageInput );
+export default ImageInput;
