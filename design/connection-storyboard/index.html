@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Accelerate · Connection storyboard</title>
+  <link rel="stylesheet" href="storyboard.css">
+  <script src="screens.js" defer></script>
+  <script src="review.js" defer></script>
+</head>
+<body class="review">
+  <header class="review-header">
+    <a class="review-brand" href="index.html"><img src="../../assets/accelerate-logo.svg" alt="Accelerate"><span>Connection storyboard</span></a>
+    <span class="draft-label">Proposal · 22 October 2026</span>
+    <a href="SIGNOFF.md">Implementation brief ↗</a>
+  </header>
+  <div class="review-layout">
+    <aside class="review-rail">
+      <p class="rail-intro">One account, created through the plugin. A clear way back to your work.</p>
+      <nav id="frames" aria-label="Storyboard screens"></nav>
+      <div class="rail-links"><a href="../onboarding-routes.html">Existing A / B / C explorations ↗</a><a href="EVIDENCE.md">Evidence & verification ↗</a></div>
+    </aside>
+    <main class="review-main">
+      <div class="review-title"><div><p class="chapter" id="chapter"></p><h1 id="screen-title"></h1><p id="screen-description"></p></div><span id="screen-count" class="mono"></span></div>
+      <section class="controls" aria-label="Review controls">
+        <label>State<select id="state"></select></label>
+        <label>Primary buttons<select id="palette"><option value="mixed">Charcoal in plugin · purple on web</option><option value="purple">Purple across both</option><option value="charcoal">Charcoal across both</option></select></label>
+        <div class="control-actions"><button id="compare" aria-pressed="false">Compare colours</button><button id="mobile" aria-pressed="false">390px view</button><a id="open-frame" target="_blank" rel="noopener">Open full size ↗</a></div>
+      </section>
+      <p class="simulation-note">Review only. All screens and outcomes are simulated; no account, email, analytics or site changes.</p>
+      <div id="preview" class="preview"></div>
+      <section class="review-notes" aria-label="Design rationale"><div><h2>What changes</h2><p id="change-note"></p></div><div><h2>Implementation contract</h2><p id="contract-note"></p></div><div><h2>Continue the review</h2><button id="next">Next screen →</button><p class="fine">Product buttons also move between proposed screens. State controls expose recovery paths.</p></div></section>
+      <section class="decision-strip"><h2>Decisions for sign-off</h2><p><b>1.</b> Primary button colour by context. <b>2.</b> Compact setup and arrival layout. <b>3.</b> Account form and recovery copy. <b>4.</b> Honest status summaries and optional preferences.</p><p class="fine">This review approves the connection experience. It does not choose an A/B/C first-improvement route, authorize publishing, or change the authentication model.</p></section>
+    </main>
+  </div>
+</body>
+</html>

@@ -1,0 +1,261 @@
+[
+  {
+    "id": "activation",
+    "state": "default",
+    "h1": "Plugins",
+    "scrollWidth": 388,
+    "width": 388
+  },
+  {
+    "id": "setup",
+    "state": "default",
+    "h1": "Connect your site to Accelerate",
+    "scrollWidth": 388,
+    "width": 388
+  },
+  {
+    "id": "create",
+    "state": "default",
+    "h1": "Create your account",
+    "scrollWidth": 373,
+    "width": 373
+  },
+  {
+    "id": "create",
+    "state": "invalid",
+    "h1": "Create your account",
+    "scrollWidth": 373,
+    "width": 373
+  },
+  {
+    "id": "create",
+    "state": "exists",
+    "h1": "Create your account",
+    "scrollWidth": 373,
+    "width": 373
+  },
+  {
+    "id": "create",
+    "state": "submitting",
+    "h1": "Create your account",
+    "scrollWidth": 373,
+    "width": 373
+  },
+  {
+    "id": "signin-plugin",
+    "state": "default",
+    "h1": "Sign in to Accelerate",
+    "scrollWidth": 388,
+    "width": 388
+  },
+  {
+    "id": "signin-plugin",
+    "state": "invalid",
+    "h1": "Sign in to Accelerate",
+    "scrollWidth": 373,
+    "width": 373
+  },
+  {
+    "id": "signin-plugin",
+    "state": "submitting",
+    "h1": "Sign in to Accelerate",
+    "scrollWidth": 388,
+    "width": 388
+  },
+  {
+    "id": "known-account",
+    "state": "default",
+    "h1": "Connect this site",
+    "scrollWidth": 388,
+    "width": 388
+  },
+  {
+    "id": "return",
+    "state": "pending",
+    "h1": "Completing your connection",
+    "scrollWidth": 388,
+    "width": 388
+  },
+  {
+    "id": "return",
+    "state": "failed",
+    "h1": "Your site couldn’t connect",
+    "scrollWidth": 388,
+    "width": 388
+  },
+  {
+    "id": "return",
+    "state": "expired",
+    "h1": "Start a fresh connection",
+    "scrollWidth": 388,
+    "width": 388
+  },
+  {
+    "id": "connected",
+    "state": "starter",
+    "h1": "Your content",
+    "scrollWidth": 388,
+    "width": 388
+  },
+  {
+    "id": "connected",
+    "state": "content",
+    "h1": "Your content",
+    "scrollWidth": 388,
+    "width": 388
+  },
+  {
+    "id": "connected",
+    "state": "empty",
+    "h1": "Your content",
+    "scrollWidth": 388,
+    "width": 388
+  },
+  {
+    "id": "connected",
+    "state": "live",
+    "h1": "Your content",
+    "scrollWidth": 388,
+    "width": 388
+  },
+  {
+    "id": "preferences",
+    "state": "default",
+    "h1": "Preferences",
+    "scrollWidth": 388,
+    "width": 388
+  },
+  {
+    "id": "preferences",
+    "state": "saved",
+    "h1": "Preferences",
+    "scrollWidth": 388,
+    "width": 388
+  },
+  {
+    "id": "preferences",
+    "state": "failed",
+    "h1": "Preferences",
+    "scrollWidth": 388,
+    "width": 388
+  },
+  {
+    "id": "signin-web",
+    "state": "default",
+    "h1": "Sign in to Accelerate",
+    "scrollWidth": 388,
+    "width": 388
+  },
+  {
+    "id": "signin-web",
+    "state": "invalid",
+    "h1": "Sign in to Accelerate",
+    "scrollWidth": 388,
+    "width": 388
+  },
+  {
+    "id": "signin-web",
+    "state": "submitting",
+    "h1": "Sign in to Accelerate",
+    "scrollWidth": 388,
+    "width": 388
+  },
+  {
+    "id": "reset",
+    "state": "default",
+    "h1": "Reset your password",
+    "scrollWidth": 388,
+    "width": 388
+  },
+  {
+    "id": "reset",
+    "state": "plugin",
+    "h1": "Reset your password",
+    "scrollWidth": 388,
+    "width": 388
+  },
+  {
+    "id": "reset",
+    "state": "sent",
+    "h1": "Check your email",
+    "scrollWidth": 388,
+    "width": 388
+  },
+  {
+    "id": "reset",
+    "state": "new",
+    "h1": "Choose a new password",
+    "scrollWidth": 388,
+    "width": 388
+  },
+  {
+    "id": "reset",
+    "state": "expired",
+    "h1": "This reset link has expired",
+    "scrollWidth": 388,
+    "width": 388
+  },
+  {
+    "id": "reset",
+    "state": "done",
+    "h1": "Password updated",
+    "scrollWidth": 388,
+    "width": 388
+  },
+  {
+    "id": "sites",
+    "state": "waiting",
+    "h1": "Your sites",
+    "scrollWidth": 388,
+    "width": 388
+  },
+  {
+    "id": "sites",
+    "state": "live",
+    "h1": "Your sites",
+    "scrollWidth": 388,
+    "width": 388
+  },
+  {
+    "id": "sites",
+    "state": "unknown",
+    "h1": "Your sites",
+    "scrollWidth": 388,
+    "width": 388
+  },
+  {
+    "id": "details",
+    "state": "waiting",
+    "h1": "Fresh WordPress",
+    "scrollWidth": 388,
+    "width": 388
+  },
+  {
+    "id": "details",
+    "state": "live",
+    "h1": "Fresh WordPress",
+    "scrollWidth": 388,
+    "width": 388
+  },
+  {
+    "id": "details",
+    "state": "unreachable",
+    "h1": "Fresh WordPress",
+    "scrollWidth": 388,
+    "width": 388
+  },
+  {
+    "id": "details",
+    "state": "reconnect",
+    "h1": "Fresh WordPress",
+    "scrollWidth": 388,
+    "width": 388
+  },
+  {
+    "id": "details",
+    "state": "unknown",
+    "h1": "Fresh WordPress",
+    "scrollWidth": 388,
+    "width": 388
+  }
+]
