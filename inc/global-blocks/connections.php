@@ -16,7 +16,7 @@ const RELATIONSHIP_TAXONOMY = 'wp_block_to_post';
 const BLOCK_USAGE_COUNT_CACHE_KEY_FORMAT = 'block_usage_count_%d';
 
 /**
- * Altis\GlobalBlocks\Connections Bootstrap.
+ * Altis\Accelerate\GlobalBlocks\Connections Bootstrap.
  */
 function bootstrap() {
 	add_action( 'init',                                __NAMESPACE__ . '\\register_relationship_taxonomy' );
@@ -193,7 +193,7 @@ function get_associated_term( int $post_id ) {
 /**
  * Gets the associated shadow term ID of a given post object
  *
- * @param int $post Post ID to get shadow term for.
+ * @param int $post_id Post ID to get shadow term for.
  *
  * @return int The term_id or 0 if no associated term was found.
  */

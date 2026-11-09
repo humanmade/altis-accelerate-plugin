@@ -1,8 +1,11 @@
 import { Block, BlockConfiguration } from '@wordpress/blocks';
-import { __ } from '@wordpress/i18n';
 import { useSelect } from '@wordpress/data';
 import { decodeEntities } from '@wordpress/html-entities';
+import { __ } from '@wordpress/i18n';
+
 import Image from '../../../accelerate/components/Image';
+
+import { Spinner } from '@/components/ui/spinner';
 
 export const name = 'altis/static-global';
 
@@ -10,11 +13,11 @@ export const options: BlockConfiguration = {
 	category: 'common',
 	description: __(
 		'Create content, and save it for you and other contributors to reuse across your site. This is a placeholder bloc that will be replaced by the Global Blcok when rendered.',
-		'altis',
+		'altis'
 	),
 	edit: Edit,
 	save: () => null,
-	title: __( 'Global Block', 'altis' ),
+	title: __( 'Synced Pattern', 'altis' ),
 	supports: {
 		customClassName: false,
 		html: false,
@@ -28,16 +31,16 @@ export const options: BlockConfiguration = {
 	},
 };
 
-function Edit(props: Block<{ref: number}>) : JSX.Element {
+function Edit( props: Block<{ref: number}> ) : JSX.Element {
 	const {
 		attributes,
 	} = props;
 
 	if ( ! attributes.ref ) {
-		throw new Error("No ref in static global block.");
+		throw new Error( 'No ref in static global block.' );
 	}
 
-	const block = useSelect( ( select ) => {
+	const block = useSelect( select => {
 		return select( 'accelerate' ).getPosts( {
 			type: 'wp_block',
 			include: attributes.ref,
@@ -67,7 +70,10 @@ function Edit(props: Block<{ref: number}>) : JSX.Element {
 					</div>
 				</div>
 			) : (
-				__( 'Loading...', 'altis' )
+				<div className="flex items-center gap-2 text-sm text-muted-foreground">
+					<Spinner />
+					{ __( 'Loading...', 'altis' ) }
+				</div>
 			) }
 
 		</div>

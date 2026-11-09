@@ -1,18 +1,20 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<phpunit
-	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-	xsi:noNamespaceSchemaLocation="http://schema.phpunit.de/7.5/phpunit.xsd"
-	bootstrap="tests/bootstrap.php"
-	processIsolation="true"
-	verbose="true">
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://schema.phpunit.de/9.3/phpunit.xsd" bootstrap="tests/phpunit/bootstrap.php" verbose="true">
+	<coverage processUncoveredFiles="true">
+		<include>
+			<directory suffix=".php">
+				inc
+			</directory>
+		</include>
+	</coverage>
+	<php>
+		<ini name="zend.exception_ignore_args" value="On" />
+	</php>
 	<testsuites>
-		<testsuite name="unit">
-			<directory suffix="Test.php">tests/unit</directory>
+		<testsuite name="Tests">
+			<directory suffix="Test.php">
+				tests/phpunit/
+			</directory>
 		</testsuite>
 	</testsuites>
-	<filter>
-		<whitelist processUncoveredFilesFromWhitelist="true">
-			<directory suffix=".php">inc</directory>
-		</whitelist>
-	</filter>
 </phpunit>

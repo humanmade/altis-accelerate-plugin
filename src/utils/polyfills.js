@@ -31,13 +31,13 @@ window.console = window.console || {
 	/**
 	 * Log placeholder function.
 	 */
-	log () { },
+	log() { },
 	/**
 	 * Warn placeholder function.
 	 */
-	warn () { },
+	warn() { },
 	/**
 	 * Error placeholder function.
 	 */
-	error () { },
+	error() { },
 };
