@@ -1,4 +1,4 @@
-import { getLetter } from "../../../../utils";
+import { getLetter } from '../../../../utils';
 
 const { useSelect } = wp.data;
 const { __, sprintf } = wp.i18n;
@@ -64,7 +64,7 @@ const Title = ( { index, placeholder = null, type, variant } ) => {
 		return __( '(deleted)', 'altis' );
 	}
 
-	// Check if audience reponse is a REST API error.
+	// Check if audience response is a REST API error.
 	if ( audience && audience.error && audience.error.message ) {
 		return audience.error.message;
 	}

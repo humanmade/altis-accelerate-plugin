@@ -16,10 +16,10 @@ export const fetchJson = ( args, headerKeys = [ 'x-wp-totalpages' ] ) => {
 			...args,
 			parse: false,
 		}
-	).then( ( response ) => {
+	).then( response => {
 		return Promise.all( [
 			response.json ? response.json() : [],
-			_zipObject( headerKeys, headerKeys.map( ( key ) => response.headers.get( key ) ) ),
+			_zipObject( headerKeys, headerKeys.map( key => response.headers.get( key ) ) ),
 		] );
 	} );
 };
