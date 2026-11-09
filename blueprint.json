@@ -1,0 +1,34 @@
+{
+	"preferredVersions": {
+		"php": "8.0",
+		"wp": "latest"
+	},
+	"features": {
+		"networking": true
+	},
+	"steps": [
+		{
+			"step": "installPlugin",
+			"pluginData": {
+				"resource": "url",
+				"url": "https://downloads.wordpress.org/plugin/altis-accelerate.zip"
+			},
+			"options": {
+				"activate": true
+			}
+		},
+		{
+			"step": "setSiteOptions",
+			"options": {
+				"altis_analytics_dashboard_access_token": "KZH0qWYslQUi",
+				"altis_config": "eu-central-1:66adb8ff5ee7425687f6eb92cac817d7:47V9kLiivrYdLPJ)S1E2gqWbDc$RB5rA"
+			}
+		},
+		{
+			"step": "defineWpConfigConsts",
+			"consts": {
+				"IS_WP_PLAYGROUND": true
+			}
+		}
+	]
+}

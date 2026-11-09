@@ -1,0 +1,187 @@
+[
+  {
+    "id": "activation",
+    "state": "default",
+    "heading": "Plugins"
+  },
+  {
+    "id": "setup",
+    "state": "default",
+    "heading": "Connect your site to Accelerate"
+  },
+  {
+    "id": "create",
+    "state": "default",
+    "heading": "Create your account"
+  },
+  {
+    "id": "create",
+    "state": "invalid",
+    "heading": "Create your account"
+  },
+  {
+    "id": "create",
+    "state": "exists",
+    "heading": "Create your account"
+  },
+  {
+    "id": "create",
+    "state": "submitting",
+    "heading": "Create your account"
+  },
+  {
+    "id": "signin-plugin",
+    "state": "default",
+    "heading": "Sign in to Accelerate"
+  },
+  {
+    "id": "signin-plugin",
+    "state": "invalid",
+    "heading": "Sign in to Accelerate"
+  },
+  {
+    "id": "signin-plugin",
+    "state": "submitting",
+    "heading": "Sign in to Accelerate"
+  },
+  {
+    "id": "known-account",
+    "state": "default",
+    "heading": "Connect this site"
+  },
+  {
+    "id": "return",
+    "state": "pending",
+    "heading": "Completing your connection"
+  },
+  {
+    "id": "return",
+    "state": "failed",
+    "heading": "Your site couldn’t connect"
+  },
+  {
+    "id": "return",
+    "state": "expired",
+    "heading": "Start a fresh connection"
+  },
+  {
+    "id": "connected",
+    "state": "starter",
+    "heading": "Your content"
+  },
+  {
+    "id": "connected",
+    "state": "content",
+    "heading": "Your content"
+  },
+  {
+    "id": "connected",
+    "state": "empty",
+    "heading": "Your content"
+  },
+  {
+    "id": "connected",
+    "state": "live",
+    "heading": "Your content"
+  },
+  {
+    "id": "preferences",
+    "state": "default",
+    "heading": "Preferences"
+  },
+  {
+    "id": "preferences",
+    "state": "saved",
+    "heading": "Preferences"
+  },
+  {
+    "id": "preferences",
+    "state": "failed",
+    "heading": "Preferences"
+  },
+  {
+    "id": "signin-web",
+    "state": "default",
+    "heading": "Sign in to Accelerate"
+  },
+  {
+    "id": "signin-web",
+    "state": "invalid",
+    "heading": "Sign in to Accelerate"
+  },
+  {
+    "id": "signin-web",
+    "state": "submitting",
+    "heading": "Sign in to Accelerate"
+  },
+  {
+    "id": "reset",
+    "state": "default",
+    "heading": "Reset your password"
+  },
+  {
+    "id": "reset",
+    "state": "plugin",
+    "heading": "Reset your password"
+  },
+  {
+    "id": "reset",
+    "state": "sent",
+    "heading": "Check your email"
+  },
+  {
+    "id": "reset",
+    "state": "new",
+    "heading": "Choose a new password"
+  },
+  {
+    "id": "reset",
+    "state": "expired",
+    "heading": "This reset link has expired"
+  },
+  {
+    "id": "reset",
+    "state": "done",
+    "heading": "Password updated"
+  },
+  {
+    "id": "sites",
+    "state": "waiting",
+    "heading": "Your sites"
+  },
+  {
+    "id": "sites",
+    "state": "live",
+    "heading": "Your sites"
+  },
+  {
+    "id": "sites",
+    "state": "unknown",
+    "heading": "Your sites"
+  },
+  {
+    "id": "details",
+    "state": "waiting",
+    "heading": "Fresh WordPress"
+  },
+  {
+    "id": "details",
+    "state": "live",
+    "heading": "Fresh WordPress"
+  },
+  {
+    "id": "details",
+    "state": "unreachable",
+    "heading": "Fresh WordPress"
+  },
+  {
+    "id": "details",
+    "state": "reconnect",
+    "heading": "Fresh WordPress"
+  },
+  {
+    "id": "details",
+    "state": "unknown",
+    "heading": "Fresh WordPress"
+  }
+]
