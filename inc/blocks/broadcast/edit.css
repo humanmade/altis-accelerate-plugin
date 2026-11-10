@@ -82,20 +82,53 @@
 .wp-block .altis-broadcast-block-list__list-item {
 	padding: 0;
 	list-style: none;
-	border-bottom: 1px solid #1e1e1e;
-	border-top: 1px solid #1e1e1e;
 }
 
 .wp-block .altis-broadcast-block-list__list-item + .altis-broadcast-block-list__list-item {
-	border-top: 0;
+	border-top: 1px solid #e0e0e0;
+	margin-top: 10px;
+	padding-top: 10px;
 }
 
 .wp-block .altis-broadcast-block-list__list-item button {
-	font-weight: 600;
-	display: block;
+	display: flex;
+	align-items: center;
+	gap: 12px;
 	width: 100%;
-	padding: 12px;
+	padding: 4px 12px;
 	text-align: left;
+}
+
+.wp-block .altis-broadcast-block-list__list-item-thumb {
+	flex: 0 0 60px;
+	width: 60px;
+	height: 36px;
+	overflow: hidden;
+	border-radius: 3px;
+	background: #e0e0e0;
+}
+
+.wp-block .altis-broadcast-block-list__list-item-thumb img {
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+	object-position: left top;
+}
+
+.wp-block .altis-broadcast-block-list__list-item-title {
+	flex: 1;
+	font-weight: 600;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	min-width: 0;
+}
+
+.wp-block .altis-broadcast-block-list__list-item-date {
+	flex: 0 0 auto;
+	font-size: 11px;
+	font-weight: 400;
+	color: #757575;
 }
 
 .wp-block .altis-broadcast-block .dashicons.dashicons-arrow-down {

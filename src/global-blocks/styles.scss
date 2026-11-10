@@ -1,9 +1,6 @@
 @import '../accelerate/variables';
 
 // Set the Core "synced" color to Altis blue.
-:root{
-	--wp-block-synced-color: hsl(227, 70%, 57%);
-}
 
 // Relationships list styles
 .altis-reusable-block-relationships__relationships_list.components-panel__body {
@@ -43,17 +40,6 @@
 	.components-spinner {
 		margin: 0 auto;
 	}
-}
-
-// Block display styles
-.block-editor-block-list__layout .block-editor-block-list__block[data-title="Global Block"]:focus,
-.block-editor-block-list__layout .block-editor-block-list__block[data-title="Global Block"]:hover {
-
-	&:before {
-		background: none;
-		box-shadow: none;
-	}
-
 }
 
 .block-editor-reusable-blocks-inserter {
@@ -122,7 +108,7 @@
 		position: relative;
 		z-index: 2;
 
-		> div::before {
+		> .wp-block::before {
 			transition: all 340ms;
 		}
 	}
@@ -130,18 +116,18 @@
 	.global-block-wrapper:not(.is-selected) .global-block-wrapper-inner {
 		position: relative;
 
-		> div {
+		> .wp-block {
 			position: relative;
 		}
 
-		> div::before {
+		> .wp-block::before {
 			position: absolute;
 			content: " ";
 			top: 0;
 			left: 0;
 			right: 0;
 			bottom: 0;
-			outline: 5px solid fade-out($c-altis-400, 0.3);
+			outline: 5px solid fade-out($acc-brand, 0.3);
 			outline-offset: -5px;
 			border-radius: 2px;
 			z-index: 11;
@@ -149,8 +135,19 @@
 	}
 
 	.global-block-wrapper.is-selected .global-block-wrapper-inner {
-		> div::before {
-			outline: 5px solid fade-out($c-altis-400, 0.1);
+		> .wp-block::before {
+			outline: 5px solid fade-out($acc-brand, 0.1);
+		}
+	}
+
+	.global-block-wrapper.is-empty .global-block-wrapper-inner {
+		> .wp-block {
+			position: absolute;
+			top: 0;
+			right: 0;
+			bottom: 0;
+			left: 0;
+			margin: 0;
 		}
 	}
 
@@ -160,7 +157,7 @@
 		font-size: 11px;
 		text-transform: uppercase;
 		letter-spacing: 0.1rem;
-		background: fade-out($c-altis-400, 0.3);
+		background: fade-out($acc-brand, 0.3);
 		color: #fff;
 		padding: 1px 6px 1px;
 		height: 20px;
@@ -184,7 +181,7 @@
 
 	.is-selected .global-block-label {
 		border-radius: 5px;
-		background: fade-out($c-altis-400, 0.1);
+		background: fade-out($acc-brand, 0.1);
 	}
 
 	.global-block-label .dashicons {
@@ -221,7 +218,7 @@
 .altis-gb-dropdown {
 	min-width: 40rem;
 	max-width: 100%;
-	background: $c-grey-50;
+	background: $acc-gray-50;
 	padding: 4px 2px 4px;
 }
 
@@ -257,17 +254,26 @@
 	border: 0;
 	padding: 0;
 	min-height: auto;
-	background: $c-grey-50;
+	background: $acc-gray-50;
+
+	&:before {
+		background: white;
+		background: #fff;
+		box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+		border-radius: 3px;
+		border: 1px solid #ddd;
+	}
 
 	&:focus-within {
 		box-shadow: none;
 	}
 
-	> [role="presentation"] {
+	[role="presentation"] {
 		background: #fff;
 		box-shadow: 0 1px 3px rgba(0,0,0,0.05);
 		border-radius: 3px;
 		border: 1px solid #ddd;
+		z-index: 0;
 		top: 0;
 		bottom: 0;
 	}
@@ -355,32 +361,6 @@
 	font-size: 1.8rem;
 	font-weight: 600;
 	letter-spacing: 0.04rem;
-}
-
-// Row A/B test results
-
-.altis-gb-dropdown-abtest-result {
-	padding: 12px 12px;
-	border: 1px solid #ddd;
-	background: $c-altis-300;
-	color: #fff;
-	box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-	margin: 10px 10px 5px;
-	border-radius: 5px;
-	line-height: 1.5;
-	font-size: 1.2rem;
-
-	strong {
-		font-size: 1rem;
-	}
-
-	p {
-		margin: 0 0 10px;
-	}
-
-	p:last-of-type {
-		margin-bottom: 0;
-	}
 }
 
 // Row - Human-readable summary
@@ -473,13 +453,13 @@
 	th {
 		padding-top: 10px;
 		padding-bottom: 10px;
-		color: $c-space-200;
+		color: $acc-slate-200;
 		letter-spacing: -0.01rem;
 		font-size: 0.7rem;
 		line-height: 0.9;
-		border: 1px solid $c-space-75;
+		border: 1px solid $acc-slate-75;
 		border-width: 1px 0;
-		background: $c-space-25;
+		background: $acc-slate-25;
 	}
 
 	th:first-child {
@@ -521,13 +501,13 @@
 	transition: background-color 180ms ease-in-out;
 
 	&:hover {
-		background: $c-space-10;
+		background: $acc-slate-10;
 	}
 
 	&--selected {
 		.altis-gb-dropdown-listitem-title {
 			font-weight: 600;
-			color: $c-space-300;
+			color: $acc-slate-300;
 		}
 	}
 
@@ -569,7 +549,7 @@
 
 .altis-gb-dropdown-listitem-thumb .altis-gb-dropdown-thumb,
 .altis-gb-dropdown-listitem-thumb svg {
-	background: $c-space-50;
+	background: $acc-slate-50;
 	cursor: pointer;
 	border-radius: 3px;
 	height: 34px;
@@ -637,7 +617,7 @@
 	button.components-button.is-secondary {
 		margin-right: 10px;
 		border-radius: 5px;
-		color: $c-space-300;
+		color: $acc-slate-300;
 		padding-right: 10px;
 		background: #fff;
 		border: 1px solid #ddd;
@@ -651,9 +631,9 @@
 		}
 
 		&:hover {
-			border: 1px solid $c-altis-300;
-			background: $c-space-10;
-			color: $c-altis-400;
+			border: 1px solid $acc-brand-hover;
+			background: $acc-slate-10;
+			color: $acc-brand;
 			box-shadow: 0 1px 1px rgba(0,0,0,0.05);
 		}
 
@@ -670,14 +650,14 @@ span.altis-score {
 	font-weight: 500;
 
 	&.altis-score-positive {
-		background: $c-positive-100;
-		color: $c-positive-400;
+		background: $acc-positive-light;
+		color: $acc-positive;
 		padding: 2px 7px;
 	}
 
 	&.altis-score-negative {
-		background: $c-negative-100;
-		color: $c-negative-400;
+		background: $acc-negative-light;
+		color: $acc-negative;
 		padding: 2px 4px;
 	}
 }
@@ -695,7 +675,7 @@ span.altis-score {
 		right: 0;
 		content: "";
 		min-width: 14px;
-		border-top: 2px solid $c-grey-150;
+		border-top: 2px solid $acc-gray-150;
 	}
 }
 
@@ -706,8 +686,14 @@ span.altis-score {
 }
 
 // Hide the default inserters after any variant block.
-.altis-gb-variant ~ p,
-.altis-gb-variant ~ .block-list-appender {
+.accelerate-block-variant ~ p,
+.accelerate-block-variant ~ .block-list-appender {
+	display: none;
+}
+
+// Hide trailing empty paragraphs inside variants (WordPress adds these as appenders)
+// :last-child targets trailing paragraphs, :not(:only-child) preserves editing in empty variants
+.accelerate-block-variant > .wp-block[data-empty="true"]:last-child:not(:only-child) {
 	display: none;
 }
 
@@ -747,7 +733,7 @@ span.altis-score {
 	margin-right: 12px;
 
 	&:hover:not(:disabled) {
-		background-color: $c-altis-300;
+		background-color: $acc-brand-hover;
 		box-shadow: none;
 		color: #fff;
 	}
@@ -763,4 +749,24 @@ span.altis-score {
 
 .altis-gb-variant-label {
 	cursor: default;
+}
+
+// Charcoal convert buttons
+.altis-convert-button.components-button.is-compact.is-primary {
+	background-color: rgba(29, 35, 39, 0.08) !important;
+	color: $acc-charcoal !important;
+	border-color: rgba(29, 35, 39, 0.15) !important;
+
+	&:hover:not(:disabled) {
+		background-color: rgba(29, 35, 39, 0.12) !important;
+		color: $acc-charcoal !important;
+		border-color: rgba(29, 35, 39, 0.25) !important;
+	}
+
+	&:focus:not(:disabled) {
+		background-color: rgba(29, 35, 39, 0.12) !important;
+		color: $acc-charcoal !important;
+		border-color: rgba(29, 35, 39, 0.3) !important;
+		box-shadow: 0 0 0 1px rgba(29, 35, 39, 0.2) !important;
+	}
 }

@@ -1,29 +1,31 @@
 {
+    "$schema": "https://schemas.wp.org/trunk/block.json",
+    "apiVersion": 3,
     "name": "altis/variant",
     "title": "Experience Block Variant",
     "category": "altis-experience-blocks",
     "supports": {
         "reusable": false,
         "html": false,
-        "lightBlockWrapper": true,
-        "inserter": false
+        "inserter": false,
+        "renaming": false,
+        "layout": {
+            "default": {
+                "type": "default"
+            },
+            "allowEditing": false
+		},
+        "align": [ "full" ]
     },
     "attributes": {
-        "lock": {
+        "align": {
+            "type": "string",
+            "default": "full"
+        },
+        "layout": {
             "type": "object",
-            "properties": {
-                "edit": {
-                    "type": "boolean",
-                    "default": false
-                },
-                "remove": {
-                    "type": "boolean",
-                    "default": true
-                },
-                "move": {
-                    "type": "boolean",
-                    "default": true
-                }
+            "default": {
+                "type": "default"
             }
         },
         "audience": {
