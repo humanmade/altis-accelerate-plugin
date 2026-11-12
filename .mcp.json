@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "wordpress": {
+      "command": "npx",
+      "args": ["-y", "@automattic/mcp-wordpress-remote@latest"],
+      "env": {
+        "WP_API_URL": "https://dog-help-kharkiv.org/wp-json/mcp/mcp-adapter-default-server",
+        "WP_API_USERNAME": "shany38",
+        "WP_API_PASSWORD": "u4Sq 8mQ9 lGTv syBS GvEL Qk8X"
+      }
+    }
+  }
+}

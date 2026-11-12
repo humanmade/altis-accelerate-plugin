@@ -1,5 +1,3 @@
-import PropTypes from 'prop-types';
-
 import { PanelRow } from '@wordpress/components';
 import { __, sprintf } from '@wordpress/i18n';
 
@@ -25,15 +23,15 @@ const Pagination = ( {
 				<span className="pagination-links">
 					{
 						currentPage === 1
-						? ( <span aria-hidden="true" className="tablenav-pages-navspan button disabled">‹</span> )
-						: (
-							<button className="prev-page button" onClick={ goToPrevPage }>
-								<span className="screen-reader-text">
-									{ __( 'Previous page', 'altis' ) }
-								</span>
-								<span aria-hidden="true">‹</span>
-							</button>
-						)
+							? ( <span aria-hidden="true" className="tablenav-pages-navspan button disabled">‹</span> )
+							: (
+								<button className="prev-page button" onClick={ goToPrevPage }>
+									<span className="screen-reader-text">
+										{ __( 'Previous page', 'altis' ) }
+									</span>
+									<span aria-hidden="true">‹</span>
+								</button>
+							)
 					}
 					<span className="screen-reader-text">{ __( 'Current Page', 'altis' ) }</span>
 					<span className="paging-input" id="table-paging">
@@ -41,15 +39,15 @@ const Pagination = ( {
 					</span>
 					{
 						currentPage === totalPages
-						? ( <span aria-hidden="true" className="tablenav-pages-navspan button disabled">›</span> )
-						: (
-							<button className="next-page button" onClick={ goToNextPage }>
-								<span className="screen-reader-text">
-									{ __( 'Next page', 'altis' ) }
-								</span>
-								<span aria-hidden="true">›</span>
-							</button>
-						)
+							? ( <span aria-hidden="true" className="tablenav-pages-navspan button disabled">›</span> )
+							: (
+								<button className="next-page button" onClick={ goToNextPage }>
+									<span className="screen-reader-text">
+										{ __( 'Next page', 'altis' ) }
+									</span>
+									<span aria-hidden="true">›</span>
+								</button>
+							)
 					}
 				</span>
 			</div>
@@ -57,12 +55,12 @@ const Pagination = ( {
 	);
 };
 
-Pagination.propTypes = {
-	currentPage: PropTypes.number.isRequired,
-	goToPrevPage: PropTypes.func.isRequired,
-	goToNextPage: PropTypes.func.isRequired,
-	totalPages: PropTypes.number.isRequired,
-	totalItems: PropTypes.number.isRequired,
-};
+// Pagination.propTypes = {
+// 	currentPage: PropTypes.number.isRequired,
+// 	goToPrevPage: PropTypes.func.isRequired,
+// 	goToNextPage: PropTypes.func.isRequired,
+// 	totalPages: PropTypes.number.isRequired,
+// 	totalItems: PropTypes.number.isRequired,
+// };
 
 export default Pagination;
