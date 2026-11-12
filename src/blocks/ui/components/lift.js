@@ -1,6 +1,8 @@
 import React from 'react';
 import styled from 'styled-components';
+
 import { __ } from '@wordpress/i18n';
+
 import { compactMetric, getLift } from '../../../utils';
 
 const StyledLift = styled.div`

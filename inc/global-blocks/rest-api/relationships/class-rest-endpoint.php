@@ -202,7 +202,9 @@ class REST_Endpoint {
 			'posts_per_page' => GlobalBlocks\RELATIONSHIPS_PER_PAGE,
 			'paged'          => $page ?? 1,
 			'post_type'      => Connections\get_post_types_with_reusable_blocks(),
-			'post_status'    => 'any',
+			// The same statuses as `any`, listed so `perm` can leave out other people's private posts.
+			'post_status'    => array_values( get_post_stati( [ 'exclude_from_search' => false ] ) ),
+			'perm'           => 'readable',
 			'tax_query' => [
 				[
 					'taxonomy' => Connections\RELATIONSHIP_TAXONOMY,

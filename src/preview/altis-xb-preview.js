@@ -34,8 +34,8 @@ function createTabbedPreviews() {
 			if ( ! templates[i].dataset.title ) {
 				tab.innerHTML = sprintf( __( 'Block %s', 'altis' ), i + 1 );
 			} else {
-				// set the button inner html to the test title
-				tab.innerHTML = templates[i].dataset.title;
+				// set the button text to the test title
+				tab.textContent = templates[i].dataset.title;
 			}
 
 			// set the class for the button

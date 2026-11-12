@@ -75,7 +75,9 @@ function enqueue_assets() {
  * @return string The final rendered block markup, as an HTML string.
  */
 function render_block( array $attributes, ?string $inner_content = '' ) : string {
-	$client_id = $attributes['clientId'] ?? null;
+	// Client IDs are block editor UUIDs. Anything else is dropped so the value
+	// is safe in an HTML attribute and in the front end's CSS selector.
+	$client_id = preg_replace( '/[^A-Za-z0-9_-]/', '', (string) ( $attributes['clientId'] ?? '' ) );
 	$broadcast_id = $attributes['broadcast'] ?? null;
 	$class_name = $attributes['className'] ?? '';
 	$align = $attributes['align'] ?? 'none';
@@ -113,7 +115,7 @@ function render_block( array $attributes, ?string $inner_content = '' ) : string
 		return sprintf(
 			'<template data-id="%1$d" data-parent-id="%2$s">%3$s</template>',
 			$block->ID,
-			$client_id,
+			esc_attr( $client_id ),
 			$content
 		);
 	}, $blocks->posts );
@@ -135,21 +137,21 @@ function render_block( array $attributes, ?string $inner_content = '' ) : string
 
 		return sprintf(
 			'%s
-			<div class="altis-xb-preview altis-xb-preview--broadcast %s" data-client-id="%s" data-post-id="%s">
+			<div class="altis-xb-preview altis-xb-preview--broadcast %s" data-client-id="%s" data-post-id="%d">
 				<div class="altis-xb-preview__tabs"></div>
 				<div class="altis-xb-preview__content"></div>
 			</div>',
 			$inner_content,
-			$class_name,
-			$client_id,
+			esc_attr( $class_name ),
+			esc_attr( $client_id ),
 			$broadcast_id
 		);
 	}
 
 	return sprintf(
 		'%4$s<broadcast-block class="%1$s" client-id="%2$s" broadcast-id="%3$d"></broadcast-block>',
-		$class_name,
-		$client_id,
+		esc_attr( $class_name ),
+		esc_attr( $client_id ),
 		$broadcast_id,
 		$inner_content
 	);

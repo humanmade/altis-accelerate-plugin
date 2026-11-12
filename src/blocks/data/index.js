@@ -2,10 +2,11 @@
  * Altis Analytics data store.
  */
 
-import { resolveQueryArgs } from "../../data";
+import { createReduxStore, register, select } from '@wordpress/data';
+
+import { resolveQueryArgs } from '../../data';
 
 const { apiFetch } = wp;
-const { registerStore } = wp.data;
 const { addQueryArgs } = wp.url;
 
 const initialState = {
@@ -44,8 +45,11 @@ const reducer = function reducer( state, action ) {
 
 		case 'REMOVE_VIEWS': {
 			const key = `${ action.id }:${ btoa( JSON.stringify( action.args ) ) }`;
-			const { [ key ]: deletedItem, ...newState } = state;
-			return newState;
+			const { [ key ]: deletedItem, ...newViews } = state.views;
+			return {
+				...state,
+				views: newViews,
+			};
 		}
 
 		case 'SET_IS_LOADING': {
@@ -214,14 +218,18 @@ const resolvers = {
 	 */
 	*getViews( id, args = null ) {
 		yield actions.setIsLoading( true );
-		let path = `accelerate/v1/xbs/${ id }/views`;
-		if ( args ) {
-			path = addQueryArgs( path, resolveQueryArgs( args ) );
+		try {
+			let path = `accelerate/v1/xbs/${ id }/views`;
+			if ( args ) {
+				path = addQueryArgs( path, resolveQueryArgs( args ) );
+			}
+			const response = yield actions.fetch( {
+				path,
+			} );
+			yield actions.addViews( id, args, response );
+		} finally {
+			yield actions.setIsLoading( false );
 		}
-		const response = yield actions.fetch( {
-			path,
-		} );
-		yield actions.addViews( id, args, response );
 		return actions.setIsLoading( false );
 	},
 	/**
@@ -247,7 +255,7 @@ const resolvers = {
 	},
 };
 
-export const store = registerStore( 'accelerate/xbs', {
+export const store = createReduxStore( 'accelerate/xbs', {
 	actions,
 	controls,
 	initialState,
@@ -255,3 +263,8 @@ export const store = registerStore( 'accelerate/xbs', {
 	resolvers,
 	selectors,
 } );
+
+// Only register if not already registered (prevents duplicate registration from multiple entry points)
+if ( ! select( 'accelerate/xbs' ) ) {
+	register( store );
+}

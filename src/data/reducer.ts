@@ -30,9 +30,9 @@ const sortPosts = ( a: Post, b: Post ) : number => {
 const arrayToMap = ( posts: Post[] ) : PostMap => {
 	return posts.reduce( ( all: PostMap, post: Post ) => ( {
 		...all,
-		[ post.id ]: post
+		[ post.id ]: post,
 	} ), {} );
-}
+};
 
 /**
  * Reducer for the dashboard data store.
@@ -81,7 +81,7 @@ export default function reducer( state: State, action: Action ) : State {
 		case 'REMOVE_POST': {
 			const newState = {
 				...state,
-			}
+			};
 			delete newState.posts[ action.id ];
 			for ( const key in newState.queries ) {
 				newState.queries[ key ] = newState.queries[ key ].filter( id => id !== action.id );
@@ -128,6 +128,22 @@ export default function reducer( state: State, action: Action ) : State {
 			return {
 				...state,
 				isLoadingStats: action.isLoading,
+				// Clear any previous error whenever a new request starts.
+				...( action.isLoading ? { statsError: null } : {} ),
+			};
+		}
+
+		case 'SET_POSTS_ERROR': {
+			return {
+				...state,
+				postsError: action.error,
+			};
+		}
+
+		case 'SET_STATS_ERROR': {
+			return {
+				...state,
+				statsError: action.error,
 			};
 		}
 
