@@ -1,6 +1,6 @@
 <?php
 /**
- * Global Block Variant Block Server Side.
+ * Synced Pattern Block Variant Block Server Side.
  *
  * @phpcs:disable HM.Files.NamespaceDirectoryName.NameMismatch
  * @phpcs:disable HM.Files.FunctionFileName.WrongFile

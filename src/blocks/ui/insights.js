@@ -110,7 +110,7 @@ const Insights = ( {
 	}
 
 	return (
-		<BlockWrapper className="altis-ui altis-analytics-block">
+		<BlockWrapper className="accelerate-ui altis-analytics-block">
 			<h2 className="altis-analytics-block__title">
 				{ ( block && decodeEntities( block.title.rendered ) ) || __( 'Loading…', 'altis' ) }
 				{ block && Number( block.parent ) > 0 && (

@@ -68,4 +68,14 @@ function register_rest_fields() : void {
 		],
 	] );
 
+	// Raw block content for client-side BlockPreview rendering.
+	register_rest_field( 'wp_block', 'rawContent', [
+		'get_callback' => function ( $post ) {
+			return get_post_field( 'post_content', $post['id'] );
+		},
+		'schema' => [
+			'type' => 'string',
+		],
+	] );
+
 }

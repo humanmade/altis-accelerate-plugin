@@ -42,10 +42,11 @@ const StyledPopup = styled.div`
  */
 function Popup( { clientId } ) {
 
-	const [ show, setShow ] = useState( false );
 	const block = useSelect( select => {
 		return select( 'accelerate/xbs' ).getPost( clientId );
 	}, [ clientId ] );
+
+	const [ show, setShow ] = useState( false );
 
 	if ( ! block || block.error ) {
 		return null;

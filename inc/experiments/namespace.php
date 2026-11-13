@@ -8,6 +8,7 @@
 namespace Altis\Accelerate\Experiments;
 
 use Altis\Accelerate;
+use Altis\Accelerate\Experiments\Experiment;
 use Altis\Accelerate\Utils;
 use MathPHP\Probability\Distribution\Discrete;
 use WP_Post;
@@ -21,6 +22,12 @@ const NULL_GOAL = '__none__';
  */
 function setup() {
 
+	// Ensure the experiments table exists.
+	add_action( 'init', __NAMESPACE__ . '\\ensure_experiments_table' );
+
+	// Register experiments REST API.
+	add_action( 'rest_api_init', __NAMESPACE__ . '\\REST_API\\register_routes' );
+
 	// Load analytics scripts early.
 	add_action( 'altis.analytics.enqueue_scripts', __NAMESPACE__ . '\\enqueue_scripts' );
 
@@ -32,6 +39,9 @@ function setup() {
 
 	// Hook cron task.
 	add_action( 'altis_post_ab_test_cron', __NAMESPACE__ . '\\handle_post_ab_test_cron', 10, 2 );
+
+	// Hook backfill cron for large-site deferred migration.
+	add_action( 'accelerate_experiments_backfill_cron', __NAMESPACE__ . '\\handle_backfill_cron' );
 
 	// Register notifications.
 	add_action( 'altis.experiments.test.ended', __NAMESPACE__ . '\\send_post_ab_test_notification', 10, 2 );
@@ -75,6 +85,411 @@ function setup() {
 		'selector' => 'form',
 		'validation_message' => __( 'You need to add a form to this content to track conversions.', 'altis' ),
 	] );
+	// Theme-specific goals (e.g. a CTA scoped to a theme's own class) are
+	// registered by the active theme via register_goal(), not hardcoded here.
+
+	// Register the admin list table page.
+	add_action( 'admin_menu', __NAMESPACE__ . '\\register_admin_page' );
+	add_action( 'admin_menu', __NAMESPACE__ . '\\reorder_admin_submenu', 999 );
+
+	// Register WP-CLI command.
+	if ( defined( 'WP_CLI' ) && WP_CLI ) {
+		Experiments_Command::register();
+	}
+}
+
+/**
+ * Ensure the experiments table exists.
+ *
+ * Called on init. Uses Foundry's ensure_table to create or update the schema.
+ */
+function ensure_experiments_table() {
+	static $ensured = false;
+	if ( $ensured ) {
+		return;
+	}
+	$ensured = true;
+	Experiment::ensure_table();
+
+	// Auto-migrate legacy post meta experiments to the table (runs once).
+	maybe_run_backfill();
+}
+
+/**
+ * Auto-migrate legacy experiments from post meta to the experiments table.
+ *
+ * Runs once after the table is created. Uses a version option to track
+ * completion and an atomic lock to prevent concurrent runs.
+ *
+ * Small sites (<= 50 candidate posts) migrate synchronously.
+ * Larger sites defer to a one-time cron event.
+ */
+function maybe_run_backfill() {
+	// Already migrated — fast exit on every subsequent request.
+	if ( (int) get_option( 'accelerate_experiments_backfill_version', 0 ) >= 1 ) {
+		return;
+	}
+
+	// Clean up stale locks from crashed processes (> 10 minutes old).
+	$lock_time = get_option( 'accelerate_experiments_backfill_lock' );
+	if ( $lock_time && ( time() - (int) $lock_time ) > 600 ) {
+		delete_option( 'accelerate_experiments_backfill_lock' );
+	}
+
+	// Acquire an atomic lock. add_option returns false if the row already exists.
+	if ( ! add_option( 'accelerate_experiments_backfill_lock', time(), '', 'no' ) ) {
+		return; // Another process is running the migration.
+	}
+
+	// Count candidate posts with experiment meta.
+	global $wpdb;
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+	$count = (int) $wpdb->get_var(
+		"SELECT COUNT( DISTINCT post_id ) FROM {$wpdb->postmeta} WHERE meta_key LIKE '_altis_ab_test_%_variants'"
+	);
+
+	if ( $count === 0 ) {
+		// Nothing to migrate.
+		update_option( 'accelerate_experiments_backfill_version', 1 );
+		delete_option( 'accelerate_experiments_backfill_lock' );
+		return;
+	}
+
+	if ( $count <= 50 ) {
+		// Small site — migrate synchronously.
+		Migration\backfill( 50 );
+		update_option( 'accelerate_experiments_backfill_version', 1 );
+		delete_option( 'accelerate_experiments_backfill_lock' );
+		return;
+	}
+
+	// Large site — defer to a one-time cron event.
+	if ( ! wp_next_scheduled( 'accelerate_experiments_backfill_cron' ) ) {
+		wp_schedule_single_event( time(), 'accelerate_experiments_backfill_cron' );
+	}
+	delete_option( 'accelerate_experiments_backfill_lock' );
+}
+
+/**
+ * Cron handler for deferred experiment backfill on large sites.
+ */
+function handle_backfill_cron() {
+	if ( (int) get_option( 'accelerate_experiments_backfill_version', 0 ) >= 1 ) {
+		return;
+	}
+
+	if ( ! add_option( 'accelerate_experiments_backfill_lock', time(), '', 'no' ) ) {
+		return;
+	}
+
+	Migration\backfill( 100 );
+
+	update_option( 'accelerate_experiments_backfill_version', 1 );
+	delete_option( 'accelerate_experiments_backfill_lock' );
+}
+
+/**
+ * Sync experiment state to the experiments table (dual-write).
+ *
+ * Creates or updates an experiment row to mirror the current post meta state.
+ * Called from lifecycle transition points (start, pause, end, results update).
+ *
+ * @param string $test_id Test ID (block, titles, featured_images, etc.).
+ * @param int    $post_id Subject post ID.
+ * @param string $type    Experiment type override. Auto-detected if empty.
+ * @return Experiment|null The synced experiment, or null on failure.
+ */
+function sync_experiment_to_table( string $test_id, int $post_id, string $type = '' ) : ?Experiment {
+	// Determine type.
+	if ( empty( $type ) ) {
+		$xb_type = get_post_meta( $post_id, '_xb_type', true );
+		if ( $xb_type === 'personalization' || get_post_meta( $post_id, '_xb_personalization', true ) ) {
+			$type = Experiment::TYPE_PERSONALIZATION;
+		} else {
+			$type = Experiment::TYPE_ABTEST;
+		}
+	}
+
+	$experiment = Experiment::get_or_create_for_post( $post_id, $test_id, $type );
+
+	// Guard against ghost rows (A14, A18). Once an experiment has ended there is
+	// no live experiment to record, so a stray sync that finds no active row to
+	// update must not mint a brand-new one. Two ways this fires:
+	//
+	//  - A14: a winner is applied, the variants meta is cleared, and a later
+	//    sync finds neither an active row nor any variants.
+	//  - A18: the experiment concludes autonomously via the cron. The analyser
+	//    completes the active row (with the winner), then end_ab_test_for_post()
+	//    marks it ended and re-syncs; that trailing sync finds no active row and
+	//    would otherwise mint a winner-less duplicate that near-copies the
+	//    concluded experiment. Here the variants meta still exists, so we key on
+	//    "a completed row already exists for this post/test" instead.
+	//
+	// Both require `_ended` to be true, so a genuine fresh start (which resets
+	// `_ended` to false) still creates a draft row as before. The A18 arm also
+	// requires the test to be paused: the autonomous conclusion pauses the test,
+	// whereas a low-level restart that re-starts an ended-but-unpaused test is
+	// left to the completed→fresh-row path below.
+	$already_ended  = ( get_post_meta( $post_id, '_altis_ab_test_' . $test_id . '_ended', true ) ?: 'false' ) !== 'false';
+	$already_paused = ( get_post_meta( $post_id, '_altis_ab_test_' . $test_id . '_paused', true ) ?: 'false' ) !== 'false';
+	if ( ! $experiment->get_id()
+		&& $already_ended
+		&& ( empty( get_ab_test_variants_for_post( $test_id, $post_id ) )
+			|| ( $already_paused && has_completed_experiment_for_post( $post_id, $test_id ) ) ) ) {
+		return null;
+	}
+
+	// Read current state from meta.
+	$variants    = get_ab_test_variants_for_post( $test_id, $post_id );
+	$start_time  = (int) get_post_meta( $post_id, '_altis_ab_test_' . $test_id . '_start_time', true );
+	$end_time    = (int) get_post_meta( $post_id, '_altis_ab_test_' . $test_id . '_end_time', true );
+	$is_started  = (bool) get_post_meta( $post_id, '_altis_ab_test_' . $test_id . '_started', true );
+	$is_paused   = get_post_meta( $post_id, '_altis_ab_test_' . $test_id . '_paused', true ) !== 'false';
+	$has_ended   = ( get_post_meta( $post_id, '_altis_ab_test_' . $test_id . '_ended', true ) ?: 'false' ) !== 'false';
+	$traffic_pct = get_post_meta( $post_id, '_altis_ab_test_' . $test_id . '_traffic_percentage', true );
+	$variant_pcts = get_post_meta( $post_id, '_altis_ab_test_' . $test_id . '_variant_traffic_percentage', true );
+	$results     = get_ab_test_results_for_post( $test_id, $post_id );
+
+	// Determine status.
+	$now = Utils\milliseconds();
+	if ( $has_ended ) {
+		$status = Experiment::STATUS_COMPLETED;
+	} elseif ( $is_paused ) {
+		$status = Experiment::STATUS_PAUSED;
+	} elseif ( $is_started && $start_time <= $now ) {
+		$status = Experiment::STATUS_RUNNING;
+	} else {
+		$status = Experiment::STATUS_DRAFT;
+	}
+
+	// If the current experiment is completed and we're starting a new one,
+	// create a fresh experiment instead.
+	if ( $experiment->get_status() === Experiment::STATUS_COMPLETED && $status !== Experiment::STATUS_COMPLETED ) {
+		$experiment = new Experiment();
+		$experiment->set_subject_post_id( $post_id );
+		$experiment->set_test_id( $test_id );
+		$experiment->set_type( $type );
+	}
+
+	// If the type has changed (e.g. abtest → personalization), complete the old
+	// experiment and start a fresh one.
+	if ( $experiment->get_id() && $experiment->get_type() !== $type ) {
+		$experiment->set_status( Experiment::STATUS_COMPLETED );
+		$experiment->set_end_time( Utils\milliseconds() );
+		$experiment->save();
+
+		$experiment = new Experiment();
+		$experiment->set_subject_post_id( $post_id );
+		$experiment->set_test_id( $test_id );
+		$experiment->set_type( $type );
+	}
+
+	$experiment->set_status( $status );
+
+	$post = get_post( $post_id );
+	if ( $post ) {
+		$experiment->set_title( $post->post_title ?: '' );
+	}
+
+	$goal = get_post_meta( $post_id, '_xb_goal', true ) ?: get_post_meta( $post_id, '_goal', true ) ?: 'engagement';
+	$experiment->set_goal( $goal );
+
+	if ( is_numeric( $traffic_pct ) ) {
+		$experiment->set_traffic_percentage( (int) $traffic_pct );
+	}
+
+	if ( is_array( $variant_pcts ) && ! empty( $variant_pcts ) ) {
+		$experiment->set_variant_traffic_percentage( $variant_pcts );
+	}
+
+	if ( ! empty( $variants ) ) {
+		$experiment->set_variants_snapshot( $variants );
+	}
+
+	if ( ! empty( $results ) && ! empty( $results['variants'] ) ) {
+		$experiment->set_results( $results );
+	}
+
+	if ( $start_time ) {
+		$experiment->set_start_time( $start_time );
+	}
+	if ( $end_time ) {
+		$experiment->set_end_time( $end_time );
+	}
+
+	$saved = $experiment->save();
+	if ( is_wp_error( $saved ) ) {
+		return null;
+	}
+
+	// Store current experiment ID for fast lookup.
+	if ( $status !== Experiment::STATUS_COMPLETED ) {
+		update_post_meta( $post_id, '_current_experiment_id', $experiment->get_id() );
+	}
+
+	// Update resolver cache so subsequent reads within the same request are fresh.
+	$cache_key = "{$post_id}:{$test_id}";
+	$GLOBALS['_altis_experiment_resolver_cache'][ $cache_key ] = $experiment;
+
+	return $experiment;
+}
+
+/**
+ * Whether a completed experiment row already exists for a post/test pair.
+ *
+ * Used by the ghost-row guard in sync_experiment_to_table() to refuse minting a
+ * duplicate row once an experiment has already concluded.
+ *
+ * @param int    $post_id Subject post ID.
+ * @param string $test_id Test ID.
+ * @return bool True when at least one completed row exists.
+ */
+function has_completed_experiment_for_post( int $post_id, string $test_id ) : bool {
+	$found = Experiment::find_one( [
+		'subject_post_id' => $post_id,
+		'test_id'         => $test_id,
+		'status'          => Experiment::STATUS_COMPLETED,
+	] );
+
+	return ! is_wp_error( $found ) && $found !== null;
+}
+
+/**
+ * Resolve the experiment row for a test/post pair, with a per-request cache.
+ *
+ * Falls back from active (draft/running/paused) to most-recent any-status row
+ * when $active_only is false. Cache is keyed by "$post_id:$test_id".
+ *
+ * @param string $test_id     Test ID.
+ * @param int    $post_id     Subject post ID.
+ * @param bool   $active_only When true, only return a non-completed experiment.
+ * @return Experiment|null
+ */
+function resolve_experiment_for_test( string $test_id, int $post_id, bool $active_only = false ) : ?Experiment {
+	$cache_key = "{$post_id}:{$test_id}";
+
+	if ( array_key_exists( $cache_key, $GLOBALS['_altis_experiment_resolver_cache'] ?? [] ) ) {
+		$cached = $GLOBALS['_altis_experiment_resolver_cache'][ $cache_key ];
+
+		// A cached `false` is a definitive miss: no row of any status existed
+		// when we last looked. That answers both any-status and active-only
+		// callers, so there is nothing to re-query.
+		if ( $cached === false ) {
+			return null;
+		}
+
+		if ( $active_only && $cached->get_status() === Experiment::STATUS_COMPLETED ) {
+			// Cache has a completed row but caller needs active.
+			if ( ! empty( $GLOBALS['_altis_experiment_resolver_no_active'][ $cache_key ] ) ) {
+				return null;
+			}
+			$fresh = Experiment::find_active_for_post( $post_id, $test_id );
+			if ( is_wp_error( $fresh ) ) {
+				// Query failed: report no active row but record nothing.
+				return null;
+			}
+			if ( $fresh ) {
+				$GLOBALS['_altis_experiment_resolver_cache'][ $cache_key ] = $fresh;
+				return $fresh;
+			}
+			// Definitive: no active row behind the completed one. Remember it
+			// so repeat active-only calls stop re-querying.
+			$GLOBALS['_altis_experiment_resolver_no_active'][ $cache_key ] = true;
+			return null;
+		}
+		return $cached;
+	}
+
+	// A definitive "no active row" recorded earlier in the request answers
+	// active-only callers without a query. Checked after the main cache so an
+	// experiment written by sync_experiment_to_table() since then wins.
+	if ( $active_only && ! empty( $GLOBALS['_altis_experiment_resolver_no_active'][ $cache_key ] ) ) {
+		return null;
+	}
+
+	$found = Experiment::find_active_for_post( $post_id, $test_id );
+	$experiment = is_wp_error( $found ) ? null : $found;
+
+	if ( $found === null ) {
+		// The active lookup succeeded and returned nothing — definitive.
+		$GLOBALS['_altis_experiment_resolver_no_active'][ $cache_key ] = true;
+	}
+
+	$missed_any_status = false;
+	if ( ! $experiment && ! $active_only ) {
+		// Fall back to most-recent row of any status, scoped to this test.
+		$fallback = Experiment::find_one( [
+			'subject_post_id' => $post_id,
+			'test_id'         => $test_id,
+		] );
+
+		if ( ! is_wp_error( $fallback ) ) {
+			$experiment = $fallback;
+			$missed_any_status = $fallback === null;
+		}
+	}
+
+	if ( $experiment ) {
+		$GLOBALS['_altis_experiment_resolver_cache'][ $cache_key ] = $experiment;
+	} elseif ( $missed_any_status ) {
+		// Cache the definitive miss so repeat lookups within the request don't
+		// re-run both queries — but only when the any-status query actually
+		// succeeded and returned nothing. A failed query must never be
+		// recorded as a miss, and an active-only miss doesn't rule out a
+		// completed row a later any-status call needs.
+		$GLOBALS['_altis_experiment_resolver_cache'][ $cache_key ] = false;
+	}
+
+	return $experiment ?: null;
+}
+
+/**
+ * Flush the per-request experiment resolver cache.
+ *
+ * Called from test set_up() to ensure DB rollbacks between tests start clean.
+ */
+function flush_experiment_resolver_cache() : void {
+	$GLOBALS['_altis_experiment_resolver_cache'] = [];
+	$GLOBALS['_altis_experiment_resolver_no_active'] = [];
+}
+
+/**
+ * Clear the stale block-level state left behind by a previous experiment
+ * generation so a freshly created experiment on the same post starts from a
+ * clean slate.
+ *
+ * When an experiment completes, block-level post meta persists: the completed
+ * results (carrying a `winner`), the `_ended` flag, the past `_end_time`, the
+ * `_completed` snapshot, and the cached `_current_experiment_id`. Left in place,
+ * the next generation is insta-completed by the cron (a past `_end_time` makes
+ * `is_ab_test_running_for_post()` false) and serves / syncs the prior winner.
+ *
+ * This is destructive — call it ONLY when starting a brand-new experiment, never
+ * when resuming or unpausing an existing one. It deliberately does NOT touch
+ * `test_mode` / `test_phase` (those live on the experiment row, which is freshly
+ * minted for a new generation, and resetting them here would disarm the bandit
+ * burn-in init in `update_is_ab_test_started_for_post()`).
+ *
+ * @param string $test_id The test ID.
+ * @param int    $post_id Post ID to reset state for.
+ * @return void
+ */
+function reset_ab_test_state_for_post( string $test_id, int $post_id ) : void {
+	$prefix = '_altis_ab_test_' . $test_id . '_';
+
+	// Drop the prior generation's live and completed results (winner included)
+	// and the end/completion flags. start_time / end_time are intentionally left
+	// for save_variants() to set afresh.
+	delete_post_meta( $post_id, $prefix . 'results' );
+	delete_post_meta( $post_id, $prefix . 'completed' );
+	delete_post_meta( $post_id, $prefix . 'end_time' );
+	update_post_meta( $post_id, $prefix . 'ended', 'false' );
+
+	// Drop the cached pointer to the completed experiment row so the resolver
+	// re-queries (or sync mints a fresh row) for the new generation.
+	delete_post_meta( $post_id, '_current_experiment_id' );
+
+	flush_experiment_resolver_cache();
 }
 
 /**
@@ -198,6 +613,10 @@ function register_post_ab_tests_rest_fields() {
 		'get_callback' => function ( array $post ) {
 			$response = [];
 			foreach ( array_keys( get_post_ab_tests() ) as $test_id ) {
+				if ( ! isset( $post['type'] ) ) {
+					// The wp-global-styles post type is show_in_rest, but has no 'type'.
+					continue;
+				}
 				// Skip this test for unsupported types.
 				if ( ! in_array( $post['type'], get_post_types_by_support( "altis.experiments.{$test_id}" ), true ) ) {
 					continue;
@@ -212,6 +631,8 @@ function register_post_ab_tests_rest_fields() {
 					'paused' => is_ab_test_paused_for_post( $test_id, $post['id'] ),
 					'ended' => has_ab_test_ended_for_post( $test_id, $post['id'] ),
 					'results' => (object) get_ab_test_results_for_post( $test_id, $post['id'] ),
+					'test_mode' => get_test_mode_for_post( $test_id, $post['id'] ),
+					'test_phase' => get_test_phase_for_post( $test_id, $post['id'] ),
 				];
 			}
 			return (object) $response;
@@ -277,6 +698,16 @@ function register_post_ab_tests_rest_fields() {
 						'ended' => [
 							'type' => 'boolean',
 						],
+						'test_mode' => [
+							'type' => 'string',
+							'enum' => [ 'equal-split', 'bandit' ],
+							'readOnly' => true,
+						],
+						'test_phase' => [
+							'type' => 'string',
+							'enum' => [ '', 'burn_in', 'bandit', 'confirmatory', 'done' ],
+							'readOnly' => true,
+						],
 						'results' => [
 							'type' => 'object',
 							'required' => false,
@@ -323,8 +754,8 @@ function register_post_ab_tests_rest_fields() {
 											],
 											'p' => [
 												'type' => 'number',
-												'default' => 1,
-												'description' => __( 'Variant p-value', 'altis' ),
+												'default' => 0,
+												'description' => __( 'Variant probability to be best (P2BB)', 'altis' ),
 											],
 										],
 									],
@@ -478,22 +909,6 @@ function enqueue_experiments_editor_scripts( string $hook ) : void {
 		return;
 	}
 
-	$sidebar = Utils\register_assets(
-		'experiments/sidebar',
-		[
-			'dependencies' => [
-				'wp-plugins',
-				'wp-blocks',
-				'wp-i18n',
-				'wp-editor',
-				'wp-components',
-				'wp-core-data',
-				'wp-edit-post',
-				'moment',
-			],
-		]
-	);
-
 	// Retrieve the labels for tests that show UI.
 	$js_data = [];
 
@@ -507,7 +922,7 @@ function enqueue_experiments_editor_scripts( string $hook ) : void {
 		}
 
 		foreach ( $test['editor_scripts'] as $script => $deps ) {
-			wp_enqueue_script( "altis-accelerate-experiments/{ $test_id }", $script, array_merge( $deps, [ $sidebar['script'] ] ), null );
+			wp_enqueue_script( "altis-accelerate-experiments/{ $test_id }", $script, array_merge( $deps, [ 'altis-accelerate-global-blocks' ] ), null );
 		}
 
 		if ( $test['show_ui'] ) {
@@ -520,7 +935,7 @@ function enqueue_experiments_editor_scripts( string $hook ) : void {
 	}
 
 	wp_add_inline_script(
-		'altis-accelerate-experiments/sidebar',
+		'altis-accelerate-global-blocks',
 		sprintf(
 			'window.Altis = window.Altis || {};' .
 			'window.Altis.Analytics = window.Altis.Analytics || {};' .
@@ -698,6 +1113,282 @@ function get_ab_test_variant_traffic_percentage_for_post( string $test_id, int $
 }
 
 /**
+ * Get the test mode (equal-split|bandit) for a given test/post.
+ *
+ * Reads the `test_mode` field from the experiment row. When the row is absent or
+ * the stored value is not a recognised mode, returns the value of the
+ * `altis.experiments.default_test_mode` filter (default `'bandit'`).
+ *
+ * @param string $test_id The test ID.
+ * @param int    $post_id Post ID to get test data for.
+ * @return string Either 'equal-split' or 'bandit'.
+ */
+function get_test_mode_for_post( string $test_id, int $post_id ) : string {
+	$experiment = resolve_experiment_for_test( $test_id, $post_id );
+	$mode = $experiment ? $experiment->get_test_mode() : '';
+	if ( $mode !== 'equal-split' && $mode !== 'bandit' ) {
+		/**
+		 * Filter the default test mode used for newly-started A/B tests.
+		 *
+		 * Allowed values: 'bandit', 'equal-split'.
+		 *
+		 * @param string $mode    The default mode.
+		 * @param string $test_id The test ID.
+		 * @param int    $post_id Post ID.
+		 */
+		$mode = (string) apply_filters( 'altis.experiments.default_test_mode', 'bandit', $test_id, $post_id );
+	}
+	return $mode === 'equal-split' ? 'equal-split' : 'bandit';
+}
+
+/**
+ * Update the bandit mode for a test on a post.
+ *
+ * Writes to the `test_mode` field on the experiment row. Returns false when no
+ * active (non-completed) experiment row exists — never writes a completed row.
+ * Foundry save() returns false on no-op same-value writes; only a WP_Error is
+ * treated as failure.
+ *
+ * @param string $test_id The test ID.
+ * @param int    $post_id Post ID.
+ * @param string $mode    'equal-split' or 'bandit'.
+ * @return bool True on success, false when no active row or on error.
+ */
+function update_test_mode_for_post( string $test_id, int $post_id, string $mode ) : bool {
+	$mode = in_array( $mode, [ 'equal-split', 'bandit' ], true ) ? $mode : 'equal-split';
+	$experiment = resolve_experiment_for_test( $test_id, $post_id, true );
+	if ( ! $experiment ) {
+		return false;
+	}
+	$experiment->set_test_mode( $mode );
+	$result = $experiment->save();
+	return ! is_wp_error( $result );
+}
+
+/**
+ * Get the current bandit phase for a given test/post.
+ *
+ * Reads the `test_phase` field from the experiment row. Returns '' when the row
+ * is absent or the stored value is not in the allowed set — an empty string
+ * signals a legacy/equal-split test that should bypass phase machinery entirely.
+ *
+ * @param string $test_id The test ID.
+ * @param int    $post_id Post ID to get test data for.
+ * @return string One of '', 'burn_in', 'bandit', 'confirmatory', 'done'.
+ */
+function get_test_phase_for_post( string $test_id, int $post_id ) : string {
+	$experiment = resolve_experiment_for_test( $test_id, $post_id );
+	$phase = $experiment ? $experiment->get_test_phase() : '';
+	$allowed = [ 'burn_in', 'bandit', 'confirmatory', 'done' ];
+	return in_array( $phase, $allowed, true ) ? $phase : '';
+}
+
+/**
+ * Update the bandit phase for a given test/post.
+ *
+ * Writes to the `test_phase` field on the experiment row. Returns false when no
+ * active (non-completed) experiment row exists — never writes a completed row.
+ *
+ * @param string $test_id The test ID.
+ * @param int    $post_id Post ID to set test data for.
+ * @param string $phase   One of 'burn_in', 'bandit', 'confirmatory', 'done'.
+ * @return bool True on success.
+ */
+function update_test_phase_for_post( string $test_id, int $post_id, string $phase ) : bool {
+	$allowed = [ 'burn_in', 'bandit', 'confirmatory', 'done' ];
+	if ( ! in_array( $phase, $allowed, true ) ) {
+		return false;
+	}
+	$experiment = resolve_experiment_for_test( $test_id, $post_id, true );
+	if ( ! $experiment ) {
+		return false;
+	}
+	$experiment->set_test_phase( $phase );
+	$result = $experiment->save();
+	return ! is_wp_error( $result );
+}
+
+/**
+ * Get the per-variant conversion baseline captured at the moment a bandit test
+ * entered its confirmatory phase.
+ *
+ * Reads the `confirmatory_baseline` field from the experiment row.
+ *
+ * @param string $test_id The test ID.
+ * @param int    $post_id Post ID to get test data for.
+ * @return int[] Indexed array of integers (conversions per variant) or [].
+ */
+function get_confirmatory_baseline_for_post( string $test_id, int $post_id ) : array {
+	$experiment = resolve_experiment_for_test( $test_id, $post_id );
+	return $experiment ? $experiment->get_confirmatory_baseline() : [];
+}
+
+/**
+ * Write the per-variant conversion baseline for confirmatory phase entry.
+ *
+ * Writes to the `confirmatory_baseline` field on the experiment row. Returns
+ * false when no active (non-completed) experiment row exists.
+ *
+ * @param string $test_id  The test ID.
+ * @param int    $post_id  Post ID to set test data for.
+ * @param int[]  $baseline Indexed array of integers (conversions per variant).
+ * @return bool True on success.
+ */
+function update_confirmatory_baseline_for_post( string $test_id, int $post_id, array $baseline ) : bool {
+	$experiment = resolve_experiment_for_test( $test_id, $post_id, true );
+	if ( ! $experiment ) {
+		return false;
+	}
+	$experiment->set_confirmatory_baseline( $baseline );
+	$result = $experiment->save();
+	return ! is_wp_error( $result );
+}
+
+/**
+ * Compute Thompson Sampling weights for an A/B test's variants.
+ *
+ * Uses the existing Bayesian P2BB simulation as the raw weight, then applies
+ * a per-arm floor and cap (configurable via filters) before normalizing the
+ * result to sum to 100. For very high N (where N * floor > 100) the floor
+ * collapses to `1/N` and no cap applies — degenerate cases fall back to a
+ * pure equal split.
+ *
+ * @param array $variants_data Variant data shaped for `calculate_bayesian_p2bb`:
+ *                             `[ id => [ 'hits' => int, 'size' => int ], ... ]`.
+ * @param int $num_variants Number of variants (kept explicit so callers may
+ *                          ignore the data shape's count).
+ * @return float[] Indexed array of percentages summing to 100.
+ */
+function compute_bandit_weights( array $variants_data, int $num_variants, string $test_id = '', int $post_id = 0 ) : array {
+	if ( $num_variants <= 0 ) {
+		return [];
+	}
+
+	/**
+	 * Filter the per-arm weight floor (as a percentage 0-100).
+	 *
+	 * @param float  $floor   Default 5.0.
+	 * @param string $test_id The test ID (empty string when called outside a test context).
+	 * @param int    $post_id Post ID (0 when called outside a test context).
+	 */
+	$floor = (float) apply_filters( 'altis.experiments.bandit.weight_floor', 5.0, $test_id, $post_id );
+	/**
+	 * Filter the per-arm weight cap (as a percentage 0-100).
+	 *
+	 * @param float  $cap     Default 90.0.
+	 * @param string $test_id The test ID (empty string when called outside a test context).
+	 * @param int    $post_id Post ID (0 when called outside a test context).
+	 */
+	$cap = (float) apply_filters( 'altis.experiments.bandit.weight_cap', 90.0, $test_id, $post_id );
+
+	// Scale floor for N > 2: max( floor, 1/(4N) * 100 ) ... but plan says
+	// `max(5%, 1/(4N))` interpreted as percentages, so floor stays at default
+	// unless N is large enough to push 100/(4N) above it. For N=2 → 12.5,
+	// but plan example says N=2 → 5%, so we treat 1/(4N) as raw fraction in
+	// the [0,1] range producing 25/N percentage points. The plan's worked
+	// examples align with `floor_scaled = max( floor, 100 / (4 * N) )`:
+	// N=2 → max(5, 12.5) = 12.5, which contradicts "N=2 → 5%". To match the
+	// plan's explicit examples (N=2 → 5%, N=3 → 8.33%, N=4 → 6.25%) we use
+	// `floor_scaled = max( floor, 25 / N )`.
+	$floor_scaled = max( $floor, 25.0 / $num_variants );
+
+	// Degenerate fallback: if N is large enough that N * floor would exceed
+	// 100, collapse to equal split.
+	if ( $num_variants * $floor_scaled > 100.0 ) {
+		return array_fill( 0, $num_variants, 100.0 / $num_variants );
+	}
+
+	// Get raw P2BB weights when we have data; otherwise equal split.
+	if ( empty( $variants_data ) ) {
+		return array_fill( 0, $num_variants, 100.0 / $num_variants );
+	}
+
+	$p2bb = calculate_bayesian_p2bb( $variants_data );
+
+	// Convert P2BB (0-1) to percentages (0-100) preserving order.
+	$weights = [];
+	$idx = 0;
+	foreach ( $p2bb as $p ) {
+		$weights[ $idx++ ] = (float) $p * 100.0;
+	}
+
+	// Pad / trim to num_variants.
+	while ( count( $weights ) < $num_variants ) {
+		$weights[] = 0.0;
+	}
+	$weights = array_slice( $weights, 0, $num_variants );
+
+	// Apply floor.
+	foreach ( $weights as $i => $w ) {
+		if ( $w < $floor_scaled ) {
+			$weights[ $i ] = $floor_scaled;
+		}
+	}
+
+	// Apply cap.
+	foreach ( $weights as $i => $w ) {
+		if ( $w > $cap ) {
+			$weights[ $i ] = $cap;
+		}
+	}
+
+	// Normalize to sum to 100.
+	$total = array_sum( $weights );
+	if ( $total <= 0 ) {
+		return array_fill( 0, $num_variants, 100.0 / $num_variants );
+	}
+	foreach ( $weights as $i => $w ) {
+		$weights[ $i ] = $w * 100.0 / $total;
+	}
+
+	// After normalization, some arms may have dipped below the floor again.
+	// Run a single corrective pass: lift below-floor arms back to floor and
+	// drain proportionally from above-floor arms.
+	$below = [];
+	$above_total = 0.0;
+	foreach ( $weights as $i => $w ) {
+		if ( $w < $floor_scaled ) {
+			$below[ $i ] = $floor_scaled - $w;
+		} else {
+			$above_total += ( $w - $floor_scaled );
+		}
+	}
+	$deficit = array_sum( $below );
+	if ( $deficit > 0 && $above_total > 0 ) {
+		foreach ( $weights as $i => $w ) {
+			if ( isset( $below[ $i ] ) ) {
+				$weights[ $i ] = $floor_scaled;
+			} else {
+				$weights[ $i ] = $w - ( $w - $floor_scaled ) * ( $deficit / $above_total );
+			}
+		}
+	}
+
+	// Symmetric corrective pass for the cap: trim above-cap arms back to cap
+	// and redistribute the surplus proportionally to below-cap arms.
+	$excess = 0.0;
+	$below_cap_total = 0.0;
+	foreach ( $weights as $i => $w ) {
+		if ( $w > $cap ) {
+			$excess += ( $w - $cap );
+		} else {
+			$below_cap_total += ( $cap - $w );
+		}
+	}
+	if ( $excess > 0 && $below_cap_total > 0 ) {
+		foreach ( $weights as $i => $w ) {
+			if ( $w > $cap ) {
+				$weights[ $i ] = $cap;
+			} else {
+				$weights[ $i ] = $w + ( $cap - $w ) * ( $excess / $below_cap_total );
+			}
+		}
+	}
+
+	return array_values( $weights );
+}
+
+/**
  * Get the current test results for the test so far.
  *
  * @param string $test_id The test ID.
@@ -799,6 +1490,39 @@ function update_is_ab_test_started_for_post( string $test_id, int $post_id, bool
 	if ( ! $is_started ) {
 		update_has_ab_test_ended_for_post( $test_id, $post_id, false );
 	}
+
+	// Dual-write to experiments table, then initialise bandit state on the row.
+	$experiment = sync_experiment_to_table( $test_id, $post_id );
+
+	if ( $is_started && $experiment
+		&& $experiment->get_test_phase() === ''
+		&& $experiment->get_type() !== Experiment::TYPE_PERSONALIZATION ) {
+		$stored_mode = $experiment->get_test_mode();
+
+		// Resolve the effective mode: an unset mode falls back to the default
+		// filter; an already-stored mode is authoritative and never flipped (so
+		// re-starting an equal-split test stays equal-split).
+		if ( $stored_mode === 'equal-split' || $stored_mode === 'bandit' ) {
+			$mode = $stored_mode;
+		} else {
+			$mode = (string) apply_filters( 'altis.experiments.default_test_mode', 'bandit', $test_id, $post_id );
+			$mode = $mode === 'equal-split' ? 'equal-split' : 'bandit';
+			$experiment->set_test_mode( $mode );
+		}
+
+		// Only bandit runs the phase machinery; equal-split keeps phase empty.
+		// Initialising whenever the resolved mode is bandit (not only when mode
+		// was unset) covers the wild case where test_mode was pre-set to
+		// 'bandit' but the phase was left empty — without this the cron treats
+		// the test as legacy and burn_in never starts.
+		if ( $mode === 'bandit' ) {
+			$experiment->set_test_phase( 'burn_in' );
+			$experiment->save();
+		} elseif ( $stored_mode !== 'equal-split' ) {
+			// Newly resolved to equal-split — persist the mode we just set.
+			$experiment->save();
+		}
+	}
 }
 
 /**
@@ -835,6 +1559,14 @@ function update_ab_test_variant_traffic_percentage_for_post( string $test_id, in
 	}
 	$percents = array_values( $percents );
 	update_post_meta( $post_id, '_altis_ab_test_' . $test_id . '_variant_traffic_percentage', $percents );
+
+	// Best-effort mirror to experiments table (keeps table column fresh during bandit cron ticks).
+	// Resolve via the cached resolver so the per-request instance stays coherent.
+	$experiment = resolve_experiment_for_test( $test_id, $post_id, true );
+	if ( $experiment ) {
+		$experiment->set_variant_traffic_percentage( $percents );
+		$experiment->save();
+	}
 }
 
 /**
@@ -846,6 +1578,13 @@ function update_ab_test_variant_traffic_percentage_for_post( string $test_id, in
  */
 function update_ab_test_results_for_post( string $test_id, int $post_id, array $data ) {
 	update_post_meta( $post_id, '_altis_ab_test_' . $test_id . '_results', $data );
+
+	// Dual-write results to experiments table.
+	$experiment = Experiment::get_active_for_post( $post_id, $test_id );
+	if ( $experiment ) {
+		$experiment->set_results( $data );
+		$experiment->save();
+	}
 }
 
 /**
@@ -857,6 +1596,9 @@ function update_ab_test_results_for_post( string $test_id, int $post_id, array $
  */
 function update_is_ab_test_paused_for_post( string $test_id, int $post_id, bool $is_paused ) {
 	update_post_meta( $post_id, '_altis_ab_test_' . $test_id . '_paused', $is_paused ? 'true' : 'false' );
+
+	// Dual-write to experiments table.
+	sync_experiment_to_table( $test_id, $post_id );
 }
 
 /**
@@ -868,6 +1610,9 @@ function update_is_ab_test_paused_for_post( string $test_id, int $post_id, bool 
  */
 function update_has_ab_test_ended_for_post( string $test_id, int $post_id, bool $has_ended ) {
 	update_post_meta( $post_id, '_altis_ab_test_' . $test_id . '_ended', $has_ended ? 'true' : 'false' );
+
+	// Dual-write to experiments table.
+	sync_experiment_to_table( $test_id, $post_id );
 }
 
 /**
@@ -902,6 +1647,14 @@ function save_ab_test_results_for_post( string $test_id, int $post_id, array $da
 		'variants' => [],
 	] );
 	update_post_meta( $post_id, '_altis_ab_test_' . $test_id . '_completed', $data );
+
+	// Dual-write completed results to experiments table.
+	$experiment = Experiment::get_active_for_post( $post_id, $test_id );
+	if ( $experiment ) {
+		$experiment->set_results( $data );
+		$experiment->set_status( Experiment::STATUS_COMPLETED );
+		$experiment->save();
+	}
 }
 
 /**
@@ -947,6 +1700,9 @@ function output_ab_test_html_for_post( string $test_id, int $post_id, string $de
 		return call_user_func_array( $test['variant_callback'], [ $variant, $post_id, $args ] );
 	}, $variants );
 
+	// Dynamic per-variant weights (set by the bandit cron). Emit only when meta is non-empty.
+	$variant_weights = get_ab_test_variant_traffic_percentage_for_post( $test_id, $post_id );
+
 	// Generate AB Test markup.
 	ob_start();
 	?>
@@ -958,6 +1714,9 @@ function output_ab_test_html_for_post( string $test_id, int $post_id, string $de
 		closest="<?php echo esc_attr( $test['closest'] ); ?>"
 		fallback="<?php echo esc_attr( $default_output ); ?>"
 		variants="<?php echo esc_attr( wp_json_encode( $variant_output, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES ) ); ?>"
+		<?php if ( ! empty( $variant_weights ) ) : ?>
+		variant-weights="<?php echo esc_attr( wp_json_encode( array_values( $variant_weights ) ) ); ?>"
+		<?php endif; ?>
 	>
 		<?php echo $default_output; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
 	</ab-test>
@@ -1088,12 +1847,276 @@ function process_post_ab_test_result( string $test_id, int $post_id ) {
 		$sorted_aggs[ $variant_id ][ $event_type ] = $row->uniques;
 	}
 
-	// Process for a winner.
-	$processed_results = analyse_ab_test_results( $sorted_aggs, $test_id, $post_id );
-	$output = wp_parse_args( $processed_results, $output );
+	// Bandit phase machinery runs BEFORE the existing winner declaration so it
+	// can suppress `analyse_ab_test_results()` (which ends the test on P2BB >= 0.95)
+	// while a bandit test is still in burn_in or bandit phase. We compute the
+	// per-variant P2BB locally for the phase-transition decision without going
+	// through the existing analyser. Legacy/equal-split tests fall through to the
+	// existing call below unchanged.
+	$mode = get_test_mode_for_post( $test_id, $post_id );
+	$phase = get_test_phase_for_post( $test_id, $post_id );
+	$processed_results = null;
+
+	if ( $mode === 'bandit' && in_array( $phase, [ 'burn_in', 'bandit' ], true ) ) {
+		$num_variants = count( $variants );
+		$conversions = [];
+		for ( $i = 0; $i < $num_variants; $i++ ) {
+			$conversions[ $i ] = (int) ( $sorted_aggs[ $i ]['conversions'] ?? 0 );
+		}
+		$variants_data = prepare_variants_for_bayesian( $sorted_aggs );
+
+		// Keep stored results live during bandit phases. The analyser stays
+		// suppressed (it would end the test early), but monitoring surfaces —
+		// the experiments UI, get-experiment-results ability, REST — read the
+		// stored results row and would otherwise be blind until the test
+		// completes. This fill has no winner/end side effects.
+		$output = wp_parse_args( build_live_ab_test_results( $sorted_aggs, $test_id, $post_id ), $output );
+
+		if ( $phase === 'burn_in' ) {
+			/**
+			 * Filter the per-variant conversion floor required to exit burn-in.
+			 *
+			 * @param int    $min     Default 50.
+			 * @param string $test_id The test ID.
+			 * @param int    $post_id Post ID.
+			 */
+			$burn_in_min = (int) apply_filters( 'altis.experiments.bandit.burn_in_min_conversions', 50, $test_id, $post_id );
+			$min_observed = $num_variants > 0 ? min( $conversions ) : 0;
+			if ( $min_observed >= $burn_in_min && $num_variants > 0 ) {
+				update_test_phase_for_post( $test_id, $post_id, 'bandit' );
+				$weights = compute_bandit_weights( $variants_data, $num_variants, $test_id, $post_id );
+				update_ab_test_variant_traffic_percentage_for_post( $test_id, $post_id, $weights );
+			}
+		} else { // phase === 'bandit'
+			// Compute P2BB locally (no side effects) to decide phase advance.
+			$p2bb = $num_variants > 0 ? calculate_bayesian_p2bb( $variants_data ) : [];
+			$max_p = $p2bb ? max( $p2bb ) : 0.0;
+			$advancing = $max_p >= 0.95;
+
+			// Decide the FINAL weight vector before writing it (A17). On a
+			// bandit→confirmatory transition we want the equal split for a clean
+			// final read; otherwise the freshly computed bandit weights. Writing
+			// the bandit weights and then overwriting them with the equal split in
+			// the same cron pass left a window where a concurrent read of the
+			// experiment row saw a transient [33.33, …] even split between real
+			// weights. Compute once, persist once.
+			$weights = $advancing
+				? array_fill( 0, $num_variants, 100.0 / max( 1, $num_variants ) )
+				: compute_bandit_weights( $variants_data, $num_variants, $test_id, $post_id );
+			update_ab_test_variant_traffic_percentage_for_post( $test_id, $post_id, $weights );
+
+			if ( $advancing ) {
+				update_test_phase_for_post( $test_id, $post_id, 'confirmatory' );
+				update_confirmatory_baseline_for_post( $test_id, $post_id, $conversions );
+			}
+		}
+	} elseif ( $mode === 'bandit' && $phase === 'confirmatory' ) {
+		// Keep stored results live for monitoring (no winner/end side effects).
+		$output = wp_parse_args( build_live_ab_test_results( $sorted_aggs, $test_id, $post_id ), $output );
+
+		// Otherwise a no-op: weights stay at the equal split set on phase entry,
+		// and the baseline must NOT be rewritten (the delta gate below relies
+		// on the snapshot taken at bandit→confirmatory transition).
+		// analyse_ab_test_results() is intentionally NOT called — it would
+		// end the test on P2BB >= 0.95 before the additional confirmatory
+		// observations have accrued. It fires exactly once below, when the
+		// baseline-delta check transitions phase to 'done'.
+		$noop = true;
+	} else {
+		// Equal-split, done, or legacy — preserve existing winner declaration flow.
+		$processed_results = analyse_ab_test_results( $sorted_aggs, $test_id, $post_id );
+		$output = wp_parse_args( $processed_results, $output );
+	}
+
+	// Confirmatory-completion check (runs after analyse_ab_test_results so an
+	// in-window winner declaration has already happened if P2BB still holds).
+	if ( $mode === 'bandit' && $phase === 'confirmatory' ) {
+		$num_variants = count( $variants );
+		$conversions = [];
+		for ( $i = 0; $i < $num_variants; $i++ ) {
+			$conversions[ $i ] = (int) ( $sorted_aggs[ $i ]['conversions'] ?? 0 );
+		}
+		/**
+		 * Filter the per-variant incremental conversion floor required to
+		 * finish the confirmatory phase.
+		 *
+		 * @param int    $min     Default 100.
+		 * @param string $test_id The test ID.
+		 * @param int    $post_id Post ID.
+		 */
+		$conf_min = (int) apply_filters( 'altis.experiments.bandit.confirmatory_min_conversions', 100, $test_id, $post_id );
+		$baseline = get_confirmatory_baseline_for_post( $test_id, $post_id );
+		$min_delta = PHP_INT_MAX;
+		for ( $i = 0; $i < $num_variants; $i++ ) {
+			$delta = $conversions[ $i ] - (int) ( $baseline[ $i ] ?? 0 );
+			if ( $delta < $min_delta ) {
+				$min_delta = $delta;
+			}
+		}
+		if ( $num_variants > 0 && $min_delta >= $conf_min ) {
+			update_test_phase_for_post( $test_id, $post_id, 'done' );
+			// Fire existing winner declaration exactly once, now that the
+			// confirmatory observation budget has been met.
+			$processed_results = analyse_ab_test_results( $sorted_aggs, $test_id, $post_id );
+			$output = wp_parse_args( $processed_results, $output );
+
+			// Harvest the winner: apply the winning variant's content to the
+			// block so the front end serves it. analyse_ab_test_results() only
+			// declares the winner in the stored results; without this the block
+			// keeps serving all variants. Block experiments only.
+			if ( $test_id === 'block'
+				&& isset( $processed_results['winner'] )
+				&& $processed_results['winner'] !== null ) {
+				\Altis\Accelerate\GlobalBlocks\apply_winner( $post_id, (int) $processed_results['winner'] );
+			}
+		}
+	}
 
 	// Save updated data.
 	update_ab_test_results_for_post( $test_id, $post_id, $output );
+}
+
+/**
+ * Calculate Beta distribution parameters from conversion data.
+ * Uses conjugate prior: Beta(1,1) = Uniform distribution
+ *
+ * @param int $successes Number of conversions.
+ * @param int $trials Total number of impressions.
+ * @return array Alpha and beta parameters.
+ */
+function calculate_beta_parameters( int $successes, int $trials ): array {
+	return [
+		'alpha' => 1 + $successes,  // Uniform prior alpha=1
+		'beta' => 1 + ( $trials - $successes ),  // Uniform prior beta=1
+	];
+}
+
+/**
+ * Generate a random variate from Gamma(shape, 1) distribution.
+ * Uses Marsaglia and Tsang's method for shape >= 1.
+ *
+ * @param float $shape Shape parameter (alpha).
+ * @return float Random Gamma variate.
+ */
+function gamma_rand( float $shape ): float {
+	// Handle shape < 1 using Ahrens-Dieter method
+	if ( $shape < 1 ) {
+		return gamma_rand( $shape + 1 ) * pow( mt_rand() / mt_getrandmax(), 1.0 / $shape );
+	}
+
+	// Marsaglia and Tsang's method for shape >= 1
+	$d = $shape - 1.0 / 3.0;
+	$c = 1.0 / sqrt( 9.0 * $d );
+
+	while ( true ) {
+		// Generate normal variate using Box-Muller
+		$u1 = mt_rand() / mt_getrandmax();
+		$u2 = mt_rand() / mt_getrandmax();
+		$z = sqrt( -2.0 * log( $u1 ) ) * cos( 2.0 * M_PI * $u2 );
+
+		$v = 1.0 + $c * $z;
+		if ( $v <= 0 ) {
+			continue;
+		}
+
+		$v = $v * $v * $v;
+		$u = mt_rand() / mt_getrandmax();
+
+		// Squeeze test
+		if ( $u < 1.0 - 0.0331 * ( $z * $z ) * ( $z * $z ) ) {
+			return $d * $v;
+		}
+
+		// Full acceptance test
+		if ( log( $u ) < 0.5 * $z * $z + $d * ( 1.0 - $v + log( $v ) ) ) {
+			return $d * $v;
+		}
+	}
+}
+
+/**
+ * Generate a random variate from Beta(alpha, beta) distribution.
+ * Uses the ratio of two Gamma variates: X/(X+Y) where X~Gamma(alpha), Y~Gamma(beta).
+ *
+ * @param float $alpha Alpha parameter.
+ * @param float $beta Beta parameter.
+ * @return float Random Beta variate in [0, 1].
+ */
+function beta_rand( float $alpha, float $beta ): float {
+	$x = gamma_rand( $alpha );
+	$y = gamma_rand( $beta );
+	return $x / ( $x + $y );
+}
+
+/**
+ * Calculate Bayesian P2BB using Monte Carlo simulation.
+ *
+ * @param array $variants_data Variant data with hits/size/rate.
+ * @param int $samples Total Monte Carlo samples to generate.
+ * @return array P2BB probabilities for each variant.
+ */
+function calculate_bayesian_p2bb( array $variants_data, int $samples = 10000 ): array {
+	$variant_ids = array_keys( $variants_data );
+	$win_counts = array_fill_keys( $variant_ids, 0 );
+
+	// Pre-calculate Beta parameters for each variant
+	$params = [];
+	foreach ( $variants_data as $variant_id => $data ) {
+		$beta_params = calculate_beta_parameters( $data['hits'], $data['size'] );
+		$params[ $variant_id ] = $beta_params;
+	}
+
+	// Run Monte Carlo simulation
+	for ( $i = 0; $i < $samples; $i++ ) {
+		// Generate one sample from each variant's posterior
+		$sample_values = [];
+		foreach ( $variant_ids as $variant_id ) {
+			$sample_values[ $variant_id ] = beta_rand(
+				$params[ $variant_id ]['alpha'],
+				$params[ $variant_id ]['beta']
+			);
+		}
+
+		// Find the winner (highest sample value)
+		$max_value = -1;
+		$winner = null;
+		foreach ( $sample_values as $variant_id => $value ) {
+			if ( $value > $max_value ) {
+				$max_value = $value;
+				$winner = $variant_id;
+			}
+		}
+
+		if ( $winner !== null ) {
+			$win_counts[ $winner ]++;
+		}
+	}
+
+	// Convert to probabilities
+	$p2bb_results = [];
+	foreach ( $win_counts as $variant_id => $wins ) {
+		$p2bb_results[ $variant_id ] = $wins / $samples;
+	}
+
+	return $p2bb_results;
+}
+
+/**
+ * Helper to prepare variant data for Bayesian analysis.
+ *
+ * @param array $aggregations Raw aggregation data from analytics.
+ * @return array Prepared variant data with size/hits/rate.
+ */
+function prepare_variants_for_bayesian( array $aggregations ): array {
+	$variants_data = [];
+	foreach ($aggregations as $id => $agg) {
+		$variants_data[$id] = [
+			'size' => $agg['impressions'] ?? 0,
+			'hits' => $agg['conversions'] ?? 0,
+			'rate' => ($agg['impressions'] ?? 0) ? ($agg['conversions'] ?? 0) / ($agg['impressions'] ?? 0) : 0
+		];
+	}
+	return $variants_data;
 }
 
 /**
@@ -1104,79 +2127,107 @@ function process_post_ab_test_result( string $test_id, int $post_id ) {
  * @param int $post_id Post ID to check test data for.
  * @return array Array of winner ID, current winning variant ID and variant stats.
  */
+/**
+ * Build the stored-results payload for an in-flight bandit test without any
+ * winner/end side effects.
+ *
+ * Mirrors the variant shape produced by analyse_ab_test_results() (value,
+ * size, hits, rate, p) so monitoring surfaces — the experiments UI, the
+ * get-experiment-results ability, REST — show live numbers during burn_in,
+ * bandit, and confirmatory phases. Winner determination remains exclusively
+ * the analyser's job.
+ *
+ * @param array  $aggregations Per-variant aggregations (impressions/conversions).
+ * @param string $test_id The test ID.
+ * @param int    $post_id Post ID being processed.
+ * @return array Partial results payload: timestamp, aggs, variants.
+ */
+function build_live_ab_test_results( array $aggregations, string $test_id, int $post_id ) : array {
+	$variant_values = get_ab_test_variants_for_post( $test_id, $post_id );
+	$variants_data  = prepare_variants_for_bayesian( $aggregations );
+	$p2bb_results   = $variants_data ? calculate_bayesian_p2bb( $variants_data ) : [];
+
+	$variants = [];
+	foreach ( $aggregations as $id => $agg ) {
+		$size = $agg['impressions'] ?? 0;
+		$hits = $agg['conversions'] ?? 0;
+
+		$variants[ $id ] = [
+			'value' => $variant_values[ $id ] ?? null,
+			'size'  => $size,
+			'hits'  => $hits,
+			'rate'  => $size ? $hits / $size : 0,
+			'p'     => $p2bb_results[ $id ] ?? null,
+		];
+	}
+
+	return [
+		'timestamp' => Utils\milliseconds(),
+		'aggs'      => $aggregations,
+		'variants'  => $variants,
+	];
+}
+
 function analyse_ab_test_results( array $aggregations, string $test_id, int $post_id ) : array {
 	$variant_values = get_ab_test_variants_for_post( $test_id, $post_id );
 
-	// Track winning variant.
-	$winner = null;
-	$winning = null;
-	$max_rate = 0.0;
+	// Prepare data for Bayesian analysis
+	$variants_data = prepare_variants_for_bayesian( $aggregations );
 	$variants = [];
+	$max_rate = 0.0;
 
+	// Build variants array (keep existing structure)
 	foreach ( $aggregations as $id => $agg ) {
 		$size = $agg['impressions'] ?? 0;
 		$hits = $agg['conversions'] ?? 0;
 		$rate = $size ? $hits / $size : 0;
 
 		$variants[ $id ] = [
-			'value' => $variant_values[ $id ],
+			'value' => $variant_values[ $id ] ?? null,
 			'size' => $size,
 			'hits' => $hits,
 			'rate' => $rate,
-			'p' => null,
+			'p' => null, // Will be P2BB value
 		];
 
-		// Check if this variant is winning.
 		if ( $rate > $max_rate ) {
 			$max_rate = $rate;
-
-			// Check sample size is large enough.
-			// We use a low value of 5% as the Minimum Detectable Effect because making the change
-			// is automated and therefore cost effective.
-			if ( $size * $rate >= 5 && $size * ( 1 - $rate ) >= 5 ) {
-				$winning = absint( $id );
-			}
 		}
-
-		// Get p-value.
-		// Compare hit rate of variant against control using discrete binomial distribution.
-		// Pass the success rate for this variant to the probability mass function.
-		$control = $variants[0];
-		$binomial = new Discrete\Binomial( $size, $control['rate'] );
-		$variants[ $id ]['p'] = $binomial->pmf( $hits );
-
 	}
 
-	// Find if a variant is winning, ie. reject null hypothesis.
-	if ( $winning !== null ) {
-		$winning_variant = $variants[ $winning ];
-		// Require 99% certainty.
-		if ( ! is_null( $winning_variant['p'] ) && $winning_variant['p'] < 0.01 ) {
-			$winner = absint( $winning );
+	// Calculate Bayesian P2BB
+	$p2bb_results = calculate_bayesian_p2bb( $variants_data );
 
-			// Store results safely.
-			save_ab_test_results_for_post( $test_id, $post_id, [
-				'winner' => absint( $winner ),
-				'variants' => $variants,
-			] );
+	// Update variants with P2BB values
+	foreach ( $variants as $id => $variant ) {
+		$variants[ $id ]['p'] = $p2bb_results[ $id ] ?? 0;
+	}
 
-			// End the test.
-			end_ab_test_for_post( $test_id, $post_id );
+	// Winner determination (replace existing logic)
+	$winner = null;
+	$winning = null;
+	$p2bb_threshold = 0.95; // 95% confidence
+	$min_sample_size = 300;  // Minimum impressions
 
-			/**
-			 * Dispatch action when winner found.
-			 *
-			 * @param string $test_id
-			 * @param int $post_id
-			 */
-			do_action( 'altis.experiments.test.winner_found', $test_id, $post_id, $winning_variant['value'] );
+	foreach ( $p2bb_results as $variant_id => $p2bb ) {
+		if ( $p2bb >= $p2bb_threshold ) {
+			$variant_data = $variants_data[ $variant_id ];
+			if ( $variant_data['size'] >= $min_sample_size ) {
+				$winner = absint( $variant_id );
+				$winning = absint( $variant_id );
 
-			/**
-			 * Dispatch action when winner found for test.
-			 *
-			 * @param int $post_id
-			 */
-			do_action( "altis.experiments.test.winner_found.{$test_id}", $post_id, $winning_variant['value'] );
+				// Keep existing save/end/action logic unchanged
+				save_ab_test_results_for_post( $test_id, $post_id, [
+					'winner' => $winner,
+					'variants' => $variants,
+				] );
+
+				end_ab_test_for_post( $test_id, $post_id );
+
+				do_action( 'altis.experiments.test.winner_found', $test_id, $post_id, $variants[ $winner ]['value'] );
+				do_action( "altis.experiments.test.winner_found.{$test_id}", $post_id, $variants[ $winner ]['value'] );
+				break;
+			}
 		}
 	}
 
@@ -1203,6 +2254,14 @@ function end_ab_test_for_post( string $test_id, int $post_id ) {
 		return;
 	}
 
+	// Stamp the ended flag in meta up front (without its own sync) so that the
+	// pause + ended dual-writes below both observe `_ended = true`. The ghost-row
+	// guard in sync_experiment_to_table() keys on `_ended && _paused` to suppress
+	// a duplicate row when the active row has already been completed by the
+	// analyser (A18 — autonomous cron conclusion). Without this the pause sync
+	// would still see `_ended = false` and mint a winner-less ghost.
+	update_post_meta( $post_id, '_altis_ab_test_' . $test_id . '_ended', 'true' );
+
 	// Pause the test.
 	update_is_ab_test_paused_for_post( $test_id, $post_id, true );
 
@@ -1228,4 +2287,116 @@ function end_ab_test_for_post( string $test_id, int $post_id ) {
 	 * @param array $data The test results so far.
 	 */
 	do_action( "altis.experiments.test.ended.{$test_id}", $post_id );
+}
+
+/**
+ * Register the Experiments admin submenu page.
+ */
+function register_admin_page() {
+	$hook = add_submenu_page(
+		'accelerate',
+		__( 'Experiments', 'altis' ),
+		__( 'Experiments', 'altis' ),
+		'edit_posts',
+		'experiments',
+		__NAMESPACE__ . '\\render_admin_page'
+	);
+
+	add_action( 'load-' . $hook, __NAMESPACE__ . '\\enqueue_overview_assets' );
+}
+
+/**
+ * Move the Experiments submenu item directly after Synced Patterns.
+ *
+ * The position parameter on add_submenu_page is unreliable when multiple
+ * hooks add items to the same parent. This runs at priority 999 to
+ * reorder after all items are registered.
+ */
+function reorder_admin_submenu() {
+	global $submenu;
+
+	if ( empty( $submenu['accelerate'] ) ) {
+		return;
+	}
+
+	$items          = &$submenu['accelerate'];
+	$experiments_key = null;
+	$synced_key      = null;
+
+	foreach ( $items as $key => $item ) {
+		if ( $item[2] === 'experiments' ) {
+			$experiments_key = $key;
+		}
+		if ( $item[2] === 'edit.php?post_type=wp_block' ) {
+			$synced_key = $key;
+		}
+	}
+
+	if ( $experiments_key === null || $synced_key === null ) {
+		return;
+	}
+
+	// Remove experiments from current position.
+	$experiments_item = $items[ $experiments_key ];
+	unset( $items[ $experiments_key ] );
+
+	// Re-index and insert after Synced Patterns.
+	$items  = array_values( $items );
+	$insert = count( $items ); // Fallback: append.
+	foreach ( $items as $i => $item ) {
+		if ( $item[2] === 'edit.php?post_type=wp_block' ) {
+			$insert = $i + 1;
+			break;
+		}
+	}
+
+	array_splice( $items, $insert, 0, [ $experiments_item ] );
+}
+
+/**
+ * Enqueue assets for the experiments overview React app.
+ */
+function enqueue_overview_assets() {
+	wp_enqueue_style(
+		'altis-accelerate-tailwind',
+		plugins_url( 'build/tailwind.css', Accelerate\PLUGIN_FILE ),
+		[],
+		filemtime( dirname( Accelerate\PLUGIN_FILE ) . '/build/tailwind.css' )
+	);
+
+	$handle = Utils\register_assets( 'experiments/overview', [
+		'dependencies' => [
+			'wp-api-fetch',
+			'wp-blocks',
+			'wp-block-editor',
+			'wp-components',
+			'wp-data',
+			'wp-element',
+			'wp-i18n',
+			'wp-url',
+		],
+	], true );
+
+	// Pass theme heading font family to the frontend.
+	$heading_font = '';
+	if ( function_exists( 'wp_get_global_settings' ) ) {
+		$settings = wp_get_global_settings();
+		$font_families = $settings['typography']['fontFamilies']['theme'] ?? [];
+		foreach ( $font_families as $font ) {
+			if ( ( $font['slug'] ?? '' ) === 'heading' ) {
+				$heading_font = $font['fontFamily'] ?? '';
+				break;
+			}
+		}
+	}
+	wp_localize_script( 'altis-accelerate-experiments-overview', 'AccelerateExperimentsData', [
+		'headingFontFamily' => $heading_font,
+	] );
+}
+
+/**
+ * Render the Experiments admin page.
+ */
+function render_admin_page() {
+	echo '<div class="wrap accelerate-ui"><div id="altis-experiments-overview" class="tailwind"></div></div>';
 }

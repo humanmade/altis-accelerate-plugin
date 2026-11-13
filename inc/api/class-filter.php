@@ -54,9 +54,21 @@ class Filter {
 	public $include = [];
 
 	/**
-	 * Timezone offset in minutes.
+	 * Audience query.
 	 *
-	 * @var int
+	 * @var array
 	 */
-	public $tz = 0;
+	public $audience;
+
+	/**
+	 * Dimension filters: whitelisted dimension key => string value.
+	 *
+	 * Each entry filters events where the dimension's ClickHouse field
+	 * expression equals the given value (event-level "filter to this value").
+	 * Keys are validated against the server-side whitelist
+	 * (see get_dimension_field_map()); unknown keys are ignored.
+	 *
+	 * @var array
+	 */
+	public $dimensions = [];
 }

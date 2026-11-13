@@ -1,5 +1,4 @@
-drop table if exists analytics;
-create table analytics (
+create table if not exists analytics (
   request_id UUID DEFAULT generateUUIDv4(),
   app_id String,
   blog_id String materialized accurateCastOrDefault(attributes['blogId'], 'String', '1'),
@@ -27,6 +26,13 @@ create table analytics (
     attributes['clientId']
   ),
   post_id String materialized attributes['postId'],
+  -- Post type of pageView events. Dedicated column so type-filtered queries
+  -- (Content Explorer type tabs) read a small column instead of decompressing
+  -- the whole attributes map per row (~30GB over a 30-day window on a large
+  -- site). For EXISTING installations run:
+  --   ALTER TABLE analytics ADD COLUMN IF NOT EXISTS post_type String MATERIALIZED attributes['postType'];
+  --   ALTER TABLE analytics MATERIALIZE COLUMN post_type;  -- backfill, runs in background
+  post_type String materialized attributes['postType'],
   block_id String materialized attributes['blockId'],
   block_author_id String materialized attributes['blockAuthorId'],
   block_client_id String materialized attributes['clientId'],
@@ -39,6 +45,10 @@ create table analytics (
   audience String materialized attributes['audience'],
   search String materialized attributes['search'],
   metrics Map(LowCardinality(String), Float64),
+  -- Engaged-time delta flushed on _session.stop events. Materialized so the
+  -- engaged queries read an 8-byte float instead of decompressing the whole
+  -- metrics map per row (~150 bytes).
+  engaged Float64 materialized metrics['engaged'],
   endpoint_id UUID,
   endpoint_creation_date Datetime64(3, 'UTC'),
   endpoint_effective_date Datetime64(3, 'UTC'),
