@@ -41,6 +41,7 @@ const dispatchHandler = ( dispatch, props ) => {
 	 */
 	const saveTest = async data => {
 		setState( { isSaving: true } );
+		let saved = false;
 
 		try {
 			await apiFetch( {
@@ -49,11 +50,13 @@ const dispatchHandler = ( dispatch, props ) => {
 				method: 'PATCH',
 				body: JSON.stringify( data ),
 			} );
+			saved = true;
 		} catch ( error ) {
 			setState( { error } );
 		}
 
 		setState( { isSaving: false } );
+		return saved;
 	};
 
 	/**
@@ -76,7 +79,10 @@ const dispatchHandler = ( dispatch, props ) => {
 
 		// Send the data to the API if we want to save it.
 		if ( save ) {
-			await saveTest( data );
+			const saved = await saveTest( data );
+			if ( ! saved ) {
+				return;
+			}
 		}
 
 		dispatch( 'core/editor' ).editPost( data );
@@ -93,7 +99,10 @@ const dispatchHandler = ( dispatch, props ) => {
 
 		// Send the data to the API if we want to save it.
 		if ( save ) {
-			await saveTest( data );
+			const saved = await saveTest( data );
+			if ( ! saved ) {
+				return;
+			}
 		}
 
 		dispatch( 'core/editor' ).editPost( data );

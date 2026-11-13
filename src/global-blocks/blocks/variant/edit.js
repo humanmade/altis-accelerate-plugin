@@ -1,20 +1,19 @@
-import React, { useEffect } from 'react';
-
-import { InnerBlocks } from '@wordpress/block-editor';
-import {
-	Button,
-} from '@wordpress/components';
+import { useBlockProps, useInnerBlocksProps } from '@wordpress/block-editor';
 import { createBlock, cloneBlock } from '@wordpress/blocks';
+import {
+	Placeholder,
+} from '@wordpress/components';
 import { compose } from '@wordpress/compose';
 import { withSelect, withDispatch } from '@wordpress/data';
+import { useEffect } from '@wordpress/element';
 import { __ } from '@wordpress/i18n';
 
-import { CloneVariantIcon } from '../../utils/icons';
+import { AccelerateBlockIcon } from '../../utils/icons';
+
+import { mapSelectToProps } from './map-select-to-props';
 
 // TODO re-add variant validation.
 // import VariantValidation from './components/Validation';
-
-const { AudiencePicker } = window.Altis.Analytics.components;
 
 /**
  * Personalized content variant edit mode component.
@@ -25,114 +24,71 @@ const { AudiencePicker } = window.Altis.Analytics.components;
 const Edit = ( {
 	hasChildBlocks,
 	isChildSelected,
+	isGlobalBlockPost,
+	isPreviewMode,
 	isSelected,
 	isVisible,
-	parentPost,
 	selectedVariant,
-	variants,
-	onAddVariant,
-	onCloneVariant,
+	selectedVariantBlockIndex,
+	variantIndex,
+	variantIndexes,
 	onSelect,
 	onSelectVariant,
 } ) => {
 	// Select the block parent if a variant is directly selected.
 	useEffect( () => {
-		if ( isSelected ) {
+		if ( ! isPreviewMode && isSelected ) {
 			onSelect();
 		}
-	}, [ isSelected, onSelect ] );
+	}, [ isPreviewMode, isSelected, onSelect ] );
 
 	// Ensure a variant is always visible.
 	useEffect( () => {
-		if ( selectedVariant >= variants.length ) {
-			onSelectVariant( 0 );
+		if ( isPreviewMode ) {
+			return;
 		}
-	}, [ selectedVariant, variants.length, onSelectVariant ] );
+		if ( variantIndexes.indexOf( selectedVariantBlockIndex ) < 0 || selectedVariantBlockIndex < 0 ) {
+			onSelectVariant( variantIndexes[0] || 0 );
+		}
+	}, [ isPreviewMode, selectedVariantBlockIndex, variantIndexes, onSelectVariant ] );
+
+	// If a child block is selected in some other way e.g. the outline view, show parent variant.
+	useEffect( () => {
+		if ( ! isPreviewMode && ! isVisible && isChildSelected && selectedVariantBlockIndex !== variantIndex ) {
+			onSelectVariant( variantIndex );
+		}
+	}, [ isPreviewMode, isChildSelected, isVisible, variantIndex, selectedVariantBlockIndex, onSelectVariant ] );
 
 	const props = {};
-	if ( ! hasChildBlocks || isChildSelected ) {
-		/**
-		 * If we don't have any child blocks, show standard block appender paragraph.
-		 *
-		 * @returns {InnerBlocks.DefaultBlockAppender} Block appender component.
-		 */
-		props.renderAppender = () => <InnerBlocks.DefaultBlockAppender />;
-	}
+
+	const blockProps = useBlockProps( {
+		className: 'accelerate-block-variant',
+	} );
+
+	const { children, ...innerBlocksProps } = useInnerBlocksProps( {
+		...blockProps,
+		...props,
+	} );
 
 	return (
-		<div key="blocks" className="altis-gb-variant" style={ { display: isVisible ? 'block' : 'none' } }>
-			<InnerBlocks { ...props } />
-			<div key="options" className="wp-block altis-gb-variant-options">
-				{ parentPost?.blockType === 'personalization' && (
-					<>
-						<AudiencePicker
-							audience={ null }
-							buttonLabel={ __( 'Clone variant', 'altis' ) }
-							icon={ CloneVariantIcon }
-							onSelect={ audience => onCloneVariant( { audience } ) }
-						/>
-						<AudiencePicker
-							audience={ null }
-							buttonLabel={ __( 'Add blank audience', 'altis' ) }
-							onSelect={ audience => onAddVariant( { audience } ) }
-						/>
-					</>
-				) }
-				{ parentPost?.blockType !== 'personalization' && (
-					<>
-						<Button
-							icon={ CloneVariantIcon }
-							isSecondary
-							onClick={ onCloneVariant }
-						>
-							{ __( 'Clone variant', 'altis' ) }
-						</Button>
-						<Button
-							icon="plus-alt"
-							isSecondary
-							onClick={ onAddVariant }
-						>
-							{ __( 'Add blank variant', 'altis' ) }
-						</Button>
-					</>
-				) }
-			</div>
+		// marginTop: 0 fixes gap issue when hidden variants affect block-gap (#456)
+		<div { ...innerBlocksProps } style={ {
+			display: isVisible ? 'block' : 'none',
+			marginTop: 0,
+		} }>
+			{ ! isGlobalBlockPost && ! hasChildBlocks && (
+				<Placeholder
+					icon={ AccelerateBlockIcon }
+					label={ __( 'Empty variant', 'altis' ) }
+				/>
+			) }
+			{ children }
 		</div>
 	);
 };
 
 export default compose(
-	withSelect( ( select, ownProps ) => {
-		const { clientId } = ownProps;
-		const { getBlockOrder, getBlocks, getSelectedBlock, getBlock, getBlockRootClientId, getBlockIndex } = select( 'core/block-editor' );
-		const { getEditedEntityRecord } = select( 'core' );
-		const { getCurrentPost } = select( 'core/editor' );
-		const post = getCurrentPost();
-		const parentClientId = getBlockRootClientId( clientId );
-		const parentBlock = parentClientId ? getBlock( parentClientId ) : null;
-		const blockId = post && post.type === 'wp_block' ? post.id : parentBlock.attributes.ref;
-		const variants = getBlocks( parentClientId );
-		const index = getBlockIndex( clientId );
-		const parentPost = getEditedEntityRecord( 'postType', 'wp_block', blockId );
-		const selectedVariant = select( 'core/preferences' ).get( 'altis/global-blocks', `${ blockId }:variant` ) || 0;
-
-		let block = getSelectedBlock();
-		while ( block && block.name !== 'altis/variant' ) {
-			block = getBlock( getBlockRootClientId( block.clientId ) );
-		}
-
-		return {
-			blocks: getBlocks( clientId ),
-			hasChildBlocks: getBlockOrder( clientId ).length > 0,
-			index,
-			isChildSelected: block && block.name === 'altis/variant' && block.clientId === clientId,
-			isVisible: selectedVariant === index,
-			parentClientId,
-			parentPost,
-			selectedVariant,
-			variants,
-		};
-	} ),
+	withSelect( mapSelectToProps ),
 	withDispatch( ( dispatch, ownProps, registry ) => {
 		const { clientId, variants, parentPost } = ownProps;
 		const { getBlockRootClientId, getBlock, getBlockIndex } = registry.select( 'core/block-editor' );
