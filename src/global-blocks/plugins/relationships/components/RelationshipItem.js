@@ -1,5 +1,3 @@
-import PropTypes from 'prop-types';
-
 import { PanelRow } from '@wordpress/components';
 import { __, sprintf } from '@wordpress/i18n';
 
@@ -21,12 +19,12 @@ const RelationshipItem = ( { id, status, title } ) => {
 	);
 };
 
-RelationshipItem.propTypes = {
-	id: PropTypes.number.isRequired,
-	status: PropTypes.string.isRequired,
-	title: PropTypes.shape( {
-		rendered: PropTypes.string.isRequired,
-	} ),
-};
+// RelationshipItem.propTypes = {
+// 	id: PropTypes.number.isRequired,
+// 	status: PropTypes.string.isRequired,
+// 	title: PropTypes.shape( {
+// 		rendered: PropTypes.string.isRequired,
+// 	} ),
+// };
 
 export default RelationshipItem;

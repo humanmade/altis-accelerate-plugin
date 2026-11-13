@@ -10,7 +10,7 @@
 	}
 
 	&__tabs {
-		background-color: $c-grey-50;
+		background-color: $acc-gray-50;
 		margin: 0.5rem;
 		line-height: 1 !important;
 		font-size: 0.75rem !important;
@@ -27,12 +27,12 @@
 			Cantarell,
 			"Helvetica Neue",
 			sans-serif !important;
-		border-bottom: 1px solid $c-space-300;
+		border-bottom: 1px solid $acc-slate-300;
 	}
 
 	&__tab {
 		border: 0 !important;
-		background: $c-altis-400 !important;
+		background: $acc-brand !important;
 		color: #fff !important;
 		padding: 0.5rem 0.5rem !important;
 		font-size: 0.75rem !important;
@@ -53,7 +53,7 @@
 		&.active,
 		&:hover,
 		&:focus {
-			background: $c-space-300 !important;
+			background: $acc-slate-300 !important;
 		}
 	}
 }
