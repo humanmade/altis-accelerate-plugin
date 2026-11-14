@@ -1,9 +1,14 @@
-import { __ } from '@wordpress/i18n';
-import { useState } from '@wordpress/element';
-import BlockSelectorList from './BlockSelectorList';
-import Search from '../../components/Search';
-import { Post } from '../../utils/admin';
+import { Search } from 'lucide-react';
+
 import { useSelect } from '@wordpress/data';
+import { useState } from '@wordpress/element';
+import { __ } from '@wordpress/i18n';
+
+import { Post } from '../../utils/admin';
+
+import BlockSelectorList from './BlockSelectorList';
+
+import { Input } from '@/components/ui/input';
 
 type Props = {
 	value: number[],
@@ -23,13 +28,10 @@ export default function BlockSelector( props: Props ) {
 	const blocks = useSelect<Post[]>( select => {
 		const args: {
 			search?: string,
-			include?: number[],
 		} = {};
 
 		if ( search.length > 0 ) {
 			args.search = search;
-		} else {
-			args.include = blockIds;
 		}
 
 		return select( 'accelerate' ).getPosts( {
@@ -39,14 +41,17 @@ export default function BlockSelector( props: Props ) {
 	}, [ search ] );
 
 	return (
-		<div>
-			<div style={ { marginBottom: '20px' } }>
-				<Search
-					label={ __( 'Search blocks', 'altis' ) }
-					placeholder={ placeholder }
-					value={ search }
-					onChange={ e => setSearch( e.target.value ) }
-				/>
+		<div className="accelerate__block-selector">
+			<div className="tailwind mb-5">
+				<div className="relative">
+					<Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+					<Input
+						className="pl-9"
+						placeholder={ placeholder }
+						value={ search }
+						onChange={ e => setSearch( e.target.value ) }
+					/>
+				</div>
 			</div>
 
 			<BlockSelectorList

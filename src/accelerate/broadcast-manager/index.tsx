@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
+
 import { __ } from '@wordpress/i18n';
 
-import List from '../components/List';
-import { InitialData, Duration, Post } from '../../utils/admin';
-import ManageModal from './modals/Manage';
 import { usePersistentState } from '../../data/hooks';
+import { InitialData, Duration, Post } from '../../utils/admin';
+import List from '../components/List';
+
+import ManageModal from './modals/Manage';
 
 interface Props {
 	postTypes: InitialData['postTypes'],
@@ -13,19 +15,23 @@ interface Props {
 }
 
 export default function Broadcasts( props: Props ) {
-	const [ period, setPeriod ] = usePersistentState<Duration>( "Broadcast Manager-period", 'P7D' );
-	const postTypes = props.postTypes.filter( type => type.name = 'broadcast' );
+	const [ period, setPeriod ] = usePersistentState<Duration>( 'Broadcast Manager-period', 'P7D' );
+	const postTypes = props.postTypes.filter( type => type.name === 'broadcast' );
 	const [ broadcastId, setBroadcastId ] = useState<number | null>( props?.id || null );
 	const [ managingItem, setManagingItem ] = useState<Post | null | 'new'>( null );
 	const [ refresh, setRefresh ] = useState<number>( 0 );
 
 	const actions = {
-		[ __( 'Edit Broadcast', 'altis' ) ]: ( post: Post ) => {
+		[ __( 'Edit', 'altis' ) ]: ( post: Post ) => {
 			setManagingItem( post );
 		},
 	};
 
 	const filters = [ 'all', 'mine' ];
+
+	if ( ! postTypes[0] ) {
+		return null;
+	}
 
 	return (
 		<div className="Dashboard">
@@ -60,5 +66,5 @@ export default function Broadcasts( props: Props ) {
 				/>
 			) }
 		</div>
-	)
+	);
 }
